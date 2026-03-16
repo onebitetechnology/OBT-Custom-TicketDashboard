@@ -979,6 +979,15 @@
     font-size: 13px;
   }
 
+  .settings-select {
+    color-scheme: dark;
+  }
+
+  .settings-select option {
+    color: var(--text);
+    background: #0b1320;
+  }
+
   .settings-textarea {
     min-height: 52px;
     resize: vertical;
@@ -1080,6 +1089,45 @@
     font-family: var(--mono);
     min-height: 16px;
     margin-top: 10px;
+  }
+
+  .update-panel {
+    display: grid;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.04);
+  }
+
+  .update-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .update-copy {
+    font-size: 12px;
+    color: var(--text);
+    font-family: var(--mono);
+  }
+
+  .update-progress {
+    width: 100%;
+    height: 10px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .update-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #6ee7c8, #4fd1ff);
+    transition: width 180ms ease;
   }
 
   .page-dots {
@@ -1925,7 +1973,7 @@
           <option value="primary">Primary display</option>
           <option value="secondary">Secondary display</option>
         </select>
-        <span class="settings-help">Choose which monitor the desktop window and fullscreen mode should use.</span>
+        <span class="settings-help">Choose which monitor the desktop window and fullscreen mode should use. Connected displays are detected and listed here.</span>
       </label>
       <label class="settings-field">
         <span class="settings-label">Customer name display</span>
@@ -2107,8 +2155,22 @@
         <div class="settings-input" id="settings-app-version" aria-readonly="true">__APP_VERSION__</div>
         <span class="settings-help">Track this version when testing packaged builds or comparing changelog entries.</span>
       </label>
+      <div class="settings-field full">
+        <span class="settings-label">Update status</span>
+        <div class="update-panel">
+          <div class="update-row">
+            <div class="update-copy" id="update-status-copy">Update checks are idle.</div>
+            <button class="pill" id="settings-install-update" type="button" hidden>Install Update Now</button>
+          </div>
+          <div class="update-progress" id="update-progress" hidden>
+            <div class="update-progress-bar" id="update-progress-bar"></div>
+          </div>
+          <div class="settings-help" id="update-progress-detail">After an update is downloaded, closing the app installs it automatically.</div>
+        </div>
+      </div>
     </div>
     <div class="settings-actions">
+      <button class="pill" id="settings-feature-request" type="button">Feature Request</button>
       <button class="pill" id="settings-check-updates" type="button">Check for Updates</button>
       <button class="pill" id="settings-restart" type="button">Restart Server</button>
     </div>
@@ -2135,6 +2197,8 @@
     calendarWeekOffset: 0,
     settingsLoaded: false,
     logoDataUrl: '',
+    displays: [],
+    updateStatusTimer: null,
   };
 
   const DEFAULT_PAGE_SECONDS = 12;
@@ -2223,6 +2287,80 @@
 
   function selectedCheckboxDays(groupId) {
     return Array.from(document.querySelectorAll(`input[data-group="${groupId}"]:checked`)).map((input) => input.dataset.day);
+  }
+
+  function setDisplayTargetOptions(selectedValue = 'current') {
+    const select = qs('pref-display-target');
+    const staticOptions = [
+      { value: 'current', label: 'Current display' },
+      { value: 'primary', label: 'Primary display' },
+      { value: 'secondary', label: 'Secondary display' },
+    ];
+    const detectedOptions = (state.displays || []).map((display) => ({
+      value: `display:${display.id}`,
+      label: display.label,
+    }));
+    const options = [...staticOptions, ...detectedOptions];
+    select.innerHTML = options.map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`).join('');
+    select.value = options.some((option) => option.value === selectedValue) ? selectedValue : 'current';
+  }
+
+  function formatBytes(value) {
+    const bytes = Number(value || 0);
+    if (!bytes) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let size = bytes;
+    let unitIndex = 0;
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex += 1;
+    }
+    return `${size >= 10 ? Math.round(size) : size.toFixed(1)} ${units[unitIndex]}`;
+  }
+
+  function renderUpdateStatus(status = {}) {
+    qs('update-status-copy').textContent = status.message || 'Update checks are idle.';
+    const installBtn = qs('settings-install-update');
+    installBtn.hidden = !status.downloaded;
+    installBtn.disabled = !status.downloaded;
+
+    const progressWrap = qs('update-progress');
+    const progressBar = qs('update-progress-bar');
+    const detail = qs('update-progress-detail');
+    const progressPercent = Math.max(0, Math.min(100, Number(status.progressPercent || 0)));
+    const showProgress = progressPercent > 0 && !status.downloaded;
+    progressWrap.hidden = !showProgress;
+    progressBar.style.width = `${progressPercent}%`;
+
+    if (status.downloaded) {
+      detail.textContent = 'The update is downloaded. Close the app to install it automatically, or use Install Update Now.';
+    } else if (showProgress) {
+      const speed = status.bytesPerSecond ? `${formatBytes(status.bytesPerSecond)}/s` : 'Preparing...';
+      detail.textContent = `${formatBytes(status.transferredBytes)} of ${formatBytes(status.totalBytes)} downloaded at ${speed}.`;
+    } else {
+      detail.textContent = 'After an update is downloaded, closing the app installs it automatically.';
+    }
+  }
+
+  async function refreshUpdateStatus() {
+    if (!window.desktopApp?.getUpdateStatus) return;
+    try {
+      const status = await window.desktopApp.getUpdateStatus();
+      renderUpdateStatus(status || {});
+    } catch (_) {}
+  }
+
+  async function loadDetectedDisplays() {
+    if (!window.desktopApp?.listDisplays) {
+      setDisplayTargetOptions(currentPreferences().display?.displayTarget || 'current');
+      return;
+    }
+    try {
+      state.displays = await window.desktopApp.listDisplays();
+    } catch (_) {
+      state.displays = [];
+    }
+    setDisplayTargetOptions(currentPreferences().display?.displayTarget || 'current');
   }
 
   function enhanceSettingsSections() {
@@ -2427,7 +2565,7 @@
     setLogoPreview(prefs.brand?.logoDataUrl || '', prefs.brand?.logoDataUrl ? 'Stored logo' : '');
     qs('pref-fullscreen').checked = !!prefs.display?.fullscreen;
     qs('pref-orientation').value = prefs.display?.orientation || 'auto';
-    qs('pref-display-target').value = prefs.display?.displayTarget || 'current';
+    setDisplayTargetOptions(prefs.display?.displayTarget || 'current');
     qs('pref-customer-name-mode').value = prefs.display?.customerNameMode || 'first_name_only';
     qs('pref-show-assigned-tech').checked = prefs.display?.showAssignedTech !== false;
     qs('pref-included-weekdays').innerHTML = checkboxGroupMarkup('included-weekdays', prefs.schedule.includedWeekdays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']);
@@ -2966,12 +3104,41 @@
 
     try {
       const status = await window.desktopApp.checkForUpdates();
+      renderUpdateStatus(status || {});
       qs('settings-status').textContent = status?.message || 'Update check finished.';
     } catch (error) {
       qs('settings-status').textContent = error?.message || 'Update check failed.';
     } finally {
       btn.disabled = false;
     }
+  }
+
+  async function installUpdateNow() {
+    if (!window.desktopApp?.installUpdate) {
+      qs('settings-status').textContent = 'Install Update is only available in the desktop app.';
+      return;
+    }
+    try {
+      const status = await window.desktopApp.installUpdate();
+      renderUpdateStatus(status || {});
+      qs('settings-status').textContent = status?.message || 'Installing update...';
+    } catch (error) {
+      qs('settings-status').textContent = error?.message || 'Could not install update.';
+    }
+  }
+
+  async function openFeatureRequest() {
+    if (window.desktopApp?.openFeatureRequest) {
+      try {
+        await window.desktopApp.openFeatureRequest();
+        qs('settings-status').textContent = 'Opened your email app for a feature request.';
+        return;
+      } catch (error) {
+        qs('settings-status').textContent = error?.message || 'Could not open feature request email.';
+        return;
+      }
+    }
+    window.location.href = 'mailto:jeff@onebitetechnology.ca?subject=OBT%20Custom%20Ticket%20Dashboard%20Feature%20Request';
   }
 
   function openSettings() {
@@ -2981,10 +3148,18 @@
     loadApiConfig().catch(() => {
       qs('settings-status').textContent = 'Could not load API settings.';
     });
+    loadDetectedDisplays();
+    refreshUpdateStatus();
+    if (state.updateStatusTimer) clearInterval(state.updateStatusTimer);
+    state.updateStatusTimer = setInterval(refreshUpdateStatus, 1500);
   }
 
   function closeSettings() {
     qs('settings-drawer').classList.remove('open');
+    if (state.updateStatusTimer) {
+      clearInterval(state.updateStatusTimer);
+      state.updateStatusTimer = null;
+    }
   }
 
   function setupPaging() {
@@ -3039,6 +3214,8 @@
   qs('settings-close-bottom').addEventListener('click', closeSettings);
   qs('settings-open-browser').addEventListener('click', openInBrowser);
   qs('settings-check-updates').addEventListener('click', checkForUpdates);
+  qs('settings-install-update').addEventListener('click', installUpdateNow);
+  qs('settings-feature-request').addEventListener('click', openFeatureRequest);
   qs('settings-restart').addEventListener('click', restartServer);
   qs('settings-save').addEventListener('click', savePreferences);
   qs('api-toggle').addEventListener('click', () => {

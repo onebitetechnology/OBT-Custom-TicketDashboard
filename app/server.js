@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.2';
+const APP_VERSION = 'v2.1.3';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const RD_TICKET_COUNTER_BASE = 'https://obtadmin.repairdesk.co/web/api/v1';
 const PUBLIC_API_KEY = 'cWFuvNb-hrou-VBuP-LQTn-smGAkgu1c';
@@ -236,9 +236,7 @@ function normalizeUiPreferences(savedPrefs = {}) {
       orientation: ['auto', 'horizontal', 'vertical'].includes(String(savedPrefs?.display?.orientation || '').toLowerCase())
         ? String(savedPrefs.display.orientation).toLowerCase()
         : DEFAULT_UI_PREFERENCES.display.orientation,
-      displayTarget: ['current', 'primary', 'secondary'].includes(String(savedPrefs?.display?.displayTarget || '').toLowerCase())
-        ? String(savedPrefs.display.displayTarget).toLowerCase()
-        : DEFAULT_UI_PREFERENCES.display.displayTarget,
+      displayTarget: String(savedPrefs?.display?.displayTarget || DEFAULT_UI_PREFERENCES.display.displayTarget).trim() || DEFAULT_UI_PREFERENCES.display.displayTarget,
       customerNameMode: ['full_name', 'first_name_only', 'hide'].includes(String(savedPrefs?.display?.customerNameMode || '').toLowerCase())
         ? String(savedPrefs.display.customerNameMode).toLowerCase()
         : DEFAULT_UI_PREFERENCES.display.customerNameMode,

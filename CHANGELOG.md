@@ -2,6 +2,14 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.3
+
+- Added visible update download progress in settings, including percent, transfer size, and speed.
+- Added an `Install Update Now` action after an update finishes downloading.
+- Added connected monitor detection so the display target setting can list specific screens instead of only primary/secondary.
+- Improved settings dropdown styling so options remain readable on dark backgrounds.
+- Added a `Feature Request` button that opens an email to `jeff@onebitetechnology.ca`.
+
 ## v2.1.2
 
 - Stopped bundling `config.json` and cache files into packaged installs so new users start from a clean setup.
