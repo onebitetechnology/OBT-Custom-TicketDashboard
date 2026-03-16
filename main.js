@@ -17,6 +17,7 @@ let serverProcess = null;
 let serverPort = null;
 let updateCheckTimer = null;
 let updateStatus = {
+  supported: true,
   available: false,
   checking: false,
   downloaded: false,
@@ -26,8 +27,47 @@ let updateStatus = {
   totalBytes: 0,
   message: 'Update checks are idle.',
   version: null,
+  releaseNotes: '',
 };
 const WEEKLY_UPDATE_CHECK_MS = 7 * 24 * 60 * 60 * 1000;
+
+function getUnsupportedMacUpdateStatus() {
+  return {
+    supported: false,
+    available: false,
+    checking: false,
+    downloaded: false,
+    progressPercent: 0,
+    bytesPerSecond: 0,
+    transferredBytes: 0,
+    totalBytes: 0,
+    message: 'Automatic updates are disabled on macOS until signed and notarized builds are in place. Please install newer DMG releases manually.',
+    version: null,
+    releaseNotes: '',
+  };
+}
+
+function normalizeReleaseNotes(info) {
+  const raw = info?.releaseNotes;
+  if (Array.isArray(raw)) {
+    return raw
+      .map((entry) => {
+        if (typeof entry === 'string') return entry.trim();
+        const version = entry?.version ? `Version ${entry.version}` : '';
+        const note = String(entry?.note || '').trim();
+        return [version, note].filter(Boolean).join('\n');
+      })
+      .filter(Boolean)
+      .join('\n\n');
+  }
+  return String(raw || '').trim();
+}
+
+function areAutoUpdatesSupported() {
+  if (!autoUpdater || !app.isPackaged) return false;
+  if (process.platform === 'darwin') return false;
+  return true;
+}
 
 function getBundledAppDir() {
   return app.isPackaged
@@ -261,10 +301,17 @@ function stopBundledServer() {
 }
 
 function setupAutoUpdates() {
+  if (process.platform === 'darwin' && app.isPackaged) {
+    updateStatus = getUnsupportedMacUpdateStatus();
+    return;
+  }
+
   if (!autoUpdater || !app.isPackaged) {
     updateStatus = {
       ...updateStatus,
+      supported: false,
       message: autoUpdater ? 'Update checks are available in packaged builds.' : 'electron-updater is not installed yet.',
+      releaseNotes: '',
     };
     return;
   }
@@ -273,13 +320,13 @@ function setupAutoUpdates() {
   autoUpdater.autoInstallOnAppQuit = true;
 
   autoUpdater.on('checking-for-update', () => {
-    updateStatus = { available: false, checking: true, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: 'Checking for updates...', version: null };
+    updateStatus = { supported: true, available: false, checking: true, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: 'Checking for updates...', version: null, releaseNotes: '' };
   });
   autoUpdater.on('update-available', (info) => {
-    updateStatus = { available: true, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: 'Update available. Downloading...', version: info?.version || null };
+    updateStatus = { supported: true, available: true, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: 'Update available. Downloading...', version: info?.version || null, releaseNotes: normalizeReleaseNotes(info) };
   });
   autoUpdater.on('update-not-available', () => {
-    updateStatus = { available: false, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: 'App is up to date.', version: null };
+    updateStatus = { supported: true, available: false, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: 'App is up to date.', version: null, releaseNotes: '' };
   });
   autoUpdater.on('download-progress', (progress) => {
     updateStatus = {
@@ -295,20 +342,20 @@ function setupAutoUpdates() {
     };
   });
   autoUpdater.on('update-downloaded', (info) => {
-    updateStatus = { available: true, checking: false, downloaded: true, progressPercent: 100, bytesPerSecond: 0, transferredBytes: updateStatus.totalBytes || 0, totalBytes: updateStatus.totalBytes || 0, message: 'Update downloaded. Close the app to install it, or use Install Update Now.', version: info?.version || null };
+    updateStatus = { supported: true, available: true, checking: false, downloaded: true, progressPercent: 100, bytesPerSecond: 0, transferredBytes: updateStatus.totalBytes || 0, totalBytes: updateStatus.totalBytes || 0, message: 'Update downloaded. Close the app to install it, or use Install Update Now.', version: info?.version || null, releaseNotes: normalizeReleaseNotes(info) || updateStatus.releaseNotes || '' };
   });
   autoUpdater.on('error', (error) => {
-    updateStatus = { available: false, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: error?.message || 'Update check failed.', version: null };
+    updateStatus = { supported: true, available: false, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: error?.message || 'Update check failed.', version: null, releaseNotes: '' };
   });
 
   autoUpdater.checkForUpdatesAndNotify().catch((error) => {
-    updateStatus = { available: false, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: error?.message || 'Update check failed.', version: null };
+    updateStatus = { supported: true, available: false, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: error?.message || 'Update check failed.', version: null, releaseNotes: '' };
   });
 
   if (updateCheckTimer) clearInterval(updateCheckTimer);
   updateCheckTimer = setInterval(() => {
     autoUpdater.checkForUpdates().catch((error) => {
-      updateStatus = { available: false, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: error?.message || 'Scheduled update check failed.', version: null };
+      updateStatus = { supported: true, available: false, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: error?.message || 'Scheduled update check failed.', version: null, releaseNotes: '' };
     });
   }, WEEKLY_UPDATE_CHECK_MS);
 }
@@ -348,14 +395,23 @@ ipcMain.handle('app:open-feature-request', async () => {
 });
 ipcMain.handle('updates:get-status', () => updateStatus);
 ipcMain.handle('updates:check', async () => {
-  if (!autoUpdater || !app.isPackaged) {
+  if (!areAutoUpdatesSupported()) {
+    if (process.platform === 'darwin' && app.isPackaged) {
+      updateStatus = getUnsupportedMacUpdateStatus();
+    }
     return updateStatus;
   }
   await autoUpdater.checkForUpdates();
   return updateStatus;
 });
 ipcMain.handle('updates:install', async () => {
-  if (!autoUpdater || !app.isPackaged || !updateStatus.downloaded) {
+  if (!areAutoUpdatesSupported()) {
+    if (process.platform === 'darwin' && app.isPackaged) {
+      updateStatus = getUnsupportedMacUpdateStatus();
+    }
+    return updateStatus;
+  }
+  if (!updateStatus.downloaded) {
     return updateStatus;
   }
   setImmediate(() => autoUpdater.quitAndInstall());

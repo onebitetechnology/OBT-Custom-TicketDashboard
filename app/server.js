@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.4';
+const APP_VERSION = 'v2.1.9';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const RD_TICKET_COUNTER_BASE = 'https://obtadmin.repairdesk.co/web/api/v1';
 const PUBLIC_API_KEY = 'cWFuvNb-hrou-VBuP-LQTn-smGAkgu1c';
@@ -36,6 +36,8 @@ const DEFAULT_UI_PREFERENCES = {
     displayTarget: 'current',
     customerNameMode: 'first_name_only',
     showAssignedTech: true,
+    hideRefurbs: false,
+    assigneeFilter: [],
   },
   schedule: {
     includedWeekdays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
@@ -245,6 +247,10 @@ function normalizeUiPreferences(savedPrefs = {}) {
       showAssignedTech: savedPrefs?.display?.showAssignedTech !== undefined
         ? !!savedPrefs.display.showAssignedTech
         : DEFAULT_UI_PREFERENCES.display.showAssignedTech,
+      hideRefurbs: savedPrefs?.display?.hideRefurbs !== undefined
+        ? !!savedPrefs.display.hideRefurbs
+        : DEFAULT_UI_PREFERENCES.display.hideRefurbs,
+      assigneeFilter: normalizeStringArray(savedPrefs?.display?.assigneeFilter, DEFAULT_UI_PREFERENCES.display.assigneeFilter),
     },
     schedule: {
       includedWeekdays: normalizeStringArray(savedPrefs?.schedule?.includedWeekdays, DEFAULT_UI_PREFERENCES.schedule.includedWeekdays),
@@ -784,6 +790,12 @@ function buildCustomerDisplayName(ticket, preferences = DEFAULT_UI_PREFERENCES) 
   return buildDisplayFirstName(ticket);
 }
 
+function isInternalRefurbishmentTicket(ticket) {
+  const taskType = decodeHtml(ticket?.task_type || ticket?.taskType || '').trim();
+  if (/refurbishment/i.test(taskType)) return true;
+  return buildCustomerName(ticket) === 'Walk-in Customer';
+}
+
 function extractStatusColor(rawStatusLabel) {
   const label = String(rawStatusLabel || '');
   const match = label.match(/background:\s*(#[0-9a-fA-F]{3,8}|rgb\([^)]+\)|rgba\([^)]+\))/i);
@@ -857,6 +869,7 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
         repairCategory: String(ticketMetaByOrderId[orderId]?.repairCategory || '').trim(),
         serviceName: String(ticketMetaByOrderId[orderId]?.serviceName || '').trim(),
         hasPriorityFee: !!ticketMetaByOrderId[orderId]?.hasPriorityFee,
+        isRefurb: !!ticketMetaByOrderId[orderId]?.isRefurb,
         statusColor: statusColors[status] || '#64748b',
         devices: [],
         issues: [],
@@ -864,6 +877,10 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
         sortOrderId: Number(ticket?.orderIdToSort || ticket?.order_id || 0) || 0,
       };
       groupedByOrder.set(orderId, entry);
+    }
+
+    if (isInternalRefurbishmentTicket(ticket)) {
+      entry.isRefurb = true;
     }
 
     const device = decodeHtml(ticket?.device || '');
@@ -885,7 +902,19 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
   }
 
   const statusIndex = new Map(statusOrder.map((status, index) => [status, index]));
-  const allTickets = Array.from(groupedByOrder.values()).sort((a, b) => {
+  const availableAssignees = Array.from(new Set(
+    Array.from(groupedByOrder.values()).map((ticket) => String(ticket.assigneeName || '').trim() || 'Unassigned')
+  )).sort((a, b) => a.localeCompare(b));
+  const selectedAssignees = new Set(
+    normalizeStringArray(preferences.display.assigneeFilter, [])
+      .map((name) => String(name || '').trim())
+      .filter(Boolean)
+  );
+
+  const allTickets = Array.from(groupedByOrder.values())
+    .filter((ticket) => !(preferences.display.hideRefurbs && ticket.isRefurb))
+    .filter((ticket) => !selectedAssignees.size || selectedAssignees.has(String(ticket.assigneeName || '').trim() || 'Unassigned'))
+    .sort((a, b) => {
     const statusA = statusIndex.has(a.status) ? statusIndex.get(a.status) : Number.MAX_SAFE_INTEGER;
     const statusB = statusIndex.has(b.status) ? statusIndex.get(b.status) : Number.MAX_SAFE_INTEGER;
     if (statusA !== statusB) return statusA - statusB;
@@ -1159,6 +1188,7 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
     nextScheduledCalendar,
     uiPreferences: preferences,
     statusColors,
+    assignees: availableAssignees,
     totals: {
       tickets: allTickets.length,
       oldestRegularReadyDays: oldestRegularReadyTicket?.waitingDays ?? null,

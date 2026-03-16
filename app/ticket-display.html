@@ -58,7 +58,7 @@
     min-height: 100vh;
     padding: 24px;
     display: grid;
-    grid-template-rows: auto auto auto 1fr auto;
+    grid-template-rows: auto auto 1fr auto;
     gap: 16px;
     position: relative;
     z-index: 1;
@@ -189,8 +189,8 @@
   }
 
   .status-row {
+    display: none !important;
     padding: 14px;
-    display: flex;
     gap: 10px;
     flex-wrap: wrap;
     align-items: center;
@@ -444,10 +444,11 @@
   }
 
   .board-title {
-    font-size: 15px;
-    color: var(--soft);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
     text-transform: uppercase;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.1em;
   }
 
   .cards {
@@ -606,10 +607,10 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     border: 1px solid var(--line);
     border-radius: 14px;
-    padding: 8px 10px;
+    padding: 12px 14px;
     background: rgba(255,255,255,0.04);
   }
 
@@ -636,6 +637,13 @@
   .queue-column-head.tone-purple {
     border-color: rgba(168, 85, 247, 0.45);
     box-shadow: inset 0 0 0 1px rgba(168, 85, 247, 0.12);
+  }
+
+  .queue-column-head .pill {
+    font-size: 12px;
+    padding: 8px 10px;
+    color: var(--text);
+    background: rgba(255,255,255,0.08);
   }
 
   .queue-list {
@@ -1130,6 +1138,30 @@
     transition: width 180ms ease;
   }
 
+  .update-notes {
+    display: grid;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.03);
+  }
+
+  .update-notes-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--soft);
+  }
+
+  .update-notes-copy {
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--text);
+    white-space: pre-wrap;
+  }
+
   .page-dots {
     display: flex;
     gap: 8px;
@@ -1251,7 +1283,7 @@
     .app {
       padding: 10px;
       gap: 8px;
-      grid-template-rows: auto auto auto 1fr auto;
+      grid-template-rows: auto auto 1fr auto;
     }
 
     .topbar,
@@ -1386,18 +1418,18 @@
     .queue-column-head {
       gap: 6px;
       align-items: center;
-      padding: 6px 8px;
+      padding: 8px 10px;
       border-radius: 10px;
     }
 
     .board-title {
-      font-size: 11px;
-      letter-spacing: 0.09em;
+      font-size: 13px;
+      letter-spacing: 0.08em;
     }
 
     .queue-column-head .pill {
-      font-size: 9px;
-      padding: 4px 7px;
+      font-size: 10px;
+      padding: 5px 8px;
     }
 
     .queue-list {
@@ -1633,20 +1665,20 @@
   body.force-horizontal .queue-column-head {
     gap: 6px;
     align-items: center;
-    padding: 6px 8px;
+    padding: 8px 10px;
     border-radius: 10px;
   }
 
   body.force-vertical .board-title,
   body.force-horizontal .board-title {
-    font-size: 11px;
-    letter-spacing: 0.09em;
+    font-size: 13px;
+    letter-spacing: 0.08em;
   }
 
   body.force-vertical .queue-column-head .pill,
   body.force-horizontal .queue-column-head .pill {
-    font-size: 9px;
-    padding: 4px 7px;
+    font-size: 10px;
+    padding: 5px 8px;
   }
 
   body.force-vertical .queue-list,
@@ -1998,6 +2030,21 @@
           </span>
         </span>
       </label>
+      <label class="settings-field full">
+        <span class="settings-label">Internal ticket filtering</span>
+        <span class="settings-check">
+          <input class="settings-checkbox" id="pref-hide-refurbs" type="checkbox" />
+          <span class="settings-check-copy">
+            <span class="settings-check-title">Hide Refurbs</span>
+            <span class="settings-help">Hide internal refurbishment tickets in the ticket display. This targets Refurbishment task types and walk-in customer refurb jobs.</span>
+          </span>
+        </span>
+      </label>
+      <label class="settings-field full">
+        <span class="settings-label">Assigned tech filter</span>
+        <div class="weekday-grid" id="pref-assignee-filter"></div>
+        <span class="settings-help">Select one or more techs to show only their tickets. Leave everything unchecked to show all techs.</span>
+      </label>
       <div class="settings-field full">
         <span class="settings-label">Pulse timing</span>
         <span class="settings-help">How long a ticket can sit before its card starts pulsing red. Each rule supports both days and hours.</span>
@@ -2170,6 +2217,10 @@
             <div class="update-progress-bar" id="update-progress-bar"></div>
           </div>
           <div class="settings-help" id="update-progress-detail">After an update is downloaded, closing the app installs it automatically.</div>
+          <div class="update-notes" id="update-notes" hidden>
+            <div class="update-notes-label" id="update-notes-label">What’s New</div>
+            <div class="update-notes-copy" id="update-notes-copy"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -2256,6 +2307,8 @@
         displayTarget: 'current',
         customerNameMode: 'first_name_only',
         showAssignedTech: true,
+        hideRefurbs: false,
+        assigneeFilter: [],
       },
       columns: {
         readyToStart: { label: 'Ready to start', visible: true, statuses: [] },
@@ -2294,6 +2347,27 @@
     return Array.from(document.querySelectorAll(`input[data-group="${groupId}"]:checked`)).map((input) => input.dataset.day);
   }
 
+  function assigneeFilterMarkup(selectedValues) {
+    const selected = new Set(selectedValues || []);
+    const assignees = Array.isArray(state.data?.assignees) && state.data.assignees.length
+      ? state.data.assignees
+      : ['Unassigned'];
+    return assignees.map((name) => `
+      <label class="settings-field">
+        <span class="settings-check">
+          <input class="settings-checkbox" data-group="assignee-filter" data-assignee="${escapeHtml(name)}" type="checkbox" ${selected.has(name) ? 'checked' : ''} />
+          <span class="settings-check-copy">
+            <span class="settings-check-title">${escapeHtml(name)}</span>
+          </span>
+        </span>
+      </label>
+    `).join('');
+  }
+
+  function selectedAssignees() {
+    return Array.from(document.querySelectorAll('input[data-group="assignee-filter"]:checked')).map((input) => input.dataset.assignee);
+  }
+
   function setDisplayTargetOptions(selectedValue = 'current') {
     const select = qs('pref-display-target');
     const staticOptions = [
@@ -2326,18 +2400,27 @@
   function renderUpdateStatus(status = {}) {
     qs('update-status-copy').textContent = status.message || 'Update checks are idle.';
     const installBtn = qs('settings-install-update');
-    installBtn.hidden = !status.downloaded;
-    installBtn.disabled = !status.downloaded;
+    installBtn.hidden = !status.downloaded || status.supported === false;
+    installBtn.disabled = !status.downloaded || status.supported === false;
 
     const progressWrap = qs('update-progress');
     const progressBar = qs('update-progress-bar');
     const detail = qs('update-progress-detail');
+    const notesWrap = qs('update-notes');
+    const notesLabel = qs('update-notes-label');
+    const notesCopy = qs('update-notes-copy');
     const progressPercent = Math.max(0, Math.min(100, Number(status.progressPercent || 0)));
     const showProgress = progressPercent > 0 && !status.downloaded;
     progressWrap.hidden = !showProgress;
     progressBar.style.width = `${progressPercent}%`;
+    const notes = String(status.releaseNotes || '').trim();
+    notesWrap.hidden = !notes;
+    notesCopy.textContent = notes;
+    notesLabel.textContent = status.version ? `What’s New in ${status.version}` : 'What’s New';
 
-    if (status.downloaded) {
+    if (status.supported === false) {
+      detail.textContent = 'Manual installs are required on macOS until signed and notarized builds are set up.';
+    } else if (status.downloaded) {
       detail.textContent = 'The update is downloaded. Close the app to install it automatically, or use Install Update Now.';
     } else if (showProgress) {
       const speed = status.bytesPerSecond ? `${formatBytes(status.bytesPerSecond)}/s` : 'Preparing...';
@@ -2594,6 +2677,8 @@
     setDisplayTargetOptions(prefs.display?.displayTarget || 'current');
     qs('pref-customer-name-mode').value = prefs.display?.customerNameMode || 'first_name_only';
     qs('pref-show-assigned-tech').checked = prefs.display?.showAssignedTech !== false;
+    qs('pref-hide-refurbs').checked = !!prefs.display?.hideRefurbs;
+    qs('pref-assignee-filter').innerHTML = assigneeFilterMarkup(prefs.display?.assigneeFilter || []);
     qs('pref-included-weekdays').innerHTML = checkboxGroupMarkup('included-weekdays', prefs.schedule.includedWeekdays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']);
     qs('pref-show-calendar').checked = prefs.schedule.showCalendar !== false;
     qs('pref-rotate-weeks').checked = !!prefs.schedule.rotateWeeks;
@@ -2645,6 +2730,8 @@
         displayTarget: qs('pref-display-target').value || 'current',
         customerNameMode: qs('pref-customer-name-mode').value || 'first_name_only',
         showAssignedTech: qs('pref-show-assigned-tech').checked,
+        hideRefurbs: qs('pref-hide-refurbs').checked,
+        assigneeFilter: selectedAssignees(),
       },
       schedule: {
         includedWeekdays: selectedCheckboxDays('included-weekdays'),
@@ -2759,15 +2846,8 @@
   }
 
   function renderStatuses(data) {
-    const labels = visibleColumnLabels(data.uiPreferences);
-    const active = data.statusCounts.filter((item) => item.count > 0 && labels.has(item.status));
-    qs('status-row').innerHTML = active.map((item) => `
-      <div class="status-pill ${cardTone(item.status)}">
-        <strong>${escapeHtml(item.count)}</strong>
-        <span>${escapeHtml(item.status)}</span>
-      </div>
-    `).join('');
-    qs('status-row').style.display = active.length ? 'flex' : 'none';
+    qs('status-row').innerHTML = '';
+    qs('status-row').style.display = 'none';
   }
 
   function currentCalendarDays(data) {
