@@ -1,0 +1,74 @@
+{
+  "name": "onebite-ticket-display-desktop",
+  "version": "2.1.0",
+  "description": "Installable desktop wrapper for the One Bite ticket display",
+  "main": "main.js",
+  "author": "One Bite Technology",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac dmg zip",
+    "dist:mac:local": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip",
+    "dist:win": "electron-builder --win nsis",
+    "pack": "electron-builder --dir"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "electron": "^35.1.4",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "ca.onebitetechnology.ticketdisplay",
+    "productName": "One Bite Ticket Display",
+    "icon": "build/icon.png",
+    "afterPack": "build/after-pack.js",
+    "files": [
+      "main.js",
+      "preload.js",
+      "README.md"
+    ],
+    "extraResources": [
+      {
+        "from": "app",
+        "to": "app",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "directories": {
+      "buildResources": "build"
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "OneBiteTicketDisplay-${version}-Setup.${ext}"
+    },
+    "mac": {
+      "icon": "build/icon.icns",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "artifactName": "OneBiteTicketDisplay-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "onebitetechnology",
+        "repo": "OBT-Custom-TicketDashboard"
+      }
+    ]
+  }
+}

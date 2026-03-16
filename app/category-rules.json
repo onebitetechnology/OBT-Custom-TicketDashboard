@@ -1,0 +1,79 @@
+{
+  "exactCategoryBucket": {
+    "iPhone Cases & Protection": "retail",
+    "iPad Cases & Protection": "retail",
+    "MacBook & Laptop Cases & Protection": "retail",
+    "iPhone - Camera Lens Protection": "retail",
+    "Storage": "retail",
+    "Software": "retail",
+    "Non-Inventory": "retail",
+    "Monitors": "devices",
+    "iPhone": "devices",
+    "iPad": "devices",
+    "iMac": "devices",
+    "Mac Mini": "devices",
+    "MacBook Air": "devices",
+    "MacBook Pro": "devices",
+    "Windows Laptops": "devices",
+    "Windows Desktops": "devices"
+  },
+  "displayTopLevelByCategory": {
+    "Monitors": "Devices",
+    "iPhone": "Devices",
+    "iPad": "Devices",
+    "iMac": "Devices",
+    "Mac Mini": "Devices",
+    "MacBook Air": "Devices",
+    "MacBook Pro": "Devices",
+    "Windows Laptops": "Devices",
+    "Windows Desktops": "Devices",
+    "iPhone Cases & Protection": "Accessories",
+    "iPad Cases & Protection": "Accessories",
+    "MacBook & Laptop Cases & Protection": "Accessories",
+    "iPhone - Camera Lens Protection": "Accessories",
+    "Storage": "Accessories",
+    "Software": "Non-Inventory"
+  },
+  "deviceTopLevels": [
+    "Devices"
+  ],
+  "retailTopLevels": [
+    "Accessories",
+    "Non-Inventory"
+  ],
+  "retailCategoryPrefixes": [
+    "iPhone -",
+    "iPad -",
+    "Storage",
+    "Software",
+    "Cases & Protection",
+    "Chargers & Cables",
+    "Gifts & Home",
+    "Headphones & Audio",
+    "iPhone Mounts & Other",
+    "Keyboards & Mice",
+    "Mobile Plans & SIM Cards",
+    "Monitor & TV Mounts",
+    "Networking Hardware",
+    "Power Bars & Surge Protectors",
+    "Screen Protectors & Cleaning",
+    "Smart Home & Security",
+    "Webcams"
+  ],
+  "deviceCategoryPrefixes": [
+    "iMac",
+    "iPad",
+    "iPhone",
+    "Mac Mini",
+    "MacBook Air",
+    "MacBook Pro",
+    "Monitors",
+    "Windows Desktops",
+    "Windows Laptops",
+    "Apple TV",
+    "Apple Watch",
+    "Chromebooks",
+    "Clearance",
+    "Consignment"
+  ]
+}
