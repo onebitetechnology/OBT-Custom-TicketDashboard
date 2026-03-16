@@ -51,11 +51,8 @@ function seedDataFiles() {
   const sourceDir = getBundledAppDir();
   const targetDir = getDataDir();
   const fileNames = [
-    'config.json',
     'category-rules.json',
     'consignment-rules.json',
-    'invoice-detail-cache.json',
-    'ticket-meta-cache.json',
   ];
 
   for (const fileName of fileNames) {
