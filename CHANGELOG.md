@@ -2,6 +2,31 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.9
+
+- Added an assigned-tech filter in `Ticket Display` so users can show tickets for selected techs only.
+- The assigned-tech filter is populated from the live queue and includes `Unassigned`.
+
+## v2.1.8
+
+- Removed the duplicate queue totals strip above the ticket columns.
+- Made the built-in queue column headers larger and more prominent so they carry the count and label on their own.
+
+## v2.1.7
+
+- Added release notes to the in-app update panel so users can see what changed before installing an update.
+- Update status now shows the changelog text pulled from the published GitHub release when it is available.
+
+## v2.1.6
+
+- Added a `Hide Refurbs` setting to hide internal refurbishment tickets from the board.
+- Refurbishment filtering now targets both RepairDesk `Refurbishment` task types and walk-in customer refurb tickets.
+
+## v2.1.5
+
+- Disabled in-app auto-update installs on macOS until signed and notarized builds are available, so Mac users get a clear manual-update message instead of a broken install attempt.
+- Updated the settings update panel to hide install actions when automatic updates are unsupported on the current platform.
+
 ## v2.1.4
 
 - Reorganized the settings drawer so `Ticket Display` now groups the assigned-tech toggle, customer name mode, and pulse timing controls together.
