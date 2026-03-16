@@ -70,6 +70,7 @@ function loadWindowPreferences() {
   const defaults = {
     fullscreen: false,
     orientation: 'auto',
+    displayTarget: 'current',
   };
 
   try {
@@ -80,17 +81,36 @@ function loadWindowPreferences() {
     const orientation = ['auto', 'horizontal', 'vertical'].includes(String(saved.orientation || '').toLowerCase())
       ? String(saved.orientation).toLowerCase()
       : defaults.orientation;
+    const displayTarget = ['current', 'primary', 'secondary'].includes(String(saved.displayTarget || '').toLowerCase())
+      ? String(saved.displayTarget).toLowerCase()
+      : defaults.displayTarget;
     return {
       fullscreen: !!saved.fullscreen,
       orientation,
+      displayTarget,
     };
   } catch (_) {
     return defaults;
   }
 }
 
-function getWindowBoundsForPreferences(preferences = {}) {
-  const display = screen.getPrimaryDisplay();
+function getTargetDisplay(preferences = {}, currentBounds = null) {
+  const target = String(preferences.displayTarget || 'current').toLowerCase();
+  const displays = screen.getAllDisplays();
+  if (!displays.length) return screen.getPrimaryDisplay();
+  if (target === 'primary') return screen.getPrimaryDisplay();
+  if (target === 'secondary') {
+    const primaryId = screen.getPrimaryDisplay().id;
+    return displays.find((display) => display.id !== primaryId) || screen.getPrimaryDisplay();
+  }
+  if (currentBounds) {
+    return screen.getDisplayMatching(currentBounds);
+  }
+  return screen.getPrimaryDisplay();
+}
+
+function getWindowBoundsForPreferences(preferences = {}, currentBounds = null) {
+  const display = getTargetDisplay(preferences, currentBounds);
   const area = display.workArea;
   const orientation = preferences.orientation || 'auto';
   const isVertical = orientation === 'vertical';
@@ -114,12 +134,15 @@ function applyWindowPreferences(preferences = {}) {
     orientation: ['auto', 'horizontal', 'vertical'].includes(String(preferences.orientation || '').toLowerCase())
       ? String(preferences.orientation).toLowerCase()
       : 'auto',
+    displayTarget: ['current', 'primary', 'secondary'].includes(String(preferences.displayTarget || '').toLowerCase())
+      ? String(preferences.displayTarget).toLowerCase()
+      : 'current',
   };
 
-  const bounds = getWindowBoundsForPreferences(nextPreferences);
-  if (!mainWindow.isFullScreen()) {
-    mainWindow.setBounds(bounds);
-  }
+  const currentBounds = mainWindow.getBounds();
+  const bounds = getWindowBoundsForPreferences(nextPreferences, currentBounds);
+  mainWindow.setFullScreen(false);
+  mainWindow.setBounds(bounds);
   mainWindow.setFullScreen(nextPreferences.fullscreen);
   return nextPreferences;
 }

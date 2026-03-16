@@ -1918,6 +1918,24 @@
         </select>
         <span class="settings-help">Force the board to use a wide or portrait layout regardless of the screen shape.</span>
       </label>
+      <label class="settings-field">
+        <span class="settings-label">Display target</span>
+        <select class="settings-input settings-select" id="pref-display-target">
+          <option value="current">Current display</option>
+          <option value="primary">Primary display</option>
+          <option value="secondary">Secondary display</option>
+        </select>
+        <span class="settings-help">Choose which monitor the desktop window and fullscreen mode should use.</span>
+      </label>
+      <label class="settings-field">
+        <span class="settings-label">Customer name display</span>
+        <select class="settings-input settings-select" id="pref-customer-name-mode">
+          <option value="first_name_only">First name only</option>
+          <option value="hide">Hide name</option>
+          <option value="full_name">Full name</option>
+        </select>
+        <span class="settings-help">Choose how customer names appear in ticket bubbles.</span>
+      </label>
       <label class="settings-field full">
         <span class="settings-label">Ticket bubble content</span>
         <span class="settings-check">
@@ -2166,6 +2184,8 @@
       display: {
         fullscreen: false,
         orientation: 'auto',
+        displayTarget: 'current',
+        customerNameMode: 'first_name_only',
         showAssignedTech: true,
       },
       columns: {
@@ -2407,6 +2427,8 @@
     setLogoPreview(prefs.brand?.logoDataUrl || '', prefs.brand?.logoDataUrl ? 'Stored logo' : '');
     qs('pref-fullscreen').checked = !!prefs.display?.fullscreen;
     qs('pref-orientation').value = prefs.display?.orientation || 'auto';
+    qs('pref-display-target').value = prefs.display?.displayTarget || 'current';
+    qs('pref-customer-name-mode').value = prefs.display?.customerNameMode || 'first_name_only';
     qs('pref-show-assigned-tech').checked = prefs.display?.showAssignedTech !== false;
     qs('pref-included-weekdays').innerHTML = checkboxGroupMarkup('included-weekdays', prefs.schedule.includedWeekdays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']);
     qs('pref-show-calendar').checked = prefs.schedule.showCalendar !== false;
@@ -2455,6 +2477,8 @@
       display: {
         fullscreen: qs('pref-fullscreen').checked,
         orientation: qs('pref-orientation').value || 'auto',
+        displayTarget: qs('pref-display-target').value || 'current',
+        customerNameMode: qs('pref-customer-name-mode').value || 'first_name_only',
         showAssignedTech: qs('pref-show-assigned-tech').checked,
       },
       schedule: {
@@ -2849,7 +2873,7 @@
   async function savePreferences() {
     try {
       qs('settings-status').textContent = 'Saving...';
-      const previousDisplay = currentPreferences().display || { fullscreen: false, orientation: 'auto' };
+      const previousDisplay = currentPreferences().display || { fullscreen: false, orientation: 'auto', displayTarget: 'current' };
       state.logoDataUrl = await readSelectedLogo();
       const nextPreferences = collectSettingsForm();
       await saveApiConfig();
@@ -2867,7 +2891,8 @@
       const nextDisplay = payload.preferences.display || nextPreferences.display || {};
       const displayChanged = !!window.desktopApp?.applyWindowPreferences && (
         !!nextDisplay.fullscreen !== !!previousDisplay.fullscreen ||
-        String(nextDisplay.orientation || 'auto') !== String(previousDisplay.orientation || 'auto')
+        String(nextDisplay.orientation || 'auto') !== String(previousDisplay.orientation || 'auto') ||
+        String(nextDisplay.displayTarget || 'current') !== String(previousDisplay.displayTarget || 'current')
       );
       if (displayChanged) {
         await window.desktopApp.applyWindowPreferences(payload.preferences.display || {});

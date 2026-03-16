@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.0';
+const APP_VERSION = 'v2.1.1';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const RD_TICKET_COUNTER_BASE = 'https://obtadmin.repairdesk.co/web/api/v1';
 const PUBLIC_API_KEY = 'cWFuvNb-hrou-VBuP-LQTn-smGAkgu1c';
@@ -32,6 +32,8 @@ const DEFAULT_UI_PREFERENCES = {
   display: {
     fullscreen: false,
     orientation: 'auto',
+    displayTarget: 'current',
+    customerNameMode: 'first_name_only',
     showAssignedTech: true,
   },
   schedule: {
@@ -234,6 +236,12 @@ function normalizeUiPreferences(savedPrefs = {}) {
       orientation: ['auto', 'horizontal', 'vertical'].includes(String(savedPrefs?.display?.orientation || '').toLowerCase())
         ? String(savedPrefs.display.orientation).toLowerCase()
         : DEFAULT_UI_PREFERENCES.display.orientation,
+      displayTarget: ['current', 'primary', 'secondary'].includes(String(savedPrefs?.display?.displayTarget || '').toLowerCase())
+        ? String(savedPrefs.display.displayTarget).toLowerCase()
+        : DEFAULT_UI_PREFERENCES.display.displayTarget,
+      customerNameMode: ['full_name', 'first_name_only', 'hide'].includes(String(savedPrefs?.display?.customerNameMode || '').toLowerCase())
+        ? String(savedPrefs.display.customerNameMode).toLowerCase()
+        : DEFAULT_UI_PREFERENCES.display.customerNameMode,
       showAssignedTech: savedPrefs?.display?.showAssignedTech !== undefined
         ? !!savedPrefs.display.showAssignedTech
         : DEFAULT_UI_PREFERENCES.display.showAssignedTech,
@@ -769,6 +777,13 @@ function buildDisplayFirstName(ticket) {
   return 'Walk-in Customer';
 }
 
+function buildCustomerDisplayName(ticket, preferences = DEFAULT_UI_PREFERENCES) {
+  const mode = String(preferences?.display?.customerNameMode || DEFAULT_UI_PREFERENCES.display.customerNameMode).toLowerCase();
+  if (mode === 'hide') return 'Customer';
+  if (mode === 'full_name') return buildCustomerName(ticket);
+  return buildDisplayFirstName(ticket);
+}
+
 function extractStatusColor(rawStatusLabel) {
   const label = String(rawStatusLabel || '');
   const match = label.match(/background:\s*(#[0-9a-fA-F]{3,8}|rgb\([^)]+\)|rgba\([^)]+\))/i);
@@ -832,7 +847,7 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
       entry = {
         orderId,
         status,
-        customerName: buildDisplayFirstName(ticket),
+        customerName: buildCustomerDisplayName(ticket, preferences),
         organization: '',
         assigneeName: decodeHtml(ticket?.assignee_name || '') || 'Unassigned',
         dueOn: ticket?.due_on || null,

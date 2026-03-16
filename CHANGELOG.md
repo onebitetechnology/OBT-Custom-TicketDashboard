@@ -2,6 +2,15 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.1
+
+- Added customer name display modes: full name, first name only, or hidden.
+- Added a desktop display target setting so the board can use the current, primary, or secondary monitor.
+- Fixed fullscreen behavior so applying window preferences no longer forces the board back to the primary display.
+- Fixed the RepairDesk API key migration so waiting ages and appointment enrichment keep working after the API settings cleanup.
+- Added the app version to the top of the settings panel and kept it in sync with the maintenance version display.
+- Cleaned legacy `bearerToken` and `xTenant` keys out of saved config files.
+
 ## v2.1.0
 
 - Added a desktop Electron wrapper around the ticket display so it can run as an installable app on macOS and Windows.
@@ -14,4 +23,3 @@ All notable changes to One Bite Ticket Display Desktop should be recorded in thi
 - Added a real RepairDesk API key setting in the UI for public API lookups.
 - Improved resilience when RepairDesk detail lookups fail so the board can still render from the ticket-counter feed.
 - Improved brand settings with live logo preview support.
-
