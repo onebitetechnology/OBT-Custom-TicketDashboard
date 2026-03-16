@@ -1,0 +1,3045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>One Bite Technology | Live Ticket Display</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #08111f;
+    --bg2: #0d1a2b;
+    --surface: rgba(11, 22, 38, 0.82);
+    --surface-strong: rgba(17, 30, 49, 0.96);
+    --line: rgba(180, 209, 255, 0.12);
+    --text: #ecf3ff;
+    --muted: #8aa1c2;
+    --soft: #bad0ee;
+    --accent: #6ee7c8;
+    --accent-2: #7cb8ff;
+    --danger: #ff8b8b;
+    --warn: #ffd27a;
+    --pink: #ff9bdd;
+    --purple: #c8a0ff;
+    --ok: #7cf0a8;
+    --shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+    --mono: "IBM Plex Mono", monospace;
+    --sans: "Space Grotesk", sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: var(--sans);
+    color: var(--text);
+    background:
+      radial-gradient(circle at top left, rgba(110, 231, 200, 0.18), transparent 28%),
+      radial-gradient(circle at top right, rgba(124, 184, 255, 0.16), transparent 24%),
+      linear-gradient(145deg, var(--bg), var(--bg2));
+    overflow: hidden;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,0.65), transparent 92%);
+    pointer-events: none;
+  }
+
+  .app {
+    min-height: 100vh;
+    padding: 24px;
+    display: grid;
+    grid-template-rows: auto auto auto 1fr auto;
+    gap: 16px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .topbar,
+  .summary,
+  .status-row,
+  .board,
+  .footer {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(18px);
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 18px 22px;
+  }
+
+  .brand,
+  .headline {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 0;
+  }
+
+  .brand-logo {
+    width: 54px;
+    height: 54px;
+    border-radius: 14px;
+    object-fit: contain;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    padding: 6px;
+    display: none;
+  }
+
+  .brand-logo.visible {
+    display: block;
+  }
+
+  .meta, .footer, .pill, .status-chip, .ticket-id, .card-foot, .empty-sub {
+    font-family: var(--mono);
+  }
+
+  .title {
+    font-size: clamp(28px, 3vw, 42px);
+    line-height: 1;
+    margin: 0;
+  }
+
+  .meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .pill {
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 999px;
+    padding: 8px 12px;
+    color: var(--soft);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .headline .pill {
+    font-size: 13px;
+    padding: 9px 13px;
+  }
+
+  #open-tickets-pill {
+    border-color: rgba(110, 231, 200, 0.32);
+    background: rgba(110, 231, 200, 0.08);
+    color: #d9fff3;
+  }
+
+  #oldest-regular-pill {
+    border-color: rgba(255, 210, 122, 0.34);
+    background: rgba(255, 210, 122, 0.09);
+    color: #ffe7b0;
+  }
+
+  #oldest-priority-pill {
+    border-color: rgba(255, 139, 139, 0.38);
+    background: rgba(255, 139, 139, 0.1);
+    color: #ffd1d1;
+  }
+
+  .summary {
+    display: none;
+  }
+
+  .stat {
+    background: var(--surface-strong);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 16px 18px;
+  }
+
+  .stat-label {
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 10px;
+  }
+
+  .stat-value {
+    font-size: clamp(28px, 3vw, 44px);
+    line-height: 1;
+  }
+
+  .stat-note {
+    color: var(--soft);
+    margin-top: 8px;
+    font-size: 13px;
+  }
+
+  .status-row {
+    padding: 14px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .schedule-strip {
+    background: #020508;
+    border: 1px solid rgba(110, 231, 200, 0.18);
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(18px);
+    padding: 14px;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+    opacity: 1;
+    transition: opacity 320ms ease;
+  }
+
+  .schedule-strip.fading {
+    opacity: 0.2;
+  }
+
+  .schedule-day {
+    background: rgba(7, 13, 10, 0.96);
+    border: 1px solid rgba(110, 231, 200, 0.14);
+    border-radius: 18px;
+    padding: 12px;
+    display: grid;
+    gap: 8px;
+    min-height: 150px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .schedule-day.blocked {
+    background:
+      repeating-linear-gradient(-45deg, rgba(255, 107, 107, 0.12) 0 12px, rgba(255, 107, 107, 0.02) 12px 24px),
+      rgba(24, 10, 10, 0.96);
+    border-color: rgba(255, 107, 107, 0.28);
+  }
+
+  .schedule-day.past-day {
+    background:
+      repeating-linear-gradient(-45deg, rgba(207, 216, 228, 0.12) 0 12px, rgba(207, 216, 228, 0.03) 12px 24px),
+      rgba(12, 17, 22, 0.86);
+    border-color: rgba(180, 190, 204, 0.22);
+    opacity: 0.84;
+  }
+
+  .schedule-day.past-day .schedule-label,
+  .schedule-day.past-day .schedule-name {
+    color: rgba(236, 243, 255, 0.72);
+  }
+
+  .schedule-day.past-day .schedule-count,
+  .schedule-day.past-day .schedule-device,
+  .schedule-day.past-day .schedule-empty {
+    color: rgba(138, 161, 194, 0.82);
+  }
+
+  .schedule-day.blocked::after {
+    content: "OFF LIMITS";
+    position: absolute;
+    right: -28px;
+    top: 10px;
+    transform: rotate(24deg);
+    padding: 4px 32px;
+    border: 1px solid rgba(255, 139, 139, 0.55);
+    background: rgba(127, 29, 29, 0.88);
+    color: #fff4f4;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+  }
+
+  .schedule-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .schedule-label {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #effff6;
+  }
+
+  .schedule-count {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: #9de7bf;
+  }
+
+  .schedule-count.blocked {
+    color: #ffb1b1;
+  }
+
+  .schedule-items {
+    display: grid;
+    gap: 6px;
+    align-content: start;
+  }
+
+  .schedule-item {
+    border: 2px solid rgba(74, 222, 128, 0.85);
+    border-radius: 14px;
+    padding: 10px;
+    background: linear-gradient(180deg, rgba(24, 94, 52, 0.94), rgba(15, 72, 38, 0.96));
+    display: grid;
+    gap: 6px;
+    box-shadow: inset 0 0 0 1px rgba(209, 250, 229, 0.08);
+  }
+
+  .schedule-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .schedule-ticket {
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+    font-family: var(--mono);
+    color: #f3fff7;
+  }
+
+  .schedule-time {
+    border-radius: 12px;
+    padding: 6px 8px;
+    background: rgba(240, 253, 244, 0.14);
+    border: 1px solid rgba(240, 253, 244, 0.26);
+    color: #f3fff7;
+    font-family: var(--mono);
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
+  .schedule-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .schedule-device {
+    font-size: 12px;
+    line-height: 1.3;
+    color: var(--soft);
+  }
+
+  .schedule-item.urgent {
+    animation: appointmentPulse 1.5s ease-in-out infinite;
+  }
+
+  .schedule-item.imminent {
+    animation: appointmentFlash 0.7s steps(2, end) infinite;
+  }
+
+  @keyframes appointmentPulse {
+    0%, 100% {
+      border-color: rgba(248, 113, 113, 0.42);
+      box-shadow: 0 0 0 rgba(248, 113, 113, 0), inset 0 0 0 1px rgba(255,255,255,0.04);
+      background: linear-gradient(180deg, rgba(24, 94, 52, 0.94), rgba(15, 72, 38, 0.96));
+    }
+    50% {
+      border-color: rgba(248, 113, 113, 0.98);
+      box-shadow: 0 0 22px rgba(248, 113, 113, 0.4), inset 0 0 0 1px rgba(255,255,255,0.08);
+      background: linear-gradient(180deg, rgba(84, 28, 28, 0.96), rgba(60, 18, 18, 0.98));
+    }
+  }
+
+  @keyframes appointmentFlash {
+    0%, 49% {
+      border-color: rgba(248, 113, 113, 1);
+      box-shadow: 0 0 28px rgba(248, 113, 113, 0.55), inset 0 0 0 1px rgba(255,255,255,0.12);
+      background: linear-gradient(180deg, rgba(127, 29, 29, 0.98), rgba(69, 10, 10, 1));
+    }
+    50%, 100% {
+      border-color: rgba(74, 222, 128, 0.92);
+      box-shadow: 0 0 18px rgba(74, 222, 128, 0.35), inset 0 0 0 1px rgba(255,255,255,0.08);
+      background: linear-gradient(180deg, rgba(24, 94, 52, 0.98), rgba(15, 72, 38, 1));
+    }
+  }
+
+  .schedule-empty {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  .schedule-note {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: #ffcccc;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .status-pill {
+    min-width: 128px;
+    min-height: 64px;
+    padding: 10px 12px;
+    border-radius: 16px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.04);
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: 10px;
+  }
+
+  .status-pill strong {
+    display: block;
+    font-size: 24px;
+    line-height: 1;
+    margin: 0;
+  }
+
+  .status-pill span {
+    color: var(--soft);
+    font-size: 11px;
+    line-height: 1.25;
+    display: block;
+  }
+
+  .board {
+    padding: 16px;
+    overflow: hidden;
+  }
+
+  .board-wrap {
+    display: block;
+  }
+
+  .ready-queue {
+    min-height: 0;
+  }
+
+  .board-head,
+  .queue-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .board-title {
+    font-size: 15px;
+    color: var(--soft);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    align-content: start;
+  }
+
+  .ticket-card {
+    background: linear-gradient(180deg, rgba(20, 33, 53, 0.94), rgba(12, 22, 37, 0.96));
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 10px;
+    min-height: 88px;
+    display: grid;
+    grid-template-rows: auto auto auto;
+    gap: 5px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ticket-card::after {
+    content: "";
+    position: absolute;
+    inset: auto -60px -60px auto;
+    width: 160px;
+    height: 160px;
+    border-radius: 999px;
+    background: radial-gradient(circle, rgba(255,255,255,0.14), transparent 65%);
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  .tone-accent { border-color: rgba(110, 231, 200, 0.35); }
+  .tone-accent .status-chip { background: rgba(110, 231, 200, 0.16); color: var(--accent); }
+  .tone-danger { border-color: rgba(255, 139, 139, 0.35); }
+  .tone-danger .status-chip { background: rgba(255, 139, 139, 0.16); color: var(--danger); }
+  .tone-warn { border-color: rgba(255, 210, 122, 0.35); }
+  .tone-warn .status-chip { background: rgba(255, 210, 122, 0.15); color: var(--warn); }
+  .tone-pink { border-color: rgba(255, 155, 221, 0.35); }
+  .tone-pink .status-chip { background: rgba(255, 155, 221, 0.15); color: var(--pink); }
+  .tone-purple { border-color: rgba(200, 160, 255, 0.35); }
+  .tone-purple .status-chip { background: rgba(200, 160, 255, 0.14); color: var(--purple); }
+  .tone-ok { border-color: rgba(124, 240, 168, 0.35); }
+  .tone-ok .status-chip { background: rgba(124, 240, 168, 0.15); color: var(--ok); }
+  .tone-blue { border-color: rgba(124, 184, 255, 0.35); }
+  .tone-blue .status-chip { background: rgba(124, 184, 255, 0.14); color: var(--accent-2); }
+
+  .card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .ticket-id {
+    font-size: 10px;
+    color: var(--soft);
+    letter-spacing: 0.08em;
+  }
+
+  .status-chip {
+    border-radius: 999px;
+    padding: 5px 8px;
+    font-size: 9px;
+    line-height: 1;
+  }
+
+  .customer {
+    font-size: 15px;
+    line-height: 1.05;
+    margin: 0;
+  }
+
+  .detail-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .detail-row + .detail-row {
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding-top: 5px;
+  }
+
+  .inline-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  .row-label {
+    color: var(--muted);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    white-space: nowrap;
+  }
+
+  .device-chip, .issue-chip, .mini-chip {
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 999px;
+    padding: 4px 8px;
+    background: rgba(255,255,255,0.04);
+    color: var(--soft);
+    font-size: 10px;
+  }
+
+  .issue-chip {
+    border-radius: 12px;
+    max-width: 100%;
+  }
+
+  .issue-chip.more {
+    color: var(--accent);
+  }
+
+  .card-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 10px;
+  }
+
+  .ready-queue {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 12px;
+    display: grid;
+    grid-template-rows: auto 1fr;
+  }
+
+  .queue-columns {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+    min-height: 0;
+  }
+
+  .queue-column {
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 8px;
+  }
+
+  .queue-column-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 8px 10px;
+    background: rgba(255,255,255,0.04);
+  }
+
+  .queue-column-head.tone-pink {
+    border-color: rgba(255, 105, 180, 0.45);
+    box-shadow: inset 0 0 0 1px rgba(255, 105, 180, 0.12);
+  }
+
+  .queue-column-head.tone-accent {
+    border-color: rgba(34, 197, 234, 0.42);
+    box-shadow: inset 0 0 0 1px rgba(34, 197, 234, 0.1);
+  }
+
+  .queue-column-head.tone-danger {
+    border-color: rgba(255, 69, 69, 0.5);
+    box-shadow: inset 0 0 0 1px rgba(255, 69, 69, 0.12);
+  }
+
+  .queue-column-head.tone-blue {
+    border-color: rgba(96, 165, 250, 0.42);
+    box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.1);
+  }
+
+  .queue-column-head.tone-purple {
+    border-color: rgba(168, 85, 247, 0.45);
+    box-shadow: inset 0 0 0 1px rgba(168, 85, 247, 0.12);
+  }
+
+  .queue-list {
+    display: grid;
+    gap: 8px;
+    align-content: start;
+  }
+
+  .queue-item {
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    background: rgba(14, 25, 40, 0.82);
+    padding: 12px;
+    display: grid;
+    gap: 8px;
+  }
+
+  .queue-item.stale {
+    animation: stalePulse 1.4s ease-in-out infinite;
+  }
+
+  @keyframes stalePulse {
+    0%, 100% { border-color: rgba(255, 99, 99, 0.3); box-shadow: 0 0 0 rgba(255, 99, 99, 0); }
+    50% { border-color: rgba(255, 99, 99, 0.95); box-shadow: 0 0 18px rgba(255, 99, 99, 0.35); }
+  }
+
+  .queue-top,
+  .queue-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .queue-top {
+    align-items: center;
+  }
+
+  .queue-ticket {
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1;
+    font-family: var(--mono);
+    color: var(--text);
+    white-space: nowrap;
+  }
+
+  .queue-top-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .queue-name {
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .wait-box {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+    border-radius: 12px;
+    padding: 6px 8px;
+    background: rgba(255, 210, 122, 0.14);
+    border: 1px solid rgba(255, 210, 122, 0.25);
+    color: var(--warn);
+    font-size: 10px;
+    font-family: var(--mono);
+    white-space: nowrap;
+  }
+
+  .wait-box-number {
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .wait-box-label {
+    line-height: 1;
+  }
+
+  .wait-box.good {
+    background: rgba(124, 240, 168, 0.14);
+    border-color: rgba(124, 240, 168, 0.28);
+    color: var(--ok);
+  }
+
+  .wait-box.warn {
+    background: rgba(255, 210, 122, 0.14);
+    border-color: rgba(255, 210, 122, 0.25);
+    color: var(--warn);
+  }
+
+  .wait-box.danger {
+    background: rgba(255, 139, 139, 0.14);
+    border-color: rgba(255, 139, 139, 0.25);
+    color: var(--danger);
+  }
+
+  .wait-box.neutral {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.12);
+    color: var(--muted);
+  }
+
+  .status-box {
+    display: block;
+    width: 100%;
+    border-radius: 12px;
+    padding: 6px 8px;
+    color: #fff;
+    font-size: 14px;
+    font-family: var(--sans);
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .queue-info {
+    display: grid;
+    gap: 4px;
+  }
+
+  .queue-name-row {
+    display: grid;
+    gap: 2px;
+  }
+
+  .queue-detail {
+    color: var(--soft);
+    font-size: 12px;
+    line-height: 1.3;
+  }
+
+  .queue-service {
+    color: var(--soft);
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .queue-id,
+  .queue-assignee,
+  .queue-due {
+    color: var(--muted);
+    font-size: 10px;
+    font-family: var(--mono);
+  }
+
+  .queue-issue {
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1.35;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    padding-top: 8px;
+  }
+
+  .footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 18px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .settings-button {
+    cursor: pointer;
+  }
+
+  .settings-drawer {
+    position: fixed;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(1400px, calc(100vw - 24px));
+    max-height: calc(100vh - 24px);
+    overflow: auto;
+    background: rgba(8, 14, 25, 0.96);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    padding: 12px;
+    z-index: 20;
+    display: none;
+  }
+
+  .settings-drawer.open {
+    display: block;
+  }
+
+  .settings-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .settings-head-copy {
+    display: grid;
+    gap: 4px;
+  }
+
+  .settings-title {
+    margin: 0;
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+  }
+
+  .settings-version {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: var(--mono);
+    letter-spacing: 0.04em;
+  }
+
+  .settings-close {
+    cursor: pointer;
+  }
+
+  .settings-section {
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 12px;
+    background: rgba(255,255,255,0.03);
+    min-width: 0;
+  }
+
+  .settings-section-copy {
+    margin: 0;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.35;
+    font-family: var(--mono);
+  }
+
+  .settings-section-head {
+    width: 100%;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 4px 0 10px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .settings-section-head-copy {
+    display: grid;
+    gap: 4px;
+  }
+
+  .settings-section-name {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .settings-section-caret {
+    font-size: 18px;
+    color: var(--soft);
+    line-height: 1;
+    padding-top: 2px;
+  }
+
+  .settings-section-body {
+    display: grid;
+    gap: 10px;
+    padding-top: 4px;
+  }
+
+  .settings-section.collapsed .settings-section-body {
+    display: none;
+  }
+
+  .settings-section.collapsed .settings-section-caret {
+    transform: rotate(-90deg);
+  }
+
+  .settings-toggle {
+    margin-bottom: 12px;
+  }
+
+  .settings-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    align-items: start;
+  }
+
+  .settings-section.span-2 {
+    grid-column: 1 / -1;
+  }
+
+  .settings-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .settings-field {
+    display: grid;
+    gap: 5px;
+  }
+
+  .settings-field.align-end {
+    align-content: start;
+  }
+
+  .settings-field.full {
+    grid-column: 1 / -1;
+  }
+
+  .settings-label {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: var(--sans);
+    font-weight: 600;
+  }
+
+  .settings-input,
+  .settings-textarea {
+    width: 100%;
+    border-radius: 9px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.05);
+    color: var(--text);
+    padding: 9px 10px;
+    font: inherit;
+    font-size: 13px;
+  }
+
+  .settings-textarea {
+    min-height: 52px;
+    resize: vertical;
+  }
+
+  .settings-help {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+    line-height: 1.25;
+  }
+
+  .settings-logo-preview {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 74px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.04);
+  }
+
+  .settings-logo-thumb {
+    width: 54px;
+    height: 54px;
+    border-radius: 12px;
+    object-fit: contain;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    padding: 6px;
+    display: none;
+  }
+
+  .settings-logo-thumb.visible {
+    display: block;
+  }
+
+  .settings-logo-meta {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .settings-logo-name {
+    font-size: 13px;
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .settings-logo-note {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+    line-height: 1.25;
+  }
+
+  .settings-check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 40px;
+    padding: 8px 10px;
+    border-radius: 9px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.04);
+  }
+
+  .settings-checkbox {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: #6ee7c8;
+    flex: 0 0 auto;
+  }
+
+  .settings-check-copy {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .settings-check-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .settings-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .settings-status {
+    font-size: 12px;
+    color: var(--soft);
+    font-family: var(--mono);
+    min-height: 16px;
+    margin-top: 10px;
+  }
+
+  .page-dots {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .page-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.16);
+  }
+
+  .page-dot.active {
+    background: var(--accent);
+    box-shadow: 0 0 16px rgba(110, 231, 200, 0.5);
+  }
+
+  .state {
+    min-height: 38vh;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    padding: 32px;
+  }
+
+  .empty-title {
+    font-size: clamp(28px, 4vw, 44px);
+    margin: 0 0 10px;
+  }
+
+  .empty-sub {
+    color: var(--muted);
+    font-size: 14px;
+    max-width: 640px;
+    line-height: 1.5;
+  }
+
+  @media (max-width: 1400px) {
+    .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .schedule-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+
+  @media (max-width: 1200px) {
+    .app {
+      padding: 14px;
+      gap: 12px;
+    }
+
+    .topbar,
+    .status-row,
+    .schedule-strip,
+    .board,
+    .footer {
+      border-radius: 18px;
+    }
+
+    .title {
+      font-size: 24px;
+    }
+
+    .meta {
+      gap: 8px;
+    }
+
+    .pill {
+      padding: 7px 10px;
+      font-size: 11px;
+    }
+
+    .status-row {
+      gap: 8px;
+      padding: 12px;
+    }
+
+    .status-pill {
+      min-width: 112px;
+      min-height: 58px;
+      padding: 8px 10px;
+      column-gap: 8px;
+    }
+
+    .status-pill strong {
+      font-size: 20px;
+    }
+
+    .schedule-strip {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .queue-columns {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .queue-item {
+      padding: 10px;
+    }
+
+    .queue-ticket {
+      font-size: 15px;
+    }
+
+    .status-box {
+      font-size: 13px;
+    }
+
+    .queue-name {
+      font-size: 14px;
+    }
+
+    .queue-detail,
+    .queue-service,
+    .queue-issue {
+      font-size: 11px;
+    }
+  }
+
+  @media (max-width: 1200px) and (orientation: portrait) {
+    .app {
+      padding: 10px;
+      gap: 8px;
+      grid-template-rows: auto auto auto 1fr auto;
+    }
+
+    .topbar,
+    .status-row,
+    .schedule-strip,
+    .board,
+    .footer,
+    .ready-queue {
+      border-radius: 14px;
+    }
+
+    .topbar {
+      padding: 12px 14px;
+      gap: 10px;
+    }
+
+    .title {
+      font-size: 20px;
+    }
+
+    .headline {
+      gap: 10px;
+    }
+
+    .meta {
+      gap: 6px;
+    }
+
+    .pill {
+      padding: 5px 8px;
+      font-size: 10px;
+    }
+
+    .status-row {
+      gap: 6px;
+      padding: 10px;
+      flex-wrap: nowrap;
+      align-items: stretch;
+      overflow: hidden;
+    }
+
+    .status-pill {
+      min-width: 0;
+      flex: 1 1 0;
+      min-height: 52px;
+      padding: 8px 8px;
+      border-radius: 12px;
+      column-gap: 6px;
+    }
+
+    .status-pill strong {
+      font-size: 18px;
+    }
+
+    .status-pill span {
+      font-size: 10px;
+    }
+
+    .schedule-strip {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 6px;
+      padding: 8px;
+    }
+
+    .schedule-day {
+      min-height: 104px;
+      padding: 8px;
+      gap: 6px;
+      border-radius: 12px;
+    }
+
+    .schedule-label {
+      font-size: 11px;
+      letter-spacing: 0.06em;
+    }
+
+    .schedule-count {
+      font-size: 9px;
+    }
+
+    .schedule-items {
+      gap: 4px;
+    }
+
+    .schedule-item {
+      padding: 8px;
+      gap: 4px;
+      border-radius: 10px;
+    }
+
+    .schedule-ticket {
+      font-size: 13px;
+    }
+
+    .schedule-time {
+      font-size: 9px;
+      padding: 4px 6px;
+    }
+
+    .schedule-name {
+      font-size: 13px;
+      line-height: 1.05;
+    }
+
+    .schedule-device {
+      font-size: 10px;
+      line-height: 1.2;
+    }
+
+    .schedule-empty {
+      font-size: 10px;
+    }
+
+    .board {
+      padding: 8px;
+    }
+
+    .ready-queue {
+      padding: 8px;
+      border-radius: 14px;
+    }
+
+    .queue-columns {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .queue-column {
+      gap: 6px;
+    }
+
+    .queue-column-head {
+      gap: 6px;
+      align-items: center;
+      padding: 6px 8px;
+      border-radius: 10px;
+    }
+
+    .board-title {
+      font-size: 11px;
+      letter-spacing: 0.09em;
+    }
+
+    .queue-column-head .pill {
+      font-size: 9px;
+      padding: 4px 7px;
+    }
+
+    .queue-list {
+      gap: 6px;
+    }
+
+    .queue-item {
+      padding: 8px;
+      gap: 6px;
+      border-radius: 10px;
+    }
+
+    .queue-top,
+    .queue-meta {
+      gap: 6px;
+    }
+
+    .queue-top-main {
+      gap: 6px;
+      align-items: flex-start;
+    }
+
+    .queue-ticket {
+      font-size: 13px;
+    }
+
+    .status-box {
+      font-size: 10px;
+      padding: 4px 6px;
+      border-radius: 8px;
+    }
+
+    .wait-box {
+      font-size: 9px;
+      padding: 4px 6px;
+      border-radius: 8px;
+    }
+
+    .wait-box-number {
+      font-size: 12px;
+    }
+
+    .queue-info {
+      gap: 3px;
+    }
+
+    .queue-name-row {
+      display: block;
+    }
+
+    .queue-name {
+      font-size: 12px;
+      line-height: 1.1;
+    }
+
+    .queue-detail {
+      display: block;
+      font-size: 10px;
+      line-height: 1.2;
+      margin-top: 2px;
+    }
+
+    .queue-service {
+      font-size: 10px;
+      line-height: 1.2;
+    }
+
+    .queue-assignee {
+      font-size: 9px;
+    }
+
+    .queue-issue {
+      font-size: 10px;
+      line-height: 1.22;
+      padding-top: 6px;
+    }
+
+    .footer {
+      padding: 8px 12px;
+      font-size: 10px;
+    }
+  }
+
+  @media (max-width: 900px) {
+    body { overflow: auto; }
+    .app { grid-template-rows: auto; }
+    .topbar, .footer { flex-direction: column; align-items: flex-start; }
+    .cards { grid-template-columns: 1fr; }
+    .schedule-strip { grid-template-columns: 1fr; }
+    .queue-columns { grid-template-columns: 1fr; }
+    .settings-drawer {
+      width: calc(100vw - 24px);
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      max-height: calc(100vh - 24px);
+      padding: 12px;
+    }
+    .settings-title {
+      font-size: 20px;
+    }
+    .settings-layout {
+      grid-template-columns: 1fr;
+    }
+    .settings-grid {
+      grid-template-columns: 1fr;
+    }
+    .weekday-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  body.force-vertical .app {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  body.force-vertical .topbar,
+  body.force-vertical .status-row,
+  body.force-vertical .schedule-strip,
+  body.force-vertical .board,
+  body.force-vertical .footer {
+    border-radius: 14px;
+  }
+
+  body.force-vertical .topbar {
+    padding: 12px 14px;
+    gap: 10px;
+  }
+
+  body.force-vertical .title {
+    font-size: 20px;
+  }
+
+  body.force-vertical .headline,
+  body.force-vertical .meta {
+    gap: 8px;
+  }
+
+  body.force-vertical .pill {
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+
+  body.force-vertical .status-row {
+    gap: 6px;
+    padding: 10px;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    overflow: hidden;
+  }
+
+  body.force-vertical .status-pill {
+    min-width: 0;
+    flex: 1 1 0;
+    min-height: 52px;
+    padding: 8px;
+    border-radius: 12px;
+    column-gap: 6px;
+  }
+
+  body.force-vertical .status-pill strong {
+    font-size: 18px;
+  }
+
+  body.force-vertical .status-pill span {
+    font-size: 10px;
+  }
+
+  body.force-vertical .schedule-strip {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+    padding: 8px;
+  }
+
+  body.force-horizontal .schedule-strip {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  body.force-vertical .schedule-day {
+    min-height: 104px;
+    padding: 8px;
+    gap: 6px;
+    border-radius: 12px;
+  }
+
+  body.force-vertical .schedule-label {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+  }
+
+  body.force-vertical .schedule-count {
+    font-size: 9px;
+  }
+
+  body.force-vertical .schedule-item {
+    padding: 8px;
+    gap: 4px;
+    border-radius: 10px;
+  }
+
+  body.force-vertical .schedule-ticket {
+    font-size: 13px;
+  }
+
+  body.force-vertical .schedule-time {
+    font-size: 9px;
+    padding: 4px 6px;
+  }
+
+  body.force-vertical .schedule-name {
+    font-size: 13px;
+    line-height: 1.05;
+  }
+
+  body.force-vertical .schedule-device,
+  body.force-vertical .schedule-empty {
+    font-size: 10px;
+    line-height: 1.2;
+  }
+
+  body.force-vertical .board {
+    padding: 8px;
+  }
+
+  body.force-vertical .queue-columns,
+  body.force-horizontal .queue-columns {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  body.force-vertical .queue-column-head,
+  body.force-horizontal .queue-column-head {
+    gap: 6px;
+    align-items: center;
+    padding: 6px 8px;
+    border-radius: 10px;
+  }
+
+  body.force-vertical .board-title,
+  body.force-horizontal .board-title {
+    font-size: 11px;
+    letter-spacing: 0.09em;
+  }
+
+  body.force-vertical .queue-column-head .pill,
+  body.force-horizontal .queue-column-head .pill {
+    font-size: 9px;
+    padding: 4px 7px;
+  }
+
+  body.force-vertical .queue-list,
+  body.force-horizontal .queue-list {
+    gap: 6px;
+  }
+
+  body.force-vertical .queue-item,
+  body.force-horizontal .queue-item {
+    padding: 8px;
+    gap: 6px;
+    border-radius: 10px;
+  }
+
+  body.force-vertical .queue-ticket,
+  body.force-horizontal .queue-ticket {
+    font-size: 13px;
+  }
+
+  body.force-vertical .status-box,
+  body.force-horizontal .status-box {
+    font-size: 10px;
+    padding: 4px 6px;
+    border-radius: 8px;
+  }
+
+  body.force-vertical .wait-box,
+  body.force-horizontal .wait-box {
+    font-size: 9px;
+    padding: 4px 6px;
+    border-radius: 8px;
+  }
+
+  body.force-vertical .wait-box-number,
+  body.force-horizontal .wait-box-number {
+    font-size: 12px;
+  }
+
+  body.force-vertical .queue-name-row,
+  body.force-horizontal .queue-name-row {
+    display: block;
+  }
+
+  body.force-vertical .queue-name,
+  body.force-horizontal .queue-name {
+    font-size: 12px;
+    line-height: 1.1;
+  }
+
+  body.force-vertical .queue-detail,
+  body.force-vertical .queue-service,
+  body.force-vertical .queue-issue,
+  body.force-horizontal .queue-detail,
+  body.force-horizontal .queue-service,
+  body.force-horizontal .queue-issue {
+    font-size: 10px;
+    line-height: 1.22;
+  }
+
+  .settings-select {
+    appearance: none;
+    background-image:
+      linear-gradient(45deg, transparent 50%, var(--soft) 50%),
+      linear-gradient(135deg, var(--soft) 50%, transparent 50%);
+    background-position:
+      calc(100% - 18px) calc(50% - 2px),
+      calc(100% - 12px) calc(50% - 2px);
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+  }
+
+  .column-visibility-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .weekday-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .timing-grid,
+  .column-editor-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .timing-card,
+  .column-editor {
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 10px;
+    background: rgba(255,255,255,0.025);
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .editor-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--text);
+  }
+
+  .editor-copy {
+    margin: 0;
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 1.35;
+    font-family: var(--mono);
+  }
+
+  .timing-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .schedule-panel {
+    background: rgba(3, 8, 15, 0.88);
+    border: 1px solid rgba(110, 231, 200, 0.14);
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(18px);
+    padding: 14px;
+    display: grid;
+    gap: 12px;
+  }
+
+  .schedule-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 18px;
+    background: rgba(9, 16, 28, 0.92);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .schedule-panel-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .schedule-panel-sub {
+    color: var(--muted);
+    font-size: 12px;
+    font-family: var(--mono);
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <section class="topbar">
+    <div class="brand">
+      <img class="brand-logo" id="brand-logo" alt="Logo" />
+      <div class="headline">
+        <h1 class="title" id="page-title">Current Repair Queue</h1>
+        <div class="pill" id="open-tickets-pill">Open Tickets 0</div>
+        <div class="pill" id="oldest-regular-pill">Oldest Regular Ticket --</div>
+        <div class="pill" id="oldest-priority-pill">Oldest Priority Ticket --</div>
+      </div>
+    </div>
+    <div class="meta">
+      <div class="pill" id="clock-pill">--:--</div>
+      <div class="pill" id="refresh-countdown-pill">Refresh in --s</div>
+      <button class="pill settings-button" id="settings-open" type="button">Settings</button>
+    </div>
+  </section>
+
+  <section class="summary" id="summary"></section>
+  <section class="schedule-panel" id="schedule-panel">
+    <div class="schedule-panel-head">
+      <h2 class="schedule-panel-title" id="schedule-panel-title">This Week's Appointments</h2>
+      <div class="schedule-panel-sub" id="schedule-panel-sub">Current week view</div>
+    </div>
+    <section class="schedule-strip" id="schedule-strip"></section>
+  </section>
+  <section class="status-row" id="status-row"></section>
+
+  <section class="board">
+    <div class="board-wrap">
+      <aside class="ready-queue">
+        <div class="queue-columns">
+          <section class="queue-column" id="ready-column">
+            <div class="queue-column-head tone-pink">
+              <div class="board-title" id="ready-title">Ready to start</div>
+              <div class="pill" id="ready-count-pill">0 tickets</div>
+            </div>
+            <div id="ready-queue-content"></div>
+          </section>
+          <section class="queue-column" id="progress-column">
+            <div class="queue-column-head tone-accent">
+              <div class="board-title" id="progress-title">In Progress</div>
+              <div class="pill" id="progress-count-pill">0 tickets</div>
+            </div>
+            <div id="progress-queue-content"></div>
+          </section>
+          <section class="queue-column" id="attention-column">
+            <div class="queue-column-head tone-danger">
+              <div class="board-title" id="attention-title">Needs Attention</div>
+              <div class="pill" id="attention-count-pill">0 tickets</div>
+            </div>
+            <div id="attention-queue-content"></div>
+          </section>
+          <section class="queue-column" id="waiting-column">
+            <div class="queue-column-head tone-blue">
+              <div class="board-title" id="waiting-title">Waiting</div>
+              <div class="pill" id="waiting-count-pill">0 tickets</div>
+            </div>
+            <div id="waiting-queue-content"></div>
+          </section>
+          <section class="queue-column" id="qc-column">
+            <div class="queue-column-head tone-purple">
+              <div class="board-title" id="qc-title">Quality Control</div>
+              <div class="pill" id="qc-count-pill">0 tickets</div>
+            </div>
+            <div id="qc-queue-content"></div>
+          </section>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <section class="footer">
+    <div id="footer-note">Pass a `token` query param to load a RepairDesk ticket counter feed.</div>
+    <div class="page-dots" id="page-dots"></div>
+  </section>
+</div>
+
+<aside class="settings-drawer" id="settings-drawer">
+  <div class="settings-head">
+    <div class="settings-head-copy">
+      <h2 class="settings-title">Display Settings</h2>
+      <div class="settings-version" id="settings-version-top">Version __APP_VERSION__</div>
+    </div>
+    <button class="pill settings-close" id="settings-close" type="button">Close</button>
+  </div>
+  <button class="pill settings-toggle" id="api-toggle" type="button">RepairDesk API</button>
+  <div class="settings-layout">
+  <div class="settings-section span-2" id="api-section" style="display:none;">
+    <h3>RepairDesk API</h3>
+    <div class="settings-section-copy">Connection details for the RepairDesk account this board reads from.</div>
+    <div class="settings-grid">
+      <label class="settings-field full">
+        <span class="settings-label">RepairDesk API key</span>
+        <textarea class="settings-textarea" id="api-key"></textarea>
+        <span class="settings-help">Used for the extra RepairDesk detail lookups that power waiting age, priority detection, and appointment enrichment.</span>
+      </label>
+    </div>
+  </div>
+  <div class="settings-section span-2">
+    <h3>Brand</h3>
+    <div class="settings-section-copy">Controls the title and logo shown in the main board header.</div>
+    <div class="settings-grid">
+      <label class="settings-field align-end">
+        <span class="settings-label">Header title</span>
+        <input class="settings-input" id="pref-brand-title" />
+      </label>
+      <label class="settings-field align-end">
+        <span class="settings-label">Logo upload</span>
+        <input class="settings-input" id="pref-brand-logo" type="file" accept="image/*" />
+        <span class="settings-help">Upload a PNG/JPG/SVG logo. It will be stored locally in the app config.</span>
+      </label>
+      <label class="settings-field full">
+        <span class="settings-label">Current logo</span>
+        <div class="settings-logo-preview">
+          <img class="settings-logo-thumb" id="pref-brand-logo-preview" alt="Current logo preview" />
+          <div class="settings-logo-meta">
+            <div class="settings-logo-name" id="pref-brand-logo-name">No logo uploaded</div>
+            <div class="settings-logo-note" id="pref-brand-logo-note">Upload a logo to preview how it will appear in the board header.</div>
+          </div>
+        </div>
+      </label>
+    </div>
+  </div>
+  <div class="settings-section span-2">
+    <h3>Display</h3>
+    <div class="settings-section-copy">Desktop-app window behavior and forced board orientation.</div>
+    <div class="settings-grid">
+      <label class="settings-field full">
+        <span class="settings-label">Browser option</span>
+        <span class="settings-check">
+          <span class="settings-check-copy">
+            <span class="settings-check-title">Open this board in the system browser</span>
+            <span class="settings-help">Useful if someone wants the local board in a normal browser tab instead of the desktop window.</span>
+          </span>
+          <button class="pill" id="settings-open-browser" type="button">Open in Browser</button>
+        </span>
+      </label>
+      <label class="settings-field full">
+        <span class="settings-label">Desktop window mode</span>
+        <span class="settings-check">
+          <input class="settings-checkbox" id="pref-fullscreen" type="checkbox" />
+          <span class="settings-check-copy">
+            <span class="settings-check-title">Open in fullscreen</span>
+            <span class="settings-help">Applies in the desktop app. Browser preview ignores this.</span>
+          </span>
+        </span>
+      </label>
+      <label class="settings-field">
+        <span class="settings-label">Layout orientation</span>
+        <select class="settings-input settings-select" id="pref-orientation">
+          <option value="auto">Auto</option>
+          <option value="horizontal">Horizontal</option>
+          <option value="vertical">Vertical</option>
+        </select>
+        <span class="settings-help">Force the board to use a wide or portrait layout regardless of the screen shape.</span>
+      </label>
+      <label class="settings-field full">
+        <span class="settings-label">Ticket bubble content</span>
+        <span class="settings-check">
+          <input class="settings-checkbox" id="pref-show-assigned-tech" type="checkbox" />
+          <span class="settings-check-copy">
+            <span class="settings-check-title">Show assigned tech</span>
+            <span class="settings-help">Hide the assigned tech line in each ticket bubble for a cleaner customer-facing display.</span>
+          </span>
+        </span>
+      </label>
+    </div>
+  </div>
+  <div class="settings-section span-2">
+    <h3>Appointments</h3>
+    <div class="settings-section-copy">Which weekdays appear in the calendar, which ones are blocked, and how appointment alerts behave.</div>
+    <div class="settings-grid">
+      <label class="settings-field full">
+        <span class="settings-label">Calendar visibility</span>
+        <span class="settings-check">
+          <input class="settings-checkbox" id="pref-show-calendar" type="checkbox" />
+          <span class="settings-check-copy">
+            <span class="settings-check-title">Show appointment calendar</span>
+            <span class="settings-help">Hide the calendar entirely if this board should only show queue columns.</span>
+          </span>
+        </span>
+      </label>
+      <label class="settings-field full">
+        <span class="settings-label">Included weekdays</span>
+        <div class="weekday-grid" id="pref-included-weekdays"></div>
+        <span class="settings-help">Days shown in the weekly appointment calendar.</span>
+      </label>
+      <label class="settings-field full">
+        <span class="settings-label">Week rotation</span>
+        <span class="settings-check">
+          <input class="settings-checkbox" id="pref-rotate-weeks" type="checkbox" />
+          <span class="settings-check-copy">
+            <span class="settings-check-title">Fade between this week and next week</span>
+            <span class="settings-help">Rotate the appointment area between two weekly views instead of showing only the current week.</span>
+          </span>
+        </span>
+      </label>
+      <label class="settings-field">
+        <span class="settings-label">Week switch interval</span>
+        <input class="settings-input" id="pref-rotate-interval-seconds" type="number" min="5" step="1" />
+        <span class="settings-help">Seconds between week changes when rotation is enabled.</span>
+      </label>
+      <label class="settings-field full">
+        <span class="settings-label">Blocked weekdays</span>
+        <div class="weekday-grid" id="pref-blocked-weekdays"></div>
+        <span class="settings-help">Blocked days stay visible in the calendar but show as off limits.</span>
+      </label>
+      <label class="settings-field full">
+        <span class="settings-label">Calendar day styling</span>
+        <span class="settings-check">
+          <input class="settings-checkbox" id="pref-dim-past-days" type="checkbox" />
+          <span class="settings-check-copy">
+            <span class="settings-check-title">Dim past weekdays</span>
+            <span class="settings-help">Add a light diagonal overlay to weekdays that have already passed.</span>
+          </span>
+        </span>
+      </label>
+      <label class="settings-field full">
+        <span class="settings-label">Appointment service matchers</span>
+        <textarea class="settings-textarea" id="pref-service-matchers"></textarea>
+        <span class="settings-help">One matcher per line. Matching services appear in the calendar.</span>
+      </label>
+      <label class="settings-field">
+        <span class="settings-label">Default warning lead (minutes)</span>
+        <input class="settings-input" id="pref-default-lead" type="number" min="0" />
+      </label>
+      <label class="settings-field">
+        <span class="settings-label">On-Site warning lead (minutes)</span>
+        <input class="settings-input" id="pref-onsite-lead" type="number" min="0" />
+      </label>
+      <label class="settings-field">
+        <span class="settings-label">Fast flash threshold (minutes)</span>
+        <input class="settings-input" id="pref-imminent-minutes" type="number" min="0" />
+      </label>
+    </div>
+  </div>
+  <div class="settings-section span-2">
+    <h3>Pulse Timing</h3>
+    <div class="settings-section-copy">How long a ticket can sit before its card starts pulsing red. Each rule supports both days and hours.</div>
+    <div class="timing-grid">
+      <div class="timing-card">
+        <h4 class="editor-title">In Progress</h4>
+        <div class="timing-fields">
+          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-inprogress-days" type="number" min="0" step="1" /></label>
+          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-inprogress-hours" type="number" min="0" step="1" /></label>
+        </div>
+      </div>
+      <div class="timing-card">
+        <h4 class="editor-title">Needs Attention</h4>
+        <div class="timing-fields">
+          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-attention-days" type="number" min="0" step="1" /></label>
+          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-attention-hours" type="number" min="0" step="1" /></label>
+        </div>
+      </div>
+      <div class="timing-card">
+        <h4 class="editor-title">Waiting on Customer</h4>
+        <div class="timing-fields">
+          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-wait-customer-days" type="number" min="0" step="1" /></label>
+          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-wait-customer-hours" type="number" min="0" step="1" /></label>
+        </div>
+      </div>
+      <div class="timing-card">
+        <h4 class="editor-title">Waiting for Parts</h4>
+        <div class="timing-fields">
+          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-wait-parts-days" type="number" min="0" step="1" /></label>
+          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-wait-parts-hours" type="number" min="0" step="1" /></label>
+        </div>
+      </div>
+      <div class="timing-card">
+        <h4 class="editor-title">Quality Control</h4>
+        <div class="timing-fields">
+          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-qc-days" type="number" min="0" step="1" /></label>
+          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-qc-hours" type="number" min="0" step="1" /></label>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="settings-section span-2">
+    <h3>Columns</h3>
+    <div class="settings-section-copy">Configure what each queue column is called, whether it is shown, and which RepairDesk statuses feed into it.</div>
+    <div class="column-editor-grid">
+      <div class="column-editor">
+        <h4 class="editor-title">Column 1</h4>
+        <label class="settings-field"><span class="settings-label">Header label</span><input class="settings-input" id="pref-ready-label" /></label>
+        <div class="editor-copy">This is the left-most queue column on the board.</div>
+        <label class="settings-field"><span class="settings-check"><input class="settings-checkbox" id="pref-ready-visible" type="checkbox" /><span class="settings-check-copy"><span class="settings-check-title">Show this column</span></span></span></label>
+        <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-ready-statuses"></textarea></label>
+      </div>
+      <div class="column-editor">
+        <h4 class="editor-title">Column 2</h4>
+        <label class="settings-field"><span class="settings-label">Header label</span><input class="settings-input" id="pref-progress-label" /></label>
+        <div class="editor-copy">Second queue column from the left.</div>
+        <label class="settings-field"><span class="settings-check"><input class="settings-checkbox" id="pref-progress-visible" type="checkbox" /><span class="settings-check-copy"><span class="settings-check-title">Show this column</span></span></span></label>
+        <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-progress-statuses"></textarea></label>
+      </div>
+      <div class="column-editor">
+        <h4 class="editor-title">Column 3</h4>
+        <label class="settings-field"><span class="settings-label">Header label</span><input class="settings-input" id="pref-attention-label" /></label>
+        <div class="editor-copy">Middle queue column on the board.</div>
+        <label class="settings-field"><span class="settings-check"><input class="settings-checkbox" id="pref-attention-visible" type="checkbox" /><span class="settings-check-copy"><span class="settings-check-title">Show this column</span></span></span></label>
+        <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-attention-statuses"></textarea></label>
+      </div>
+      <div class="column-editor">
+        <h4 class="editor-title">Column 4</h4>
+        <label class="settings-field"><span class="settings-label">Header label</span><input class="settings-input" id="pref-waiting-label" /></label>
+        <div class="editor-copy">Fourth queue column from the left.</div>
+        <label class="settings-field"><span class="settings-check"><input class="settings-checkbox" id="pref-waiting-visible" type="checkbox" /><span class="settings-check-copy"><span class="settings-check-title">Show this column</span></span></span></label>
+        <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-waiting-statuses"></textarea></label>
+      </div>
+      <div class="column-editor">
+        <h4 class="editor-title">Column 5</h4>
+        <label class="settings-field"><span class="settings-label">Header label</span><input class="settings-input" id="pref-qc-label" /></label>
+        <div class="editor-copy">Right-most queue column on the board.</div>
+        <label class="settings-field"><span class="settings-check"><input class="settings-checkbox" id="pref-qc-visible" type="checkbox" /><span class="settings-check-copy"><span class="settings-check-title">Show this column</span></span></span></label>
+        <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-qc-statuses"></textarea></label>
+      </div>
+    </div>
+  </div>
+  <div class="settings-section span-2">
+    <h3>Maintenance</h3>
+    <div class="settings-section-copy">Use this when you need the local server process to restart and reload server-side changes.</div>
+    <div class="settings-grid">
+      <label class="settings-field">
+        <span class="settings-label">Current version</span>
+        <div class="settings-input" id="settings-app-version" aria-readonly="true">__APP_VERSION__</div>
+        <span class="settings-help">Track this version when testing packaged builds or comparing changelog entries.</span>
+      </label>
+    </div>
+    <div class="settings-actions">
+      <button class="pill" id="settings-check-updates" type="button">Check for Updates</button>
+      <button class="pill" id="settings-restart" type="button">Restart Server</button>
+    </div>
+  </div>
+  </div>
+  <div class="settings-status" id="settings-status"></div>
+  <div class="settings-actions">
+    <button class="pill" id="settings-close-bottom" type="button">Close</button>
+    <button class="pill" id="settings-save" type="button">Save Settings</button>
+  </div>
+</aside>
+
+<script>
+  const APP_VERSION = '__APP_VERSION__';
+  const state = {
+    data: null,
+    page: 0,
+    pageTimer: null,
+    refreshTimer: null,
+    refreshCountdownTimer: null,
+    nextRefreshAt: 0,
+    clockTimer: null,
+    calendarRotationTimer: null,
+    calendarWeekOffset: 0,
+    settingsLoaded: false,
+    logoDataUrl: '',
+  };
+
+  const DEFAULT_PAGE_SECONDS = 12;
+
+  function qs(id) {
+    return document.getElementById(id);
+  }
+
+  function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function params() {
+    return new URLSearchParams(window.location.search);
+  }
+
+  function currentPreferences() {
+    return state.data?.uiPreferences || {
+      schedule: {
+        includedWeekdays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+        blockedWeekdays: ['Monday'],
+        showCalendar: true,
+        rotateWeeks: false,
+        rotateIntervalSeconds: 20,
+        dimPastDays: true,
+        serviceMatchers: ['support', 'pickup & delivery service'],
+        defaultLeadMinutes: 45,
+        onsiteLeadMinutes: 60,
+        imminentMinutes: 20,
+      },
+      staleRules: {
+        inProgress: { days: 0, hours: 12 },
+        needsAttention: { days: 1, hours: 0 },
+        waitingOnCustomer: { days: 4, hours: 0 },
+        waitingForParts: { days: 14, hours: 0 },
+        qualityControl: { days: 0, hours: 1 },
+      },
+      brand: {
+        title: 'Current Repair Queue',
+        logoDataUrl: '',
+      },
+      display: {
+        fullscreen: false,
+        orientation: 'auto',
+        showAssignedTech: true,
+      },
+      columns: {
+        readyToStart: { label: 'Ready to start', visible: true, statuses: [] },
+        inProgress: { label: 'In Progress', visible: true, statuses: [] },
+        needsAttention: { label: 'Needs Attention', visible: true, statuses: [] },
+        waiting: { label: 'Waiting', visible: true, statuses: [] },
+        qualityControl: { label: 'Quality Control', visible: true, statuses: [] },
+      },
+    };
+  }
+
+  function parseLines(value) {
+    return String(value || '')
+      .split(/\r?\n|,/)
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+  }
+
+  const WEEKDAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+  function checkboxGroupMarkup(groupId, selectedValues) {
+    const selected = new Set(selectedValues || []);
+    return WEEKDAY_NAMES.map((day) => `
+      <label class="settings-field">
+        <span class="settings-check">
+          <input class="settings-checkbox" data-group="${groupId}" data-day="${day}" type="checkbox" ${selected.has(day) ? 'checked' : ''} />
+          <span class="settings-check-copy">
+            <span class="settings-check-title">${escapeHtml(day)}</span>
+          </span>
+        </span>
+      </label>
+    `).join('');
+  }
+
+  function selectedCheckboxDays(groupId) {
+    return Array.from(document.querySelectorAll(`input[data-group="${groupId}"]:checked`)).map((input) => input.dataset.day);
+  }
+
+  function enhanceSettingsSections() {
+    document.querySelectorAll('.settings-section').forEach((section) => {
+      if (section.dataset.enhanced === 'true' || section.id === 'api-section') return;
+      const heading = section.querySelector(':scope > h3');
+      if (!heading) return;
+      const copy = section.querySelector(':scope > .settings-section-copy');
+      const body = document.createElement('div');
+      body.className = 'settings-section-body';
+
+      let cursor = copy ? copy.nextSibling : heading.nextSibling;
+      while (cursor) {
+        const next = cursor.nextSibling;
+        body.appendChild(cursor);
+        cursor = next;
+      }
+
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'settings-section-head';
+      toggle.innerHTML = `
+        <span class="settings-section-head-copy">
+          <span class="settings-section-name">${escapeHtml(heading.textContent || '')}</span>
+          ${copy ? `<span class="settings-section-copy">${escapeHtml(copy.textContent || '')}</span>` : ''}
+        </span>
+        <span class="settings-section-caret">▾</span>
+      `;
+
+      heading.remove();
+      if (copy) copy.remove();
+      section.prepend(body);
+      section.prepend(toggle);
+      section.dataset.enhanced = 'true';
+
+      toggle.addEventListener('click', () => {
+        section.classList.toggle('collapsed');
+      });
+    });
+  }
+
+  function effectiveNow() {
+    const override = params().get('debugNow');
+    if (!override) return new Date();
+    const parsed = new Date(override);
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  }
+
+  function pageTitle() {
+    const custom = params().get('title');
+    if (!custom || custom === 'One Bite TV Queue') {
+      return currentPreferences().brand?.title || 'Current Repair Queue';
+    }
+    return custom;
+  }
+
+  function updateBrand(preferences) {
+    const brand = preferences?.brand || currentPreferences().brand || {};
+    qs('page-title').textContent = params().get('title') && params().get('title') !== 'One Bite TV Queue'
+      ? params().get('title')
+      : (brand.title || 'Current Repair Queue');
+    const logo = String(brand.logoDataUrl || '').trim();
+    const logoEl = qs('brand-logo');
+    if (logo) {
+      logoEl.src = logo;
+      logoEl.classList.add('visible');
+    } else {
+      logoEl.removeAttribute('src');
+      logoEl.classList.remove('visible');
+    }
+  }
+
+  function setLogoPreview(logoDataUrl, labelText = '') {
+    const previewEl = qs('pref-brand-logo-preview');
+    const nameEl = qs('pref-brand-logo-name');
+    const noteEl = qs('pref-brand-logo-note');
+    const logo = String(logoDataUrl || '').trim();
+    if (logo) {
+      previewEl.src = logo;
+      previewEl.classList.add('visible');
+      nameEl.textContent = labelText || 'Stored logo';
+      noteEl.textContent = 'Preview of the logo saved for the board header.';
+      return;
+    }
+    previewEl.removeAttribute('src');
+    previewEl.classList.remove('visible');
+    nameEl.textContent = 'No logo uploaded';
+    noteEl.textContent = 'Upload a logo to preview how it will appear in the board header.';
+  }
+
+  function cardTone(status) {
+    const text = String(status || '').toLowerCase();
+    if (text.includes('estimate') || text.includes('need to order') || text.includes('quote')) return 'tone-danger';
+    if (text.includes('wait')) return 'tone-blue';
+    if (text.includes('ready')) return 'tone-pink';
+    if (text.includes('quality') || text.includes('technician')) return 'tone-purple';
+    if (text.includes('schedule') || text.includes('parts arrived')) return 'tone-ok';
+    if (text.includes('pending')) return 'tone-warn';
+    if (text.includes('progress') || text.includes('diagnostics')) return 'tone-accent';
+    return 'tone-blue';
+  }
+
+  function formatLocalDate(dateLike) {
+    if (!dateLike) return 'No due date';
+    const date = new Date(dateLike);
+    if (Number.isNaN(date.getTime())) return 'No due date';
+    const now = new Date();
+    const sameDay = date.toDateString() === now.toDateString();
+    if (sameDay) {
+      return 'Due today ' + date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    }
+    return date.toLocaleString([], {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  }
+
+  function waitingToneClass(waitingDays) {
+    if (waitingDays == null || Number.isNaN(Number(waitingDays))) return 'neutral';
+    if (waitingDays >= 7) return 'danger';
+    if (waitingDays >= 4) return 'warn';
+    if (waitingDays >= 1) return 'good';
+    return 'neutral';
+  }
+
+  function waitingBadge(waitingDays) {
+    if (waitingDays == null || Number.isNaN(Number(waitingDays))) {
+      return 'Waiting age n/a';
+    }
+    return `<span class="wait-box-number">${escapeHtml(waitingDays)}</span><span class="wait-box-label">Days Waiting</span>`;
+  }
+
+  function cardsPerPage() {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    if (width >= 1800 && height >= 950) return 24;
+    if (width >= 1400) return 18;
+    if (width >= 1000) return 12;
+    return 6;
+  }
+
+  function formatTimeOnly(dateLike) {
+    if (!dateLike) return '';
+    const date = new Date(dateLike);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
+
+  function formatScheduleDayLabel(label, isoDate) {
+    if (!isoDate) return label;
+    const date = new Date(`${isoDate}T12:00:00`);
+    if (Number.isNaN(date.getTime())) return label;
+    const dayOfMonth = date.getDate();
+    const suffix = (dayOfMonth % 10 === 1 && dayOfMonth % 100 !== 11) ? 'st'
+      : (dayOfMonth % 10 === 2 && dayOfMonth % 100 !== 12) ? 'nd'
+      : (dayOfMonth % 10 === 3 && dayOfMonth % 100 !== 13) ? 'rd'
+      : 'th';
+    const month = date.toLocaleDateString([], { month: 'long' });
+    return `${label} - ${month} ${dayOfMonth}${suffix}`;
+  }
+
+  function appointmentUrgencyClass(dateLike) {
+    const meta = appointmentUrgencyMeta(dateLike, '');
+    return meta.className;
+  }
+
+  function appointmentUrgencyMeta(dateLike, serviceName) {
+    if (!dateLike) return { className: '', style: '' };
+    const appt = new Date(dateLike);
+    if (Number.isNaN(appt.getTime())) return { className: '', style: '' };
+    const now = effectiveNow();
+    const sameDay = appt.toDateString() === now.toDateString();
+    if (!sameDay) return { className: '', style: '' };
+
+    const minutesUntil = (appt.getTime() - now.getTime()) / 60000;
+    const prefs = currentPreferences();
+    const onsite = /on[\s-]?site/i.test(String(serviceName || ''));
+    const advanceMinutes = onsite ? Number(prefs.schedule.onsiteLeadMinutes || 60) : Number(prefs.schedule.defaultLeadMinutes || 45);
+    if (minutesUntil > advanceMinutes || minutesUntil < -15) {
+      return { className: '', style: '' };
+    }
+    if (minutesUntil <= Number(prefs.schedule.imminentMinutes || 20)) {
+      return { className: 'imminent', style: '' };
+    }
+
+    const startDuration = onsite ? 2.4 : 2.0;
+    const endDuration = 0.95;
+    const imminentMinutes = Number(prefs.schedule.imminentMinutes || 20);
+    const progress = (advanceMinutes - minutesUntil) / Math.max(1, (advanceMinutes - imminentMinutes));
+    const duration = startDuration - ((startDuration - endDuration) * Math.max(0, Math.min(1, progress)));
+    return {
+      className: 'urgent',
+      style: `animation-duration:${duration.toFixed(2)}s;`,
+    };
+  }
+
+  function fillSettingsForm(preferences) {
+    const prefs = preferences || currentPreferences();
+    qs('pref-brand-title').value = prefs.brand?.title || 'Current Repair Queue';
+    setLogoPreview(prefs.brand?.logoDataUrl || '', prefs.brand?.logoDataUrl ? 'Stored logo' : '');
+    qs('pref-fullscreen').checked = !!prefs.display?.fullscreen;
+    qs('pref-orientation').value = prefs.display?.orientation || 'auto';
+    qs('pref-show-assigned-tech').checked = prefs.display?.showAssignedTech !== false;
+    qs('pref-included-weekdays').innerHTML = checkboxGroupMarkup('included-weekdays', prefs.schedule.includedWeekdays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']);
+    qs('pref-show-calendar').checked = prefs.schedule.showCalendar !== false;
+    qs('pref-rotate-weeks').checked = !!prefs.schedule.rotateWeeks;
+    qs('pref-rotate-interval-seconds').value = prefs.schedule.rotateIntervalSeconds ?? 20;
+    qs('pref-blocked-weekdays').innerHTML = checkboxGroupMarkup('blocked-weekdays', prefs.schedule.blockedWeekdays || []);
+    qs('pref-dim-past-days').checked = prefs.schedule.dimPastDays !== false;
+    qs('pref-service-matchers').value = (prefs.schedule.serviceMatchers || []).join('\n');
+    qs('pref-default-lead').value = prefs.schedule.defaultLeadMinutes ?? 45;
+    qs('pref-onsite-lead').value = prefs.schedule.onsiteLeadMinutes ?? 60;
+    qs('pref-imminent-minutes').value = prefs.schedule.imminentMinutes ?? 20;
+    qs('pref-inprogress-days').value = prefs.staleRules.inProgress?.days ?? 0;
+    qs('pref-inprogress-hours').value = prefs.staleRules.inProgress?.hours ?? 12;
+    qs('pref-attention-days').value = prefs.staleRules.needsAttention?.days ?? 1;
+    qs('pref-attention-hours').value = prefs.staleRules.needsAttention?.hours ?? 0;
+    qs('pref-wait-customer-days').value = prefs.staleRules.waitingOnCustomer?.days ?? 4;
+    qs('pref-wait-customer-hours').value = prefs.staleRules.waitingOnCustomer?.hours ?? 0;
+    qs('pref-wait-parts-days').value = prefs.staleRules.waitingForParts?.days ?? 14;
+    qs('pref-wait-parts-hours').value = prefs.staleRules.waitingForParts?.hours ?? 0;
+    qs('pref-qc-days').value = prefs.staleRules.qualityControl?.days ?? 0;
+    qs('pref-qc-hours').value = prefs.staleRules.qualityControl?.hours ?? 1;
+    qs('pref-ready-label').value = prefs.columns.readyToStart.label || 'Ready to start';
+    qs('pref-ready-statuses').value = (prefs.columns.readyToStart.statuses || []).join('\n');
+    qs('pref-ready-visible').checked = prefs.columns.readyToStart.visible !== false;
+    qs('pref-progress-label').value = prefs.columns.inProgress.label || 'In Progress';
+    qs('pref-progress-statuses').value = (prefs.columns.inProgress.statuses || []).join('\n');
+    qs('pref-progress-visible').checked = prefs.columns.inProgress.visible !== false;
+    qs('pref-attention-label').value = prefs.columns.needsAttention.label || 'Needs Attention';
+    qs('pref-attention-statuses').value = (prefs.columns.needsAttention.statuses || []).join('\n');
+    qs('pref-attention-visible').checked = prefs.columns.needsAttention.visible !== false;
+    qs('pref-waiting-label').value = prefs.columns.waiting.label || 'Waiting';
+    qs('pref-waiting-statuses').value = (prefs.columns.waiting.statuses || []).join('\n');
+    qs('pref-waiting-visible').checked = prefs.columns.waiting.visible !== false;
+    qs('pref-qc-label').value = prefs.columns.qualityControl.label || 'Quality Control';
+    qs('pref-qc-statuses').value = (prefs.columns.qualityControl.statuses || []).join('\n');
+    qs('pref-qc-visible').checked = prefs.columns.qualityControl.visible !== false;
+    qs('settings-status').textContent = '';
+  }
+
+  function collectSettingsForm() {
+    return {
+      brand: {
+        title: qs('pref-brand-title').value || 'Current Repair Queue',
+        logoDataUrl: state.logoDataUrl || currentPreferences().brand?.logoDataUrl || '',
+      },
+      display: {
+        fullscreen: qs('pref-fullscreen').checked,
+        orientation: qs('pref-orientation').value || 'auto',
+        showAssignedTech: qs('pref-show-assigned-tech').checked,
+      },
+      schedule: {
+        includedWeekdays: selectedCheckboxDays('included-weekdays'),
+        showCalendar: qs('pref-show-calendar').checked,
+        rotateWeeks: qs('pref-rotate-weeks').checked,
+        rotateIntervalSeconds: Number(qs('pref-rotate-interval-seconds').value || 20),
+        blockedWeekdays: selectedCheckboxDays('blocked-weekdays'),
+        dimPastDays: qs('pref-dim-past-days').checked,
+        serviceMatchers: parseLines(qs('pref-service-matchers').value),
+        defaultLeadMinutes: Number(qs('pref-default-lead').value || 0),
+        onsiteLeadMinutes: Number(qs('pref-onsite-lead').value || 0),
+        imminentMinutes: Number(qs('pref-imminent-minutes').value || 0),
+      },
+      staleRules: {
+        inProgress: {
+          days: Number(qs('pref-inprogress-days').value || 0),
+          hours: Number(qs('pref-inprogress-hours').value || 0),
+        },
+        needsAttention: {
+          days: Number(qs('pref-attention-days').value || 0),
+          hours: Number(qs('pref-attention-hours').value || 0),
+        },
+        waitingOnCustomer: {
+          days: Number(qs('pref-wait-customer-days').value || 0),
+          hours: Number(qs('pref-wait-customer-hours').value || 0),
+        },
+        waitingForParts: {
+          days: Number(qs('pref-wait-parts-days').value || 0),
+          hours: Number(qs('pref-wait-parts-hours').value || 0),
+        },
+        qualityControl: {
+          days: Number(qs('pref-qc-days').value || 0),
+          hours: Number(qs('pref-qc-hours').value || 0),
+        },
+      },
+      columns: {
+        readyToStart: { label: qs('pref-ready-label').value || 'Ready to start', visible: qs('pref-ready-visible').checked, statuses: parseLines(qs('pref-ready-statuses').value) },
+        inProgress: { label: qs('pref-progress-label').value || 'In Progress', visible: qs('pref-progress-visible').checked, statuses: parseLines(qs('pref-progress-statuses').value) },
+        needsAttention: { label: qs('pref-attention-label').value || 'Needs Attention', visible: qs('pref-attention-visible').checked, statuses: parseLines(qs('pref-attention-statuses').value) },
+        waiting: { label: qs('pref-waiting-label').value || 'Waiting', visible: qs('pref-waiting-visible').checked, statuses: parseLines(qs('pref-waiting-statuses').value) },
+        qualityControl: { label: qs('pref-qc-label').value || 'Quality Control', visible: qs('pref-qc-visible').checked, statuses: parseLines(qs('pref-qc-statuses').value) },
+      },
+    };
+  }
+
+  function visibleColumnLabels(preferences) {
+    const columns = preferences?.columns || currentPreferences().columns;
+    return new Set(Object.values(columns).filter((column) => column.visible !== false).map((column) => column.label));
+  }
+
+  function applyDisplayPreferences(preferences) {
+    const prefs = preferences || currentPreferences();
+    const orientation = prefs.display?.orientation || 'auto';
+    document.body.classList.toggle('force-horizontal', orientation === 'horizontal');
+    document.body.classList.toggle('force-vertical', orientation === 'vertical');
+    qs('ready-column').hidden = prefs.columns.readyToStart.visible === false;
+    qs('progress-column').hidden = prefs.columns.inProgress.visible === false;
+    qs('attention-column').hidden = prefs.columns.needsAttention.visible === false;
+    qs('waiting-column').hidden = prefs.columns.waiting.visible === false;
+    qs('qc-column').hidden = prefs.columns.qualityControl.visible === false;
+  }
+
+  function applyPreferenceLabels(preferences) {
+    const prefs = preferences || currentPreferences();
+    qs('ready-title').textContent = prefs.columns.readyToStart.label;
+    qs('progress-title').textContent = prefs.columns.inProgress.label;
+    qs('attention-title').textContent = prefs.columns.needsAttention.label;
+    qs('waiting-title').textContent = prefs.columns.waiting.label;
+    qs('qc-title').textContent = prefs.columns.qualityControl.label;
+  }
+
+  async function loadApiConfig() {
+    const response = await fetch('/api/config');
+    const payload = await response.json();
+    qs('api-key').value = payload.apiKey || '';
+  }
+
+  async function saveApiConfig() {
+    const response = await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        apiKey: qs('api-key').value,
+      }),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error || 'Could not save API settings');
+    }
+  }
+
+  function readSelectedLogo() {
+    const file = qs('pref-brand-logo').files && qs('pref-brand-logo').files[0];
+    if (!file) return Promise.resolve(state.logoDataUrl || currentPreferences().brand?.logoDataUrl || '');
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(new Error('Could not read logo file'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function totalPages() {
+    if (!state.data || !state.data.tickets.length) return 1;
+    return Math.max(1, Math.ceil(state.data.tickets.length / cardsPerPage()));
+  }
+
+  function renderSummary(data) {
+    qs('open-tickets-pill').textContent = 'Open Tickets ' + data.totals.tickets;
+    qs('oldest-regular-pill').textContent = 'Oldest Regular Ticket ' + (data.totals.oldestRegularReadyDays == null ? '--' : (data.totals.oldestRegularReadyDays + 'd'));
+    qs('oldest-priority-pill').textContent = 'Oldest Priority Ticket ' + (data.totals.oldestPriorityReadyDays == null ? 'None' : (data.totals.oldestPriorityReadyDays + 'd'));
+  }
+
+  function renderStatuses(data) {
+    const labels = visibleColumnLabels(data.uiPreferences);
+    const active = data.statusCounts.filter((item) => item.count > 0 && labels.has(item.status));
+    qs('status-row').innerHTML = active.map((item) => `
+      <div class="status-pill ${cardTone(item.status)}">
+        <strong>${escapeHtml(item.count)}</strong>
+        <span>${escapeHtml(item.status)}</span>
+      </div>
+    `).join('');
+    qs('status-row').style.display = active.length ? 'flex' : 'none';
+  }
+
+  function currentCalendarDays(data) {
+    const rotateWeeks = !!data?.uiPreferences?.schedule?.rotateWeeks;
+    const useNextWeek = rotateWeeks && state.calendarWeekOffset === 1;
+    return useNextWeek ? (data.nextScheduledCalendar || []) : (data.scheduledCalendar || []);
+  }
+
+  function currentCalendarTitle(data) {
+    const rotateWeeks = !!data?.uiPreferences?.schedule?.rotateWeeks;
+    const useNextWeek = rotateWeeks && state.calendarWeekOffset === 1;
+    return useNextWeek ? "Next Week's Appointments" : "This Week's Appointments";
+  }
+
+  function renderSchedule(data) {
+    const days = currentCalendarDays(data);
+    const todayIso = effectiveNow().toISOString().slice(0, 10);
+    qs('schedule-panel-title').textContent = currentCalendarTitle(data);
+    qs('schedule-panel-sub').textContent = days.length ? `${days.length} day view` : 'No included weekdays selected';
+    qs('schedule-strip').innerHTML = days.map((day) => `
+      <article class="schedule-day${day.blocked ? ' blocked' : ''}${data.uiPreferences?.schedule?.dimPastDays !== false && day.iso < todayIso ? ' past-day' : ''}">
+        <div class="schedule-head">
+          <div class="schedule-label">${escapeHtml(formatScheduleDayLabel(day.label, day.iso))}</div>
+          <div class="schedule-count${day.blocked ? ' blocked' : ''}">${day.blocked ? 'Off limits' : escapeHtml(day.appointments.length) + ' appt'}</div>
+        </div>
+        ${day.blocked ? '<div class="schedule-note">No booking window on this day</div>' : ''}
+        <div class="schedule-items">
+          ${day.appointments.length ? day.appointments.slice(0, 4).map((appt) => {
+            const urgency = appointmentUrgencyMeta(appt.dueOn, appt.device || '');
+            return `
+            <div class="schedule-item ${urgency.className}" style="${urgency.style}">
+              <div class="schedule-top">
+                <div class="schedule-ticket">T-${escapeHtml(appt.orderId)}</div>
+                <div class="schedule-time">${escapeHtml(formatTimeOnly(appt.dueOn))}</div>
+              </div>
+              <div class="schedule-name">${escapeHtml(appt.customerName)}</div>
+              <div class="schedule-device">${escapeHtml(appt.device || 'Tech Support')}</div>
+            </div>
+          `;
+          }).join('') : `<div class="schedule-empty">${day.blocked ? 'Blocked for appointments' : 'No appointments'}</div>`}
+        </div>
+      </article>
+    `).join('');
+  }
+
+  function setupCalendarRotation() {
+    if (state.calendarRotationTimer) clearInterval(state.calendarRotationTimer);
+    state.calendarRotationTimer = null;
+    state.calendarWeekOffset = 0;
+    if (!state.data?.uiPreferences?.schedule?.rotateWeeks) return;
+    const intervalSeconds = Math.max(5, Number(state.data.uiPreferences.schedule.rotateIntervalSeconds || 20));
+    state.calendarRotationTimer = setInterval(() => {
+      const strip = qs('schedule-strip');
+      strip.classList.add('fading');
+      setTimeout(() => {
+        state.calendarWeekOffset = state.calendarWeekOffset === 0 ? 1 : 0;
+        renderSchedule(state.data);
+        strip.classList.remove('fading');
+      }, 240);
+    }, intervalSeconds * 1000);
+  }
+
+  function renderBoard(data) {
+    qs('page-dots').innerHTML = '';
+  }
+
+  function queueCardMarkup(ticket, fallbackStatus, staleClass) {
+    const showAssignedTech = currentPreferences().display?.showAssignedTech !== false;
+    return `
+      <article class="queue-item${staleClass ? ' ' + staleClass : ''}">
+        <div class="queue-top">
+          <div class="queue-ticket">T-${escapeHtml(ticket.orderId)}</div>
+          <div class="wait-box ${waitingToneClass(ticket.waitingDays)}">${waitingBadge(ticket.waitingDays)}</div>
+        </div>
+        <span class="status-box" style="background:${escapeHtml(ticket.statusColor || '#64748b')}">${escapeHtml(ticket.status || fallbackStatus)}</span>
+        <div class="queue-info">
+          <div class="queue-name-row">
+            <div class="queue-name">${escapeHtml(ticket.customerName)}</div>
+            <div class="queue-detail">${escapeHtml((ticket.devices && ticket.devices[0]) || 'General service')}</div>
+            <div class="queue-service">${escapeHtml((ticket.issues && ticket.issues[0]) || 'No issue listed')}</div>
+          </div>
+        </div>
+        ${showAssignedTech ? `<div class="queue-issue">${escapeHtml(ticket.assigneeName)}</div>` : ''}
+      </article>
+    `;
+  }
+
+  function renderReadyQueue(data) {
+    const items = data.readyQueue || [];
+    qs('ready-count-pill').textContent = items.length + ' tickets';
+    if (!items.length) {
+      qs('ready-queue-content').innerHTML = `
+        <div class="state">
+          <div>
+            <h2 class="empty-title">No ready tickets</h2>
+            <div class="empty-sub">Nothing is currently in a ready-to-start status.</div>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    qs('ready-queue-content').innerHTML = `
+      <div class="queue-list">
+        ${items.slice(0, 14).map((ticket) => queueCardMarkup(ticket, 'Ready to Start', '')).join('')}
+      </div>
+    `;
+  }
+
+  function renderProgressQueue(data) {
+    const items = data.inProgressQueue || [];
+    qs('progress-count-pill').textContent = items.length + ' tickets';
+    if (!items.length) {
+      qs('progress-queue-content').innerHTML = `
+        <div class="state">
+          <div>
+            <h2 class="empty-title">No progress queue</h2>
+            <div class="empty-sub">Nothing is currently in an in-progress status.</div>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    qs('progress-queue-content').innerHTML = `
+      <div class="queue-list">
+        ${items.slice(0, 14).map((ticket) => queueCardMarkup(ticket, 'In Progress', ticket.staleHours != null && ticket.staleHours >= ticket.staleThresholdHours ? 'stale' : '')).join('')}
+      </div>
+    `;
+  }
+
+  function renderAttentionQueue(data) {
+    const items = data.needsAttentionQueue || [];
+    qs('attention-count-pill').textContent = items.length + ' tickets';
+    if (!items.length) {
+      qs('attention-queue-content').innerHTML = `
+        <div class="state">
+          <div>
+            <h2 class="empty-title">No attention queue</h2>
+            <div class="empty-sub">Nothing is currently in a needs-attention status.</div>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    qs('attention-queue-content').innerHTML = `
+      <div class="queue-list">
+        ${items.slice(0, 14).map((ticket) => queueCardMarkup(ticket, 'Needs Attention', ticket.staleHours != null && ticket.staleHours >= ticket.staleThresholdHours ? 'stale' : '')).join('')}
+      </div>
+    `;
+  }
+
+  function renderWaitingQueue(data) {
+    const items = data.waitingQueue || [];
+    qs('waiting-count-pill').textContent = items.length + ' tickets';
+    if (!items.length) {
+      qs('waiting-queue-content').innerHTML = `
+        <div class="state">
+          <div>
+            <h2 class="empty-title">No waiting queue</h2>
+            <div class="empty-sub">Nothing is currently in a waiting status.</div>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    qs('waiting-queue-content').innerHTML = `
+      <div class="queue-list">
+        ${items.slice(0, 14).map((ticket) => queueCardMarkup(ticket, 'Waiting', ticket.staleHours != null && ticket.staleHours >= ticket.staleThresholdHours ? 'stale' : '')).join('')}
+      </div>
+    `;
+  }
+
+  function renderQualityControlQueue(data) {
+    const items = data.qualityControlQueue || [];
+    qs('qc-count-pill').textContent = items.length + ' tickets';
+    if (!items.length) {
+      qs('qc-queue-content').innerHTML = `
+        <div class="state">
+          <div>
+            <h2 class="empty-title">No QC queue</h2>
+            <div class="empty-sub">Nothing is currently in quality control.</div>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    qs('qc-queue-content').innerHTML = `
+      <div class="queue-list">
+        ${items.slice(0, 14).map((ticket) => queueCardMarkup(ticket, 'Quality Control', ticket.staleHours != null && ticket.staleHours >= ticket.staleThresholdHours ? 'stale' : '')).join('')}
+      </div>
+    `;
+  }
+
+  function renderError(message) {
+    qs('summary').innerHTML = '';
+    qs('status-row').innerHTML = '';
+    qs('page-dots').innerHTML = '';
+    qs('open-tickets-pill').textContent = 'Open Tickets 0';
+    qs('oldest-regular-pill').textContent = 'Oldest Regular Ticket --';
+    qs('oldest-priority-pill').textContent = 'Oldest Priority Ticket None';
+    qs('refresh-countdown-pill').textContent = 'Refresh in --s';
+    qs('ready-count-pill').textContent = '0 tickets';
+    qs('ready-queue-content').innerHTML = '';
+    qs('progress-count-pill').textContent = '0 tickets';
+    qs('progress-queue-content').innerHTML = '';
+    qs('attention-count-pill').textContent = '0 tickets';
+    qs('attention-queue-content').innerHTML = '';
+    qs('waiting-count-pill').textContent = '0 tickets';
+    qs('waiting-queue-content').innerHTML = '';
+    qs('qc-count-pill').textContent = '0 tickets';
+    qs('qc-queue-content').innerHTML = '';
+    qs('schedule-strip').innerHTML = '';
+    qs('footer-note').textContent = message;
+  }
+
+  function renderAll() {
+    if (!state.data) return;
+    updateBrand(state.data.uiPreferences);
+    applyPreferenceLabels(state.data.uiPreferences);
+    applyDisplayPreferences(state.data.uiPreferences);
+    if (!state.settingsLoaded) {
+      fillSettingsForm(state.data.uiPreferences);
+      state.settingsLoaded = true;
+    }
+    renderSummary(state.data);
+    renderStatuses(state.data);
+    qs('schedule-panel').hidden = state.data.uiPreferences?.schedule?.showCalendar === false;
+    renderSchedule(state.data);
+    renderBoard(state.data);
+    renderReadyQueue(state.data);
+    renderProgressQueue(state.data);
+    renderAttentionQueue(state.data);
+    renderWaitingQueue(state.data);
+    renderQualityControlQueue(state.data);
+    qs('footer-note').textContent = state.data.displayTicketCounts
+      ? 'RepairDesk count widgets are enabled for this token. This custom board still prioritizes full ticket cards.'
+      : 'This board groups duplicate issue lines into a single readable ticket card for TV use.';
+  }
+
+  async function loadFeed() {
+    const token = params().get('token');
+    if (!token) {
+      renderError('Missing token. Open this page with ?token=YOUR_REPAIRDESK_TICKET_COUNTER_TOKEN.');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/ticket-counter?token=' + encodeURIComponent(token));
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || 'Request failed');
+      }
+      state.data = payload;
+      state.calendarWeekOffset = 0;
+      renderAll();
+      setupPaging();
+      setupRefresh();
+      setupCalendarRotation();
+    } catch (error) {
+      renderError(error.message || 'Could not load the RepairDesk ticket feed.');
+    }
+  }
+
+  async function savePreferences() {
+    try {
+      qs('settings-status').textContent = 'Saving...';
+      const previousDisplay = currentPreferences().display || { fullscreen: false, orientation: 'auto' };
+      state.logoDataUrl = await readSelectedLogo();
+      const nextPreferences = collectSettingsForm();
+      await saveApiConfig();
+      const response = await fetch('/api/preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(nextPreferences),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || 'Could not save settings');
+      }
+      state.settingsLoaded = false;
+      qs('settings-status').textContent = 'Saved. Refreshing display...';
+      const nextDisplay = payload.preferences.display || nextPreferences.display || {};
+      const displayChanged = !!window.desktopApp?.applyWindowPreferences && (
+        !!nextDisplay.fullscreen !== !!previousDisplay.fullscreen ||
+        String(nextDisplay.orientation || 'auto') !== String(previousDisplay.orientation || 'auto')
+      );
+      if (displayChanged) {
+        await window.desktopApp.applyWindowPreferences(payload.preferences.display || {});
+      }
+      await loadFeed();
+      fillSettingsForm(payload.preferences);
+      qs('settings-status').textContent = 'Saved.';
+    } catch (error) {
+      qs('settings-status').textContent = error.message || 'Could not save settings.';
+    }
+  }
+
+  async function restartServer() {
+    const btn = qs('settings-restart');
+    btn.disabled = true;
+    qs('settings-status').textContent = 'Restarting server...';
+
+    try {
+      await fetch('/api/server/restart', { method: 'POST' });
+    } catch (_) {
+      // The current connection may drop while the old server exits.
+    }
+
+    let attempts = 0;
+    const poll = async () => {
+      attempts += 1;
+      try {
+        const response = await fetch('/api/config/status', { cache: 'no-store' });
+        if (response.ok) {
+          qs('settings-status').textContent = 'Server restarted.';
+          btn.disabled = false;
+          await loadFeed();
+          return;
+        }
+      } catch (_) {}
+
+      if (attempts >= 30) {
+        qs('settings-status').textContent = 'Restart requested. Refresh if the page does not recover.';
+        btn.disabled = false;
+        return;
+      }
+      setTimeout(poll, 1000);
+    };
+
+    setTimeout(poll, 1000);
+  }
+
+  async function openInBrowser() {
+    if (!window.desktopApp?.openInBrowser) {
+      qs('settings-status').textContent = 'Open in Browser is only available in the desktop app.';
+      return;
+    }
+
+    try {
+      const result = await window.desktopApp.openInBrowser();
+      qs('settings-status').textContent = result?.url ? `Opened ${result.url}` : 'Opened board in browser.';
+    } catch (error) {
+      qs('settings-status').textContent = error?.message || 'Could not open browser.';
+    }
+  }
+
+  async function checkForUpdates() {
+    const btn = qs('settings-check-updates');
+    if (!window.desktopApp?.checkForUpdates) {
+      qs('settings-status').textContent = 'Update checks are only available in the desktop app.';
+      return;
+    }
+
+    btn.disabled = true;
+    qs('settings-status').textContent = 'Checking for updates...';
+
+    try {
+      const status = await window.desktopApp.checkForUpdates();
+      qs('settings-status').textContent = status?.message || 'Update check finished.';
+    } catch (error) {
+      qs('settings-status').textContent = error?.message || 'Update check failed.';
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function openSettings() {
+    qs('settings-drawer').classList.add('open');
+    state.logoDataUrl = currentPreferences().brand?.logoDataUrl || '';
+    fillSettingsForm(currentPreferences());
+    loadApiConfig().catch(() => {
+      qs('settings-status').textContent = 'Could not load API settings.';
+    });
+  }
+
+  function closeSettings() {
+    qs('settings-drawer').classList.remove('open');
+  }
+
+  function setupPaging() {
+    if (state.pageTimer) clearInterval(state.pageTimer);
+    const pages = totalPages();
+    if (pages <= 1) return;
+    state.pageTimer = setInterval(() => {
+      state.page = (state.page + 1) % pages;
+      renderBoard(state.data);
+    }, DEFAULT_PAGE_SECONDS * 1000);
+  }
+
+  function setupRefresh() {
+    if (state.refreshTimer) clearInterval(state.refreshTimer);
+    if (state.refreshCountdownTimer) clearInterval(state.refreshCountdownTimer);
+    const minutes = Math.max(1, Number(state.data?.refreshMinutes || 1));
+    const intervalMs = minutes * 60 * 1000;
+    state.nextRefreshAt = Date.now() + intervalMs;
+    const tick = () => {
+      const remainingMs = Math.max(0, state.nextRefreshAt - Date.now());
+      const remainingSeconds = Math.ceil(remainingMs / 1000);
+      qs('refresh-countdown-pill').textContent = 'Refresh in ' + remainingSeconds + 's';
+    };
+    tick();
+    state.refreshCountdownTimer = setInterval(tick, 1000);
+    state.refreshTimer = setInterval(() => {
+      state.nextRefreshAt = Date.now() + intervalMs;
+      loadFeed();
+    }, intervalMs);
+  }
+
+  function startClock() {
+    if (state.clockTimer) clearInterval(state.clockTimer);
+    const update = () => {
+      qs('clock-pill').textContent = new Date().toLocaleTimeString([], {
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+    };
+    update();
+    state.clockTimer = setInterval(update, 1000);
+  }
+
+  window.addEventListener('resize', () => {
+    if (!state.data) return;
+    renderBoard(state.data);
+    setupPaging();
+  });
+
+  qs('settings-open').addEventListener('click', openSettings);
+  qs('settings-close').addEventListener('click', closeSettings);
+  qs('settings-close-bottom').addEventListener('click', closeSettings);
+  qs('settings-open-browser').addEventListener('click', openInBrowser);
+  qs('settings-check-updates').addEventListener('click', checkForUpdates);
+  qs('settings-restart').addEventListener('click', restartServer);
+  qs('settings-save').addEventListener('click', savePreferences);
+  qs('api-toggle').addEventListener('click', () => {
+    const section = qs('api-section');
+    section.style.display = section.style.display === 'none' ? 'block' : 'none';
+  });
+  qs('pref-brand-logo').addEventListener('change', () => {
+    const file = qs('pref-brand-logo').files && qs('pref-brand-logo').files[0];
+    if (!file) {
+      setLogoPreview(currentPreferences().brand?.logoDataUrl || '', currentPreferences().brand?.logoDataUrl ? 'Stored logo' : '');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setLogoPreview(String(reader.result || ''), file.name);
+    };
+    reader.onerror = () => {
+      setLogoPreview(currentPreferences().brand?.logoDataUrl || '', currentPreferences().brand?.logoDataUrl ? 'Stored logo' : '');
+    };
+    reader.readAsDataURL(file);
+  });
+
+  enhanceSettingsSections();
+  qs('page-title').textContent = pageTitle();
+  startClock();
+  loadFeed();
+</script>
+</body>
+</html>
