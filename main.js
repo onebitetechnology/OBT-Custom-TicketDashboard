@@ -20,6 +20,10 @@ let updateStatus = {
   available: false,
   checking: false,
   downloaded: false,
+  progressPercent: 0,
+  bytesPerSecond: 0,
+  transferredBytes: 0,
+  totalBytes: 0,
   message: 'Update checks are idle.',
   version: null,
 };
@@ -78,9 +82,7 @@ function loadWindowPreferences() {
     const orientation = ['auto', 'horizontal', 'vertical'].includes(String(saved.orientation || '').toLowerCase())
       ? String(saved.orientation).toLowerCase()
       : defaults.orientation;
-    const displayTarget = ['current', 'primary', 'secondary'].includes(String(saved.displayTarget || '').toLowerCase())
-      ? String(saved.displayTarget).toLowerCase()
-      : defaults.displayTarget;
+    const displayTarget = String(saved.displayTarget || defaults.displayTarget).trim() || defaults.displayTarget;
     return {
       fullscreen: !!saved.fullscreen,
       orientation,
@@ -95,6 +97,10 @@ function getTargetDisplay(preferences = {}, currentBounds = null) {
   const target = String(preferences.displayTarget || 'current').toLowerCase();
   const displays = screen.getAllDisplays();
   if (!displays.length) return screen.getPrimaryDisplay();
+  if (target.startsWith('display:')) {
+    const id = Number(target.slice('display:'.length));
+    return displays.find((display) => Number(display.id) === id) || screen.getPrimaryDisplay();
+  }
   if (target === 'primary') return screen.getPrimaryDisplay();
   if (target === 'secondary') {
     const primaryId = screen.getPrimaryDisplay().id;
@@ -131,9 +137,7 @@ function applyWindowPreferences(preferences = {}) {
     orientation: ['auto', 'horizontal', 'vertical'].includes(String(preferences.orientation || '').toLowerCase())
       ? String(preferences.orientation).toLowerCase()
       : 'auto',
-    displayTarget: ['current', 'primary', 'secondary'].includes(String(preferences.displayTarget || '').toLowerCase())
-      ? String(preferences.displayTarget).toLowerCase()
-      : 'current',
+    displayTarget: String(preferences.displayTarget || 'current').trim().toLowerCase() || 'current',
   };
 
   const currentBounds = mainWindow.getBounds();
@@ -269,29 +273,42 @@ function setupAutoUpdates() {
   autoUpdater.autoInstallOnAppQuit = true;
 
   autoUpdater.on('checking-for-update', () => {
-    updateStatus = { available: false, checking: true, downloaded: false, message: 'Checking for updates...', version: null };
+    updateStatus = { available: false, checking: true, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: 'Checking for updates...', version: null };
   });
   autoUpdater.on('update-available', (info) => {
-    updateStatus = { available: true, checking: false, downloaded: false, message: 'Update available. Downloading...', version: info?.version || null };
+    updateStatus = { available: true, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: 'Update available. Downloading...', version: info?.version || null };
   });
   autoUpdater.on('update-not-available', () => {
-    updateStatus = { available: false, checking: false, downloaded: false, message: 'App is up to date.', version: null };
+    updateStatus = { available: false, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: 'App is up to date.', version: null };
+  });
+  autoUpdater.on('download-progress', (progress) => {
+    updateStatus = {
+      ...updateStatus,
+      available: true,
+      checking: false,
+      downloaded: false,
+      progressPercent: Number(progress?.percent || 0),
+      bytesPerSecond: Number(progress?.bytesPerSecond || 0),
+      transferredBytes: Number(progress?.transferred || 0),
+      totalBytes: Number(progress?.total || 0),
+      message: `Downloading update... ${Math.round(Number(progress?.percent || 0))}%`,
+    };
   });
   autoUpdater.on('update-downloaded', (info) => {
-    updateStatus = { available: true, checking: false, downloaded: true, message: 'Update downloaded. Restart the app to install it.', version: info?.version || null };
+    updateStatus = { available: true, checking: false, downloaded: true, progressPercent: 100, bytesPerSecond: 0, transferredBytes: updateStatus.totalBytes || 0, totalBytes: updateStatus.totalBytes || 0, message: 'Update downloaded. Close the app to install it, or use Install Update Now.', version: info?.version || null };
   });
   autoUpdater.on('error', (error) => {
-    updateStatus = { available: false, checking: false, downloaded: false, message: error?.message || 'Update check failed.', version: null };
+    updateStatus = { available: false, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: error?.message || 'Update check failed.', version: null };
   });
 
   autoUpdater.checkForUpdatesAndNotify().catch((error) => {
-    updateStatus = { available: false, checking: false, downloaded: false, message: error?.message || 'Update check failed.', version: null };
+    updateStatus = { available: false, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: error?.message || 'Update check failed.', version: null };
   });
 
   if (updateCheckTimer) clearInterval(updateCheckTimer);
   updateCheckTimer = setInterval(() => {
     autoUpdater.checkForUpdates().catch((error) => {
-      updateStatus = { available: false, checking: false, downloaded: false, message: error?.message || 'Scheduled update check failed.', version: null };
+      updateStatus = { available: false, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: error?.message || 'Scheduled update check failed.', version: null };
     });
   }, WEEKLY_UPDATE_CHECK_MS);
 }
@@ -312,6 +329,23 @@ ipcMain.handle('app:open-in-browser', async () => {
   await shell.openExternal(targetUrl);
   return { ok: true, url: targetUrl };
 });
+ipcMain.handle('app:list-displays', () => {
+  const primaryId = screen.getPrimaryDisplay().id;
+  return screen.getAllDisplays().map((display, index) => ({
+    id: Number(display.id),
+    label: `${Number(display.id) === primaryId ? 'Primary' : `Display ${index + 1}`} - ${display.bounds.width}x${display.bounds.height}${display.bounds.height > display.bounds.width ? ' portrait' : ''}`,
+    isPrimary: Number(display.id) === primaryId,
+    width: display.bounds.width,
+    height: display.bounds.height,
+  }));
+});
+ipcMain.handle('app:open-feature-request', async () => {
+  const subject = encodeURIComponent('OBT Custom Ticket Dashboard Feature Request');
+  const body = encodeURIComponent('Hi Jeff,\n\nI would like to request the following feature:\n\n');
+  const url = `mailto:jeff@onebitetechnology.ca?subject=${subject}&body=${body}`;
+  await shell.openExternal(url);
+  return { ok: true, url };
+});
 ipcMain.handle('updates:get-status', () => updateStatus);
 ipcMain.handle('updates:check', async () => {
   if (!autoUpdater || !app.isPackaged) {
@@ -319,6 +353,13 @@ ipcMain.handle('updates:check', async () => {
   }
   await autoUpdater.checkForUpdates();
   return updateStatus;
+});
+ipcMain.handle('updates:install', async () => {
+  if (!autoUpdater || !app.isPackaged || !updateStatus.downloaded) {
+    return updateStatus;
+  }
+  setImmediate(() => autoUpdater.quitAndInstall());
+  return { ...updateStatus, message: 'Installing update and restarting app...' };
 });
 
 app.on('window-all-closed', () => {
