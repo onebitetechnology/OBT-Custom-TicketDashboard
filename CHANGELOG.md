@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.2
+
+- Stopped bundling `config.json` and cache files into packaged installs so new users start from a clean setup.
+- Kept per-user settings and cache storage in the app-data folder so installed users retain their own configuration across updates.
+
 ## v2.1.1
 
 - Added customer name display modes: full name, first name only, or hidden.
