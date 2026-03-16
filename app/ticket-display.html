@@ -1012,8 +1012,8 @@
   }
 
   .settings-logo-thumb {
-    width: 54px;
-    height: 54px;
+    width: 92px;
+    height: 92px;
     border-radius: 12px;
     object-fit: contain;
     background: rgba(255,255,255,0.06);
@@ -1895,9 +1895,8 @@
     </div>
     <button class="pill settings-close" id="settings-close" type="button">Close</button>
   </div>
-  <button class="pill settings-toggle" id="api-toggle" type="button">RepairDesk API</button>
   <div class="settings-layout">
-  <div class="settings-section span-2" id="api-section" style="display:none;">
+  <div class="settings-section span-2" id="api-section">
     <h3>RepairDesk API</h3>
     <div class="settings-section-copy">Connection details for the RepairDesk account this board reads from.</div>
     <div class="settings-grid">
@@ -1919,7 +1918,12 @@
       <label class="settings-field align-end">
         <span class="settings-label">Logo upload</span>
         <input class="settings-input" id="pref-brand-logo" type="file" accept="image/*" />
-        <span class="settings-help">Upload a PNG/JPG/SVG logo. It will be stored locally in the app config.</span>
+        <span class="settings-help">Upload a PNG/JPG/SVG logo. Suggested size: 256x256 or larger with a transparent background.</span>
+      </label>
+      <label class="settings-field">
+        <span class="settings-label">Logo size</span>
+        <input class="settings-input" id="pref-brand-logo-size" type="number" min="36" max="180" step="1" />
+        <span class="settings-help">Controls how large the logo appears in the board header.</span>
       </label>
       <label class="settings-field full">
         <span class="settings-label">Current logo</span>
@@ -1934,8 +1938,8 @@
     </div>
   </div>
   <div class="settings-section span-2">
-    <h3>Display</h3>
-    <div class="settings-section-copy">Desktop-app window behavior and forced board orientation.</div>
+    <h3>Ticket Display</h3>
+    <div class="settings-section-copy">Control how the desktop window behaves, which ticket details are shown, and when ticket cards start pulsing.</div>
     <div class="settings-grid">
       <label class="settings-field full">
         <span class="settings-label">Browser option</span>
@@ -1994,6 +1998,47 @@
           </span>
         </span>
       </label>
+      <div class="settings-field full">
+        <span class="settings-label">Pulse timing</span>
+        <span class="settings-help">How long a ticket can sit before its card starts pulsing red. Each rule supports both days and hours.</span>
+      </div>
+    </div>
+    <div class="timing-grid">
+      <div class="timing-card">
+        <h4 class="editor-title">In Progress</h4>
+        <div class="timing-fields">
+          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-inprogress-days" type="number" min="0" step="1" /></label>
+          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-inprogress-hours" type="number" min="0" step="1" /></label>
+        </div>
+      </div>
+      <div class="timing-card">
+        <h4 class="editor-title">Needs Attention</h4>
+        <div class="timing-fields">
+          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-attention-days" type="number" min="0" step="1" /></label>
+          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-attention-hours" type="number" min="0" step="1" /></label>
+        </div>
+      </div>
+      <div class="timing-card">
+        <h4 class="editor-title">Waiting on Customer</h4>
+        <div class="timing-fields">
+          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-wait-customer-days" type="number" min="0" step="1" /></label>
+          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-wait-customer-hours" type="number" min="0" step="1" /></label>
+        </div>
+      </div>
+      <div class="timing-card">
+        <h4 class="editor-title">Waiting for Parts</h4>
+        <div class="timing-fields">
+          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-wait-parts-days" type="number" min="0" step="1" /></label>
+          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-wait-parts-hours" type="number" min="0" step="1" /></label>
+        </div>
+      </div>
+      <div class="timing-card">
+        <h4 class="editor-title">Quality Control</h4>
+        <div class="timing-fields">
+          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-qc-days" type="number" min="0" step="1" /></label>
+          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-qc-hours" type="number" min="0" step="1" /></label>
+        </div>
+      </div>
     </div>
   </div>
   <div class="settings-section span-2">
@@ -2062,47 +2107,6 @@
         <span class="settings-label">Fast flash threshold (minutes)</span>
         <input class="settings-input" id="pref-imminent-minutes" type="number" min="0" />
       </label>
-    </div>
-  </div>
-  <div class="settings-section span-2">
-    <h3>Pulse Timing</h3>
-    <div class="settings-section-copy">How long a ticket can sit before its card starts pulsing red. Each rule supports both days and hours.</div>
-    <div class="timing-grid">
-      <div class="timing-card">
-        <h4 class="editor-title">In Progress</h4>
-        <div class="timing-fields">
-          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-inprogress-days" type="number" min="0" step="1" /></label>
-          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-inprogress-hours" type="number" min="0" step="1" /></label>
-        </div>
-      </div>
-      <div class="timing-card">
-        <h4 class="editor-title">Needs Attention</h4>
-        <div class="timing-fields">
-          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-attention-days" type="number" min="0" step="1" /></label>
-          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-attention-hours" type="number" min="0" step="1" /></label>
-        </div>
-      </div>
-      <div class="timing-card">
-        <h4 class="editor-title">Waiting on Customer</h4>
-        <div class="timing-fields">
-          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-wait-customer-days" type="number" min="0" step="1" /></label>
-          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-wait-customer-hours" type="number" min="0" step="1" /></label>
-        </div>
-      </div>
-      <div class="timing-card">
-        <h4 class="editor-title">Waiting for Parts</h4>
-        <div class="timing-fields">
-          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-wait-parts-days" type="number" min="0" step="1" /></label>
-          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-wait-parts-hours" type="number" min="0" step="1" /></label>
-        </div>
-      </div>
-      <div class="timing-card">
-        <h4 class="editor-title">Quality Control</h4>
-        <div class="timing-fields">
-          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-qc-days" type="number" min="0" step="1" /></label>
-          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-qc-hours" type="number" min="0" step="1" /></label>
-        </div>
-      </div>
     </div>
   </div>
   <div class="settings-section span-2">
@@ -2244,6 +2248,7 @@
       brand: {
         title: 'Current Repair Queue',
         logoDataUrl: '',
+        logoSize: 72,
       },
       display: {
         fullscreen: false,
@@ -2365,7 +2370,7 @@
 
   function enhanceSettingsSections() {
     document.querySelectorAll('.settings-section').forEach((section) => {
-      if (section.dataset.enhanced === 'true' || section.id === 'api-section') return;
+      if (section.dataset.enhanced === 'true') return;
       const heading = section.querySelector(':scope > h3');
       if (!heading) return;
       const copy = section.querySelector(':scope > .settings-section-copy');
@@ -2395,6 +2400,9 @@
       section.prepend(body);
       section.prepend(toggle);
       section.dataset.enhanced = 'true';
+      if (section.id === 'api-section') {
+        section.classList.add('collapsed');
+      }
 
       toggle.addEventListener('click', () => {
         section.classList.toggle('collapsed');
@@ -2417,13 +2425,29 @@
     return custom;
   }
 
+  function normalizedLogoSize(value) {
+    const size = Number(value || 0);
+    if (!size) return 72;
+    return Math.max(36, Math.min(180, size));
+  }
+
+  function applyLogoPreviewSize(sizeLike) {
+    const size = normalizedLogoSize(sizeLike);
+    const previewEl = qs('pref-brand-logo-preview');
+    previewEl.style.width = `${size}px`;
+    previewEl.style.height = `${size}px`;
+  }
+
   function updateBrand(preferences) {
     const brand = preferences?.brand || currentPreferences().brand || {};
     qs('page-title').textContent = params().get('title') && params().get('title') !== 'One Bite TV Queue'
       ? params().get('title')
       : (brand.title || 'Current Repair Queue');
     const logo = String(brand.logoDataUrl || '').trim();
+    const logoSize = normalizedLogoSize(brand.logoSize || 72);
     const logoEl = qs('brand-logo');
+    logoEl.style.width = `${logoSize}px`;
+    logoEl.style.height = `${logoSize}px`;
     if (logo) {
       logoEl.src = logo;
       logoEl.classList.add('visible');
@@ -2437,6 +2461,7 @@
     const previewEl = qs('pref-brand-logo-preview');
     const nameEl = qs('pref-brand-logo-name');
     const noteEl = qs('pref-brand-logo-note');
+    applyLogoPreviewSize(qs('pref-brand-logo-size')?.value || currentPreferences().brand?.logoSize || 72);
     const logo = String(logoDataUrl || '').trim();
     if (logo) {
       previewEl.src = logo;
@@ -2562,6 +2587,7 @@
   function fillSettingsForm(preferences) {
     const prefs = preferences || currentPreferences();
     qs('pref-brand-title').value = prefs.brand?.title || 'Current Repair Queue';
+    qs('pref-brand-logo-size').value = prefs.brand?.logoSize ?? 72;
     setLogoPreview(prefs.brand?.logoDataUrl || '', prefs.brand?.logoDataUrl ? 'Stored logo' : '');
     qs('pref-fullscreen').checked = !!prefs.display?.fullscreen;
     qs('pref-orientation').value = prefs.display?.orientation || 'auto';
@@ -2611,6 +2637,7 @@
       brand: {
         title: qs('pref-brand-title').value || 'Current Repair Queue',
         logoDataUrl: state.logoDataUrl || currentPreferences().brand?.logoDataUrl || '',
+        logoSize: normalizedLogoSize(qs('pref-brand-logo-size').value || currentPreferences().brand?.logoSize || 72),
       },
       display: {
         fullscreen: qs('pref-fullscreen').checked,
@@ -3218,10 +3245,6 @@
   qs('settings-feature-request').addEventListener('click', openFeatureRequest);
   qs('settings-restart').addEventListener('click', restartServer);
   qs('settings-save').addEventListener('click', savePreferences);
-  qs('api-toggle').addEventListener('click', () => {
-    const section = qs('api-section');
-    section.style.display = section.style.display === 'none' ? 'block' : 'none';
-  });
   qs('pref-brand-logo').addEventListener('change', () => {
     const file = qs('pref-brand-logo').files && qs('pref-brand-logo').files[0];
     if (!file) {
@@ -3236,6 +3259,9 @@
       setLogoPreview(currentPreferences().brand?.logoDataUrl || '', currentPreferences().brand?.logoDataUrl ? 'Stored logo' : '');
     };
     reader.readAsDataURL(file);
+  });
+  qs('pref-brand-logo-size').addEventListener('input', () => {
+    applyLogoPreviewSize(qs('pref-brand-logo-size').value || 72);
   });
 
   enhanceSettingsSections();
