@@ -2,6 +2,13 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.4
+
+- Reorganized the settings drawer so `Ticket Display` now groups the assigned-tech toggle, customer name mode, and pulse timing controls together.
+- Made every main settings section collapsible, including the RepairDesk API section.
+- Added configurable logo sizing in Brand settings and enlarged the saved logo preview.
+- Added suggested logo upload guidance next to the logo picker.
+
 ## v2.1.3
 
 - Added visible update download progress in settings, including percent, transfer size, and speed.
