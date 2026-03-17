@@ -2,6 +2,12 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.17
+
+- Replaced the old ticket-token-only setup with a full Ticket Counter Display URL setting so each shop’s queue uses the correct RepairDesk subdomain.
+- Updated first-run setup and Settings to ask for the full RepairDesk Ticket Counter Display URL instead of only the token.
+- Added clearer validation when the Ticket Counter Display URL is missing or incomplete.
+
 ## v2.1.16
 
 - Added a `Remove Personal Data` action in Settings to wipe saved settings, keys, tokens, and caches, then restart clean.

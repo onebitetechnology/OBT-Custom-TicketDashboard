@@ -4,7 +4,7 @@ Standalone desktop application for displaying a RepairDesk ticket board on a TV 
 
 It packages the custom ticket dashboard as an Electron app for Windows and macOS, with local settings, branding, queue rules, appointment views, and desktop-aware display controls.
 
-On first launch, each install prompts for its own RepairDesk ticket counter token and API key so the app reads the correct shop data.
+On first launch, each install prompts for its own RepairDesk Ticket Counter Display URL and API key so the app reads the correct shop data.
 
 ## Features
 
