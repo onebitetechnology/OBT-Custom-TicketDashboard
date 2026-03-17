@@ -2288,6 +2288,7 @@
       </div>
     </div>
     <div class="settings-actions">
+      <button class="pill" id="settings-clear-data" type="button">Remove Personal Data</button>
       <button class="pill" id="settings-feature-request" type="button">Feature Request</button>
       <button class="pill" id="settings-check-updates" type="button">Check for Updates</button>
       <button class="pill" id="settings-restart" type="button">Restart Server</button>
@@ -3473,6 +3474,23 @@
     window.location.href = 'mailto:jeff@onebitetechnology.ca?subject=OBT%20Custom%20Ticket%20Dashboard%20Feature%20Request';
   }
 
+  async function clearLocalData() {
+    if (!window.desktopApp?.clearLocalData) {
+      qs('settings-status').textContent = 'This option is only available in the desktop app.';
+      return;
+    }
+
+    const confirmed = window.confirm('Remove all personal data and local files for this app on this computer? This will erase saved settings, API keys, ticket counter token, and cache files, then restart the app.');
+    if (!confirmed) return;
+
+    try {
+      qs('settings-status').textContent = 'Removing local data and restarting...';
+      await window.desktopApp.clearLocalData();
+    } catch (error) {
+      qs('settings-status').textContent = error?.message || 'Could not remove local data.';
+    }
+  }
+
   function openSettings() {
     qs('settings-drawer').classList.add('open');
     state.logoDataUrl = currentPreferences().brand?.logoDataUrl || '';
@@ -3545,6 +3563,7 @@
   qs('settings-close').addEventListener('click', closeSettings);
   qs('settings-close-bottom').addEventListener('click', closeSettings);
   qs('settings-open-browser').addEventListener('click', openInBrowser);
+  qs('settings-clear-data').addEventListener('click', clearLocalData);
   qs('settings-check-updates').addEventListener('click', checkForUpdates);
   qs('settings-install-update').addEventListener('click', installUpdateNow);
   qs('settings-feature-request').addEventListener('click', openFeatureRequest);

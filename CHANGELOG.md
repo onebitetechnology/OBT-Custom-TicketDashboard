@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.16
+
+- Added a `Remove Personal Data` action in Settings to wipe saved settings, keys, tokens, and caches, then restart clean.
+- Added a Windows uninstaller option to remove the app’s personal data folder during uninstall.
+
 ## v2.1.15
 
 - Added clear in-app instructions for finding the RepairDesk ticket counter token from Ticket Counter Display > Copy Display URL.

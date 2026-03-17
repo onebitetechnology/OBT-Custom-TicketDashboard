@@ -393,6 +393,21 @@ ipcMain.handle('app:open-feature-request', async () => {
   await shell.openExternal(url);
   return { ok: true, url };
 });
+ipcMain.handle('app:clear-local-data', async () => {
+  const userDataPath = app.getPath('userData');
+  try {
+    app.isQuitting = true;
+    if (updateCheckTimer) clearInterval(updateCheckTimer);
+    stopBundledServer();
+    fs.rmSync(userDataPath, { recursive: true, force: true });
+    app.relaunch();
+    setImmediate(() => app.exit(0));
+    return { ok: true, userDataPath };
+  } catch (error) {
+    app.isQuitting = false;
+    throw error;
+  }
+});
 ipcMain.handle('updates:get-status', () => updateStatus);
 ipcMain.handle('updates:check', async () => {
   if (!areAutoUpdatesSupported()) {
