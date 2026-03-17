@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.18
+
+- Fixed the GitHub release workflow so packaged update metadata files like `latest.yml` and blockmaps are uploaded with Windows and macOS releases.
+- This allows in-app update checks to find the published release metadata instead of failing with missing `latest.yml`.
+
 ## v2.1.17
 
 - Replaced the old ticket-token-only setup with a full Ticket Counter Display URL setting so each shop’s queue uses the correct RepairDesk subdomain.
