@@ -2,6 +2,23 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.12
+
+- Added a first-run welcome popup for new installs.
+- New installs now prompt for shop name and RepairDesk API key before continuing.
+
+## v2.1.11
+
+- Removed the baked-in RepairDesk API key fallback from packaged builds.
+- Fresh installs now start with a blank API key field and only use a key the user explicitly saves.
+- Ticket metadata enrichment now safely skips itself when no API key is configured, instead of silently using a bundled key.
+
+## v2.1.10
+
+- Replaced the old global refurb filter with per-column refurb handling controls.
+- Each column can now show all tickets, hide refurbs, show only refurbs, or rotate between customer tickets and refurbs.
+- Added live assigned-tech filtering in `Ticket Display`, including `Unassigned`.
+
 ## v2.1.9
 
 - Added an assigned-tech filter in `Ticket Display` so users can show tickets for selected techs only.

@@ -11,10 +11,10 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.9';
+const APP_VERSION = 'v2.1.12';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const RD_TICKET_COUNTER_BASE = 'https://obtadmin.repairdesk.co/web/api/v1';
-const PUBLIC_API_KEY = 'cWFuvNb-hrou-VBuP-LQTn-smGAkgu1c';
+const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
 const DATA_DIR = process.env.APP_DATA_DIR || __dirname;
 const CONFIG_PATH = path.join(DATA_DIR, 'config.json');
@@ -62,26 +62,31 @@ const DEFAULT_UI_PREFERENCES = {
     readyToStart: {
       label: 'Ready to start',
       visible: true,
+      refurbMode: 'all',
       statuses: ['Ready to Start', 'Parts Arrived - Ready to Start', 'Pending - New', 'Pending - New (No Notifications)'],
     },
     inProgress: {
       label: 'In Progress',
       visible: true,
+      refurbMode: 'all',
       statuses: ['In Progress', 'Diagnostics - In Progress'],
     },
     needsAttention: {
       label: 'Needs Attention',
       visible: true,
+      refurbMode: 'all',
       statuses: ['Needs Estimate', 'Need to order Parts'],
     },
     waiting: {
       label: 'Waiting',
       visible: true,
+      refurbMode: 'all',
       statuses: ['Waiting on Customer', 'Waiting for Parts'],
     },
     qualityControl: {
       label: 'Quality Control',
       visible: true,
+      refurbMode: 'all',
       statuses: ['Quality Control'],
     },
   },
@@ -203,10 +208,16 @@ function normalizeStringArray(values, fallback) {
 }
 
 function normalizeColumnConfig(savedColumn, fallbackColumn) {
+  const refurbMode = ['all', 'hide_refurbs', 'only_refurbs', 'rotate_refurbs'].includes(String(savedColumn?.refurbMode || '').toLowerCase())
+    ? String(savedColumn.refurbMode).toLowerCase()
+    : (['all', 'hide_refurbs', 'only_refurbs', 'rotate_refurbs'].includes(String(fallbackColumn?.refurbMode || '').toLowerCase())
+      ? String(fallbackColumn.refurbMode).toLowerCase()
+      : 'all');
   return {
     label: String(savedColumn?.label || fallbackColumn.label || '').trim() || fallbackColumn.label,
     visible: savedColumn?.visible !== undefined ? !!savedColumn.visible : fallbackColumn.visible !== false,
     statuses: normalizeStringArray(savedColumn?.statuses, fallbackColumn.statuses),
+    refurbMode,
   };
 }
 
@@ -283,7 +294,7 @@ function normalizeUiPreferences(savedPrefs = {}) {
 
 function normalizeAppConfig(saved = {}) {
   return {
-    apiKey: String(saved?.apiKey || PUBLIC_API_KEY).trim() || PUBLIC_API_KEY,
+    apiKey: String(saved?.apiKey || '').trim(),
     uiPreferences: normalizeUiPreferences(saved?.uiPreferences || {}),
   };
 }
@@ -295,6 +306,10 @@ function saveConfig(config) {
   } catch (e) {
     console.log('[CONFIG] Could not save config.json:', e.message);
   }
+}
+
+function getConfiguredApiKey() {
+  return String(sessionConfig?.apiKey || '').trim();
 }
 
 let sessionConfig = loadConfig();
@@ -535,7 +550,11 @@ function fetchJson(fullUrl, headers = {}) {
 }
 
 function rdPublic(endpoint, params = {}) {
-  const queryParams = new URLSearchParams({ api_key: sessionConfig?.apiKey || PUBLIC_API_KEY, ...params });
+  const apiKey = getConfiguredApiKey();
+  if (!apiKey) {
+    throw new Error('RepairDesk API key is not configured');
+  }
+  const queryParams = new URLSearchParams({ api_key: apiKey, ...params });
   const fullUrl = `${RD_PUBLIC_BASE}/${endpoint}?${queryParams.toString()}`;
   return fetchJson(fullUrl, {
     Accept: 'application/json',
@@ -912,7 +931,6 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
   );
 
   const allTickets = Array.from(groupedByOrder.values())
-    .filter((ticket) => !(preferences.display.hideRefurbs && ticket.isRefurb))
     .filter((ticket) => !selectedAssignees.size || selectedAssignees.has(String(ticket.assigneeName || '').trim() || 'Unassigned'))
     .sort((a, b) => {
     const statusA = statusIndex.has(a.status) ? statusIndex.get(a.status) : Number.MAX_SAFE_INTEGER;
@@ -960,6 +978,7 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
         status: ticket.status,
         statusColor: ticket.statusColor,
         hasPriorityFee: ticket.hasPriorityFee,
+        isRefurb: !!ticket.isRefurb,
       };
     })
     .sort((a, b) => {
@@ -987,6 +1006,7 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
       dueOn: ticket.dueOn,
       dueAt: ticket.dueAt,
       updatedAt: ticket.updatedAt,
+      isRefurb: !!ticket.isRefurb,
       waitingDays: lastTouchedAt
         ? Math.max(0, Math.floor((Date.now() - (lastTouchedAt * 1000)) / (1000 * 60 * 60 * 24)))
         : null,
@@ -1020,6 +1040,7 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
       dueOn: ticket.dueOn,
       dueAt: ticket.dueAt,
       updatedAt: ticket.updatedAt,
+      isRefurb: !!ticket.isRefurb,
       waitingDays: lastTouchedAt
         ? Math.max(0, Math.floor((Date.now() - (lastTouchedAt * 1000)) / (1000 * 60 * 60 * 24)))
         : null,
@@ -1057,6 +1078,7 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
         dueOn: ticket.dueOn,
         dueAt: ticket.dueAt,
         updatedAt: ticket.updatedAt,
+        isRefurb: !!ticket.isRefurb,
         waitingDays,
         staleDays: lastTouchedAt
           ? (Date.now() - (lastTouchedAt * 1000)) / (1000 * 60 * 60 * 24)
@@ -1089,6 +1111,7 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
         dueOn: ticket.dueOn,
         dueAt: ticket.dueAt,
         updatedAt: ticket.updatedAt,
+        isRefurb: !!ticket.isRefurb,
         waitingDays: lastTouchedAt
           ? Math.max(0, Math.floor((Date.now() - (lastTouchedAt * 1000)) / (1000 * 60 * 60 * 24)))
           : null,
@@ -2291,7 +2314,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = await readBody(req);
       const { apiKey } = JSON.parse(body);
-      if (apiKey !== undefined) sessionConfig.apiKey = String(apiKey || '').trim() || PUBLIC_API_KEY;
+      if (apiKey !== undefined) sessionConfig.apiKey = String(apiKey || '').trim();
       saveConfig(sessionConfig);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true, message: 'API key saved' }));
@@ -2305,7 +2328,7 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/config' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
-      apiKey: sessionConfig.apiKey || PUBLIC_API_KEY,
+      apiKey: getConfiguredApiKey(),
     }));
     return;
   }
@@ -2482,7 +2505,17 @@ const server = http.createServer(async (req, res) => {
         ))
         .map((ticket) => String(ticket?.order_id || '').trim())
         .filter(Boolean)));
+      const hasApiKey = !!getConfiguredApiKey();
       const queueMetaEntries = await Promise.all(queueMetaOrderIds.map(async (orderId) => {
+        if (!hasApiKey) {
+          return [orderId, {
+            createdAt: null,
+            updatedAt: null,
+            repairCategory: '',
+            serviceName: '',
+            hasPriorityFee: false,
+          }];
+        }
         try {
           return [orderId, await fetchTicketMetaByOrderId(orderId)];
         } catch (e) {
