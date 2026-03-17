@@ -11,9 +11,8 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.16';
+const APP_VERSION = 'v2.1.17';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
-const RD_TICKET_COUNTER_BASE = 'https://obtadmin.repairdesk.co/web/api/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
 const DATA_DIR = process.env.APP_DATA_DIR || __dirname;
@@ -304,6 +303,7 @@ function normalizeUiPreferences(savedPrefs = {}) {
 function normalizeAppConfig(saved = {}) {
   return {
     apiKey: String(saved?.apiKey || '').trim(),
+    ticketCounterDisplayUrl: String(saved?.ticketCounterDisplayUrl || '').trim(),
     ticketCounterToken: String(saved?.ticketCounterToken || '').trim(),
     uiPreferences: normalizeUiPreferences(saved?.uiPreferences || {}),
   };
@@ -320,6 +320,33 @@ function saveConfig(config) {
 
 function getConfiguredApiKey() {
   return String(sessionConfig?.apiKey || '').trim();
+}
+
+function parseTicketCounterDisplayUrl(rawValue) {
+  const raw = String(rawValue || '').trim();
+  if (!raw) return { displayUrl: '', apiBase: '', token: '' };
+
+  try {
+    const parsed = new URL(raw);
+    const token = String(parsed.searchParams.get('token') || '').trim();
+    return {
+      displayUrl: parsed.toString(),
+      apiBase: `${parsed.protocol}//${parsed.host}/web/api/v1`,
+      token,
+    };
+  } catch (_) {
+    return { displayUrl: '', apiBase: '', token: '' };
+  }
+}
+
+function getTicketCounterConnection() {
+  const fromUrl = parseTicketCounterDisplayUrl(sessionConfig?.ticketCounterDisplayUrl);
+  if (fromUrl.apiBase && fromUrl.token) return fromUrl;
+  return {
+    displayUrl: '',
+    apiBase: '',
+    token: String(sessionConfig?.ticketCounterToken || '').trim(),
+  };
 }
 
 let sessionConfig = loadConfig();
@@ -572,9 +599,12 @@ function rdPublic(endpoint, params = {}) {
   });
 }
 
-function rdTicketCounter(endpoint, params = {}) {
+function rdTicketCounter(apiBase, endpoint, params = {}) {
+  if (!apiBase) {
+    throw new Error('RepairDesk Ticket Counter Display URL is not configured');
+  }
   const queryParams = new URLSearchParams(params);
-  const fullUrl = `${RD_TICKET_COUNTER_BASE}/${endpoint}?${queryParams.toString()}`;
+  const fullUrl = `${apiBase}/${endpoint}?${queryParams.toString()}`;
   return fetchJson(fullUrl, {
     Accept: 'application/json',
     Authorization: 'Bear :)',
@@ -2323,8 +2353,9 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/config' && req.method === 'POST') {
     try {
       const body = await readBody(req);
-      const { apiKey, ticketCounterToken } = JSON.parse(body);
+      const { apiKey, ticketCounterToken, ticketCounterDisplayUrl } = JSON.parse(body);
       if (apiKey !== undefined) sessionConfig.apiKey = String(apiKey || '').trim();
+      if (ticketCounterDisplayUrl !== undefined) sessionConfig.ticketCounterDisplayUrl = String(ticketCounterDisplayUrl || '').trim();
       if (ticketCounterToken !== undefined) sessionConfig.ticketCounterToken = String(ticketCounterToken || '').trim();
       saveConfig(sessionConfig);
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -2338,9 +2369,11 @@ const server = http.createServer(async (req, res) => {
 
   if (pathname === '/api/config' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
+    const ticketCounterConnection = getTicketCounterConnection();
     res.end(JSON.stringify({
       apiKey: getConfiguredApiKey(),
-      ticketCounterToken: String(sessionConfig?.ticketCounterToken || '').trim(),
+      ticketCounterDisplayUrl: String(sessionConfig?.ticketCounterDisplayUrl || '').trim(),
+      ticketCounterToken: ticketCounterConnection.token,
     }));
     return;
   }
@@ -2368,9 +2401,11 @@ const server = http.createServer(async (req, res) => {
 
   if (pathname === '/api/config/status') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
+    const ticketCounterConnection = getTicketCounterConnection();
     res.end(JSON.stringify({
       hasApiKey: !!sessionConfig.apiKey,
-      hasTicketCounterToken: !!sessionConfig.ticketCounterToken,
+      hasTicketCounterToken: !!ticketCounterConnection.token,
+      hasTicketCounterDisplayUrl: !!ticketCounterConnection.displayUrl,
       preferencesReady: !!sessionConfig.uiPreferences,
       restarting: false,
       version: APP_VERSION,
@@ -2479,17 +2514,27 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (pathname === '/api/ticket-counter') {
-    const token = requestUrl.searchParams.get('token');
+    const overrideDisplayUrl = String(requestUrl.searchParams.get('displayUrl') || '').trim();
+    const overrideToken = String(requestUrl.searchParams.get('token') || '').trim();
+    const savedConnection = getTicketCounterConnection();
+    const overrideConnection = parseTicketCounterDisplayUrl(overrideDisplayUrl);
+    const apiBase = overrideConnection.apiBase || savedConnection.apiBase;
+    const token = overrideConnection.token || overrideToken || savedConnection.token;
     if (!token) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'token is required' }));
+      res.end(JSON.stringify({ error: 'Ticket Counter Display URL is required' }));
+      return;
+    }
+    if (!apiBase) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Ticket Counter Display URL is invalid or incomplete. Paste the full Copy Display URL from RepairDesk.' }));
       return;
     }
 
     try {
       const [configResp, ticketsResp] = await Promise.all([
-        rdTicketCounter('tcd/tcd_configuration', { token }),
-        rdTicketCounter('tcd/tickets_by_date', { token }),
+        rdTicketCounter(apiBase, 'tcd/tcd_configuration', { token }),
+        rdTicketCounter(apiBase, 'tcd/tickets_by_date', { token }),
       ]);
       const configRaw = parseJsonSafe(configResp.body);
       const ticketsRaw = parseJsonSafe(ticketsResp.body);

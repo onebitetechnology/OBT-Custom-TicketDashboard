@@ -1991,9 +1991,9 @@
     <div class="settings-section-copy">Connection details for the RepairDesk account this board reads from.</div>
     <div class="settings-grid">
       <label class="settings-field full">
-        <span class="settings-label">Ticket counter token</span>
-        <textarea class="settings-textarea" id="ticket-counter-token"></textarea>
-        <span class="settings-help">This powers the main queue feed. In RepairDesk, go to 9 dots > Integrations > Ticket Counter Display, then click Copy Display URL and paste the value after <code>token=</code>.</span>
+        <span class="settings-label">Ticket Counter Display URL</span>
+        <textarea class="settings-textarea" id="ticket-counter-url"></textarea>
+        <span class="settings-help">This powers the main queue feed. In RepairDesk, go to 9 dots &gt; Integrations &gt; Ticket Counter Display, click Copy Display URL, and paste the full URL here.</span>
       </label>
       <label class="settings-field full">
         <span class="settings-label">RepairDesk API key</span>
@@ -2306,7 +2306,7 @@
   <div class="welcome-card">
     <div>
       <h2 class="welcome-title">Welcome to One Bite Ticket Display</h2>
-      <p class="welcome-copy">Set the shop name, ticket counter token, and RepairDesk API key to finish first-time setup. To find the ticket token in RepairDesk, go to 9 dots &gt; Integrations &gt; Ticket Counter Display, click Copy Display URL, and paste the value after <code>token=</code>. You can change these later in Settings.</p>
+      <p class="welcome-copy">Set the shop name, Ticket Counter Display URL, and RepairDesk API key to finish first-time setup. In RepairDesk, go to 9 dots &gt; Integrations &gt; Ticket Counter Display, click Copy Display URL, and paste the full URL here. You can change these later in Settings.</p>
     </div>
     <div class="welcome-grid">
       <label class="settings-field full">
@@ -2315,9 +2315,9 @@
         <span class="settings-help">This is the title shown at the top of the board.</span>
       </label>
       <label class="settings-field full">
-        <span class="settings-label">Ticket counter token</span>
-        <textarea class="settings-textarea" id="welcome-ticket-token" placeholder="Paste your RepairDesk ticket counter token"></textarea>
-        <span class="settings-help">In RepairDesk, go to 9 dots &gt; Integrations &gt; Ticket Counter Display, click Copy Display URL, and paste the value after <code>token=</code>.</span>
+        <span class="settings-label">Ticket Counter Display URL</span>
+        <textarea class="settings-textarea" id="welcome-ticket-url" placeholder="Paste your RepairDesk Ticket Counter Display URL"></textarea>
+        <span class="settings-help">In RepairDesk, go to 9 dots &gt; Integrations &gt; Ticket Counter Display, click Copy Display URL, and paste the full URL here.</span>
       </label>
       <label class="settings-field full">
         <span class="settings-label">RepairDesk API key</span>
@@ -2910,7 +2910,7 @@
     const response = await fetch('/api/config');
     const payload = await response.json();
     qs('api-key').value = payload.apiKey || '';
-    qs('ticket-counter-token').value = payload.ticketCounterToken || '';
+    qs('ticket-counter-url').value = payload.ticketCounterDisplayUrl || '';
     return payload;
   }
 
@@ -2920,7 +2920,7 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         apiKey: qs('api-key').value,
-        ticketCounterToken: qs('ticket-counter-token').value,
+        ticketCounterDisplayUrl: qs('ticket-counter-url').value,
       }),
     });
     const payload = await response.json();
@@ -2931,7 +2931,7 @@
 
   function openWelcomeModal(prefill = {}) {
     qs('welcome-shop-name').value = prefill.shopName || currentPreferences().brand?.title || 'Current Repair Queue';
-    qs('welcome-ticket-token').value = prefill.ticketCounterToken || '';
+    qs('welcome-ticket-url').value = prefill.ticketCounterDisplayUrl || '';
     qs('welcome-api-key').value = prefill.apiKey || '';
     qs('welcome-status').textContent = '';
     qs('welcome-overlay').classList.add('open');
@@ -2945,20 +2945,20 @@
   async function maybeShowWelcome(configPayload = null) {
     if (state.welcomeShown) return;
     const config = configPayload || await loadApiConfig();
-    if (String(config?.ticketCounterToken || '').trim()) return;
+    if (String(config?.ticketCounterDisplayUrl || '').trim()) return;
     openWelcomeModal({
       shopName: currentPreferences().brand?.title || 'Current Repair Queue',
-      ticketCounterToken: String(config?.ticketCounterToken || '').trim(),
+      ticketCounterDisplayUrl: String(config?.ticketCounterDisplayUrl || '').trim(),
       apiKey: String(config?.apiKey || '').trim(),
     });
   }
 
   async function saveWelcomeSetup() {
     const shopName = String(qs('welcome-shop-name').value || '').trim();
-    const ticketCounterToken = String(qs('welcome-ticket-token').value || '').trim();
+    const ticketCounterDisplayUrl = String(qs('welcome-ticket-url').value || '').trim();
     const apiKey = String(qs('welcome-api-key').value || '').trim();
-    if (!ticketCounterToken) {
-      qs('welcome-status').textContent = 'Ticket counter token is required.';
+    if (!ticketCounterDisplayUrl) {
+      qs('welcome-status').textContent = 'Ticket Counter Display URL is required.';
       return;
     }
 
@@ -2975,7 +2975,7 @@
       const configResponse = await fetch('/api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey, ticketCounterToken }),
+        body: JSON.stringify({ apiKey, ticketCounterDisplayUrl }),
       });
       const configPayload = await configResponse.json();
       if (!configResponse.ok) {
@@ -3315,16 +3315,20 @@
 
   async function loadFeed() {
     const urlToken = String(params().get('token') || '').trim();
-    const config = await loadApiConfig().catch(() => ({ apiKey: '', ticketCounterToken: '' }));
-    const token = urlToken || String(config?.ticketCounterToken || '').trim();
-    if (!token) {
-      renderError('Missing ticket counter token. Add it in Settings or complete the welcome setup.');
+    const urlDisplayUrl = String(params().get('displayUrl') || '').trim();
+    const config = await loadApiConfig().catch(() => ({ apiKey: '', ticketCounterDisplayUrl: '' }));
+    const displayUrl = urlDisplayUrl || String(config?.ticketCounterDisplayUrl || '').trim();
+    if (!displayUrl && !urlToken) {
+      renderError('Missing Ticket Counter Display URL. Add it in Settings or complete the welcome setup.');
       maybeShowWelcome(config).catch(() => {});
       return;
     }
 
     try {
-      const response = await fetch('/api/ticket-counter?token=' + encodeURIComponent(token));
+      const requestParams = new URLSearchParams();
+      if (displayUrl) requestParams.set('displayUrl', displayUrl);
+      if (urlToken) requestParams.set('token', urlToken);
+      const response = await fetch('/api/ticket-counter?' + requestParams.toString());
       const payload = await response.json();
       if (!response.ok) {
         throw new Error(payload.error || 'Request failed');
