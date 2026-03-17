@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.15
+
+- Added clear in-app instructions for finding the RepairDesk ticket counter token from Ticket Counter Display > Copy Display URL.
+
 ## v2.1.14
 
 - Removed the hardcoded One Bite ticket counter token from the app entry points and Windows launcher scripts.

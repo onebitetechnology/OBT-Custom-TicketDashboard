@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.14';
+const APP_VERSION = 'v2.1.15';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const RD_TICKET_COUNTER_BASE = 'https://obtadmin.repairdesk.co/web/api/v1';
 const DEFAULT_API_KEY = '';
