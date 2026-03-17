@@ -5,7 +5,7 @@ Var RemovePersonalDataCheckbox
 Var RemovePersonalDataState
 
 !macro customUninstallPage
-  Page custom un.RemovePersonalDataPageCreate un.RemovePersonalDataPageLeave
+  UninstPage custom un.RemovePersonalDataPageCreate un.RemovePersonalDataPageLeave
 !macroend
 
 Function un.RemovePersonalDataPageCreate

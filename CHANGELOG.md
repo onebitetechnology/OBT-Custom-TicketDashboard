@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.19
+
+- Fixed the Windows installer build by wiring the custom personal-data uninstall page as a real uninstall page in NSIS.
+- This resolves the CI packaging failure that blocked `v2.1.18` Windows builds.
+
 ## v2.1.18
 
 - Fixed the GitHub release workflow so packaged update metadata files like `latest.yml` and blockmaps are uploaded with Windows and macOS releases.
