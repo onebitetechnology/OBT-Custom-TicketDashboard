@@ -1,226 +1,126 @@
 # One Bite Ticket Display Desktop
 
-Electron wrapper for the existing ticket board.
+Standalone desktop application for displaying a RepairDesk ticket board on a TV or monitor.
 
-## Architecture
+It packages the custom ticket dashboard as an Electron app for Windows and macOS, with local settings, branding, queue rules, appointment views, and desktop-aware display controls.
 
-The desktop build keeps the current app mostly intact:
+## Features
 
-- `app/server.js` still runs the local HTTP API and serves the UI
-- `app/ticket-display.html` stays the main TV interface
-- `main.js` starts the bundled server on a free localhost port
-- Electron opens a native desktop window pointed at that local server
-- writable files are redirected into the app data directory via `APP_DATA_DIR`
+- custom RepairDesk queue display designed for TV use
+- configurable ticket columns and labels
+- appointment calendar with optional week rotation
+- per-column refurb handling
+- assigned-tech filtering
+- privacy controls for customer names
+- branding controls for title and logo
+- desktop app settings for fullscreen, orientation, and display target
+- packaged installer builds for Windows and macOS
+- GitHub Releases workflow for publishing app updates
 
-This is the pragmatic first desktop architecture because it avoids a risky rewrite of the ticket board into Electron-specific code.
+## Project Structure
 
-## Why This Shape
+- `app/server.js`
+  Local HTTP server and RepairDesk integration layer.
+- `app/ticket-display.html`
+  Main board UI.
+- `main.js`
+  Electron entrypoint that starts the local server and opens the desktop window.
+- `preload.js`
+  Safe bridge between the Electron shell and the renderer.
 
-It gives us:
+## Development
 
-- an installable Windows application
-- a clear migration path from the current working Node app
-- a clean place to add auto-updates later
-- local config/cache storage outside the install directory
-
-It does not yet finish the update system. That comes next once the packaged app is stable.
-
-## Run In Development
-
-1. Install dependencies:
+Install dependencies:
 
 ```bash
 npm install
 ```
 
-2. Start the desktop shell:
+Start the desktop app in development:
 
 ```bash
 npm start
 ```
 
-On macOS, that is enough to do the main development work:
+This launches Electron, starts the bundled local server, and opens the ticket board in a desktop window.
 
-- edit the desktop wrapper in this folder
-- keep editing the ticket board inside `app/`
-- run the Electron shell locally
-- validate the desktop window, config storage, and restart behavior
+## Building Installers
 
-The in-app settings now also include desktop-aware preferences for:
+### Windows
 
-- fullscreen vs windowed startup
-- forced horizontal or vertical layout mode
-- showing or hiding queue columns
-- opening the local board in the system browser
-
-You will still want a Windows machine later for the last-mile checks:
-
-- Windows installer behavior
-- startup/login behavior
-- SmartScreen and code signing
-- auto-update install flow
-
-## Package For Windows
+Build the Windows installer:
 
 ```bash
 npm run dist:win
 ```
 
-That uses `electron-builder` to produce an NSIS installer.
+This creates an NSIS installer in `dist/`.
 
-The Windows installer will be written into `dist/` as something like:
+### macOS
 
-- `OneBiteTicketDisplay-0.1.0-Setup.exe`
-
-## Package For macOS
+Build the macOS installer:
 
 ```bash
 npm run dist:mac
 ```
 
-That produces a shareable macOS disk image and zip in `dist/`, for example:
-
-- `OneBiteTicketDisplay-0.1.0-arm64.dmg`
-- `OneBiteTicketDisplay-0.1.0-arm64.zip`
-
-If you also see a folder like `mac-arm64/` with `One Bite Ticket Display.app` inside, that is the unpacked build output. It is runnable for local testing, but it is not the installer artifact most people should receive. For sharing, use the `.dmg`.
-
-If local Mac packaging fails because Electron Builder tries to auto-sign with a certificate on your machine, use the unsigned local test build instead:
+If you only need a local unsigned test build:
 
 ```bash
 npm run dist:mac:local
 ```
 
-That is the right command for test installers when you only need a working `.dmg` and are not doing a signed public release yet.
+This creates a DMG and ZIP in `dist/`.
 
-## Quick Packaging Checklist
+## Updates
 
-1. Install dependencies:
+The app is configured to publish releases through GitHub Releases.
 
-```bash
-npm install
-```
+Current behavior:
 
-2. Test locally:
+- Windows packaged builds can check for updates on launch, on a weekly schedule, or manually from Settings.
+- macOS currently uses manual update installs from DMG releases unless signed and notarized distribution is added later.
+- the in-app update panel can display release notes from published releases
 
-```bash
-npm start
-```
+For release/update planning, see:
 
-3. Build the Mac installer:
+- [RELEASE_CHECKLIST.md](./RELEASE_CHECKLIST.md)
+- [GITHUB_RELEASES_UPDATE_PLAN.md](./GITHUB_RELEASES_UPDATE_PLAN.md)
 
-```bash
-npm run dist:mac
-```
+## Settings and Data Storage
 
-If signing gets in the way for local testing:
+User settings are stored in the app’s user-data directory, not in the install folder. This means:
 
-```bash
-npm run dist:mac:local
-```
+- new installs start clean
+- app updates keep the user’s existing settings
+- uninstalling the app may leave user settings behind unless the user removes them manually
 
-4. Copy the generated `.dmg` from `dist/` to the test machine.
+Typical stored data includes:
 
-5. On Windows, build the installer on Windows itself:
+- app config
+- ticket metadata cache
+- invoice metadata cache
+- user-editable rules files
 
-```bash
-npm install
-npm run dist:win
-```
+## Icon Assets
 
-6. Copy the generated `.exe` installer from `dist/` to the target PC.
+Build resources live in `build/`.
 
-For local packaging on macOS later, we can also add:
+Helpful files:
 
-- a macOS build target for local desktop testing
-- a Windows release workflow for signed installers
-- auto-update publishing
+- `build/icon-source.svg`
+- `build/make-icons.sh`
+- `build/README.md`
 
-## Update Strategy
-
-Recommended path:
-
-- use `electron-builder` + `electron-updater`
-- publish signed releases to GitHub Releases or S3
-- check for updates on app launch and optionally on a timer
-- download in background
-- prompt to restart into the new version
-
-Before that is production-ready, we still need:
-
-- custom app icons (`.icns` for macOS, `.ico` for Windows)
-- code signing for Windows
-- code signing / notarization for macOS if you want a smoother Gatekeeper experience
-- a release pipeline
-- release publishing credentials
-- Windows packaging test passes
-
-Basic update scaffolding is already in `main.js`:
-
-- packaged builds will attempt an update check on launch
-- packaged builds also re-check on a weekly interval while running
-- update state is exposed to the renderer through the Electron preload bridge
-- the remaining work is mostly release hosting, signing, and UI polish
-
-## Publishing Real Updates
-
-To install once and send updates over the web later, the remaining pieces are:
-
-1. Pick a release host.
-   Recommended: GitHub Releases
-
-2. Publish packaged builds there for each version.
-
-3. Keep the version in `package.json` moving forward.
-
-4. Add signing:
-   - Windows code signing certificate
-   - macOS signing/notarization if you want smoother installs
-
-5. Keep the `publish` config in `package.json` pointed at the real repo that will host the releases.
-
-Once that is in place, installed apps can:
-
-- check for updates on launch
-- check again weekly
-- download updates in the background
-- prompt the user to restart into the new version
-
-Supporting docs in this project:
-
-- [RELEASE_CHECKLIST.md](/Users/jeff/Documents/Playground/onebite-ticket-display-desktop/RELEASE_CHECKLIST.md)
-- [GITHUB_RELEASES_UPDATE_PLAN.md](/Users/jeff/Documents/Playground/onebite-ticket-display-desktop/GITHUB_RELEASES_UPDATE_PLAN.md)
-- [build/README.md](/Users/jeff/Documents/Playground/onebite-ticket-display-desktop/build/README.md)
-
-## Icon Workflow
-
-This project now includes:
-
-- source icon art in [icon-source.svg](/Users/jeff/Documents/Playground/onebite-ticket-display-desktop/build/icon-source.svg)
-- a local icon build helper in [make-icons.sh](/Users/jeff/Documents/Playground/onebite-ticket-display-desktop/build/make-icons.sh)
-
-To generate the packaging icons on your Mac:
+To generate icon files locally:
 
 ```bash
-cd /Users/jeff/Documents/Playground/onebite-ticket-display-desktop
 chmod +x build/make-icons.sh
 ./build/make-icons.sh
 ```
 
-That should create:
+## Notes
 
-- `build/icon.png`
-- `build/icon.icns`
-- `build/icon.ico`
-
-## Important Runtime Paths
-
-- app resources: bundled under `resources/app`
-- writable data: Electron `userData/data`
-
-That writable data directory will contain the copied app's:
-
-- `config.json`
-- `ticket-meta-cache.json`
-- `invoice-detail-cache.json`
-- any user-editable rules files
+- This app depends on live RepairDesk data and requires internet access.
+- Windows is currently the most complete platform for packaged installs and auto-update behavior.
+- For smooth macOS public distribution later, Apple signing and notarization will be required.

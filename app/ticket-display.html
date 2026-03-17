@@ -839,6 +839,64 @@
     display: block;
   }
 
+  .welcome-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(2, 8, 18, 0.78);
+    backdrop-filter: blur(12px);
+  }
+
+  .welcome-overlay.open {
+    display: flex;
+  }
+
+  .welcome-card {
+    width: min(680px, 100%);
+    display: grid;
+    gap: 16px;
+    padding: 22px;
+    border-radius: 22px;
+    background: rgba(11, 22, 38, 0.96);
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: var(--shadow);
+  }
+
+  .welcome-title {
+    margin: 0;
+    font-size: 28px;
+    line-height: 1.05;
+  }
+
+  .welcome-copy {
+    margin: 0;
+    color: var(--soft);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .welcome-grid {
+    display: grid;
+    gap: 12px;
+  }
+
+  .welcome-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
+  .welcome-status {
+    min-height: 18px;
+    color: var(--soft);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
   .settings-head {
     display: flex;
     align-items: center;
@@ -2031,16 +2089,6 @@
         </span>
       </label>
       <label class="settings-field full">
-        <span class="settings-label">Internal ticket filtering</span>
-        <span class="settings-check">
-          <input class="settings-checkbox" id="pref-hide-refurbs" type="checkbox" />
-          <span class="settings-check-copy">
-            <span class="settings-check-title">Hide Refurbs</span>
-            <span class="settings-help">Hide internal refurbishment tickets in the ticket display. This targets Refurbishment task types and walk-in customer refurb jobs.</span>
-          </span>
-        </span>
-      </label>
-      <label class="settings-field full">
         <span class="settings-label">Assigned tech filter</span>
         <div class="weekday-grid" id="pref-assignee-filter"></div>
         <span class="settings-help">Select one or more techs to show only their tickets. Leave everything unchecked to show all techs.</span>
@@ -2165,6 +2213,7 @@
         <label class="settings-field"><span class="settings-label">Header label</span><input class="settings-input" id="pref-ready-label" /></label>
         <div class="editor-copy">This is the left-most queue column on the board.</div>
         <label class="settings-field"><span class="settings-check"><input class="settings-checkbox" id="pref-ready-visible" type="checkbox" /><span class="settings-check-copy"><span class="settings-check-title">Show this column</span></span></span></label>
+        <label class="settings-field"><span class="settings-label">Refurb tickets</span><select class="settings-input settings-select" id="pref-ready-refurbs"><option value="all">Show with customer tickets</option><option value="hide_refurbs">Hide refurbs</option><option value="only_refurbs">Show only refurbs</option><option value="rotate_refurbs">Rotate customer/refurbs</option></select></label>
         <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-ready-statuses"></textarea></label>
       </div>
       <div class="column-editor">
@@ -2172,6 +2221,7 @@
         <label class="settings-field"><span class="settings-label">Header label</span><input class="settings-input" id="pref-progress-label" /></label>
         <div class="editor-copy">Second queue column from the left.</div>
         <label class="settings-field"><span class="settings-check"><input class="settings-checkbox" id="pref-progress-visible" type="checkbox" /><span class="settings-check-copy"><span class="settings-check-title">Show this column</span></span></span></label>
+        <label class="settings-field"><span class="settings-label">Refurb tickets</span><select class="settings-input settings-select" id="pref-progress-refurbs"><option value="all">Show with customer tickets</option><option value="hide_refurbs">Hide refurbs</option><option value="only_refurbs">Show only refurbs</option><option value="rotate_refurbs">Rotate customer/refurbs</option></select></label>
         <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-progress-statuses"></textarea></label>
       </div>
       <div class="column-editor">
@@ -2179,6 +2229,7 @@
         <label class="settings-field"><span class="settings-label">Header label</span><input class="settings-input" id="pref-attention-label" /></label>
         <div class="editor-copy">Middle queue column on the board.</div>
         <label class="settings-field"><span class="settings-check"><input class="settings-checkbox" id="pref-attention-visible" type="checkbox" /><span class="settings-check-copy"><span class="settings-check-title">Show this column</span></span></span></label>
+        <label class="settings-field"><span class="settings-label">Refurb tickets</span><select class="settings-input settings-select" id="pref-attention-refurbs"><option value="all">Show with customer tickets</option><option value="hide_refurbs">Hide refurbs</option><option value="only_refurbs">Show only refurbs</option><option value="rotate_refurbs">Rotate customer/refurbs</option></select></label>
         <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-attention-statuses"></textarea></label>
       </div>
       <div class="column-editor">
@@ -2186,6 +2237,7 @@
         <label class="settings-field"><span class="settings-label">Header label</span><input class="settings-input" id="pref-waiting-label" /></label>
         <div class="editor-copy">Fourth queue column from the left.</div>
         <label class="settings-field"><span class="settings-check"><input class="settings-checkbox" id="pref-waiting-visible" type="checkbox" /><span class="settings-check-copy"><span class="settings-check-title">Show this column</span></span></span></label>
+        <label class="settings-field"><span class="settings-label">Refurb tickets</span><select class="settings-input settings-select" id="pref-waiting-refurbs"><option value="all">Show with customer tickets</option><option value="hide_refurbs">Hide refurbs</option><option value="only_refurbs">Show only refurbs</option><option value="rotate_refurbs">Rotate customer/refurbs</option></select></label>
         <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-waiting-statuses"></textarea></label>
       </div>
       <div class="column-editor">
@@ -2193,6 +2245,7 @@
         <label class="settings-field"><span class="settings-label">Header label</span><input class="settings-input" id="pref-qc-label" /></label>
         <div class="editor-copy">Right-most queue column on the board.</div>
         <label class="settings-field"><span class="settings-check"><input class="settings-checkbox" id="pref-qc-visible" type="checkbox" /><span class="settings-check-copy"><span class="settings-check-title">Show this column</span></span></span></label>
+        <label class="settings-field"><span class="settings-label">Refurb tickets</span><select class="settings-input settings-select" id="pref-qc-refurbs"><option value="all">Show with customer tickets</option><option value="hide_refurbs">Hide refurbs</option><option value="only_refurbs">Show only refurbs</option><option value="rotate_refurbs">Rotate customer/refurbs</option></select></label>
         <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-qc-statuses"></textarea></label>
       </div>
     </div>
@@ -2238,6 +2291,31 @@
   </div>
 </aside>
 
+<div class="welcome-overlay" id="welcome-overlay">
+  <div class="welcome-card">
+    <div>
+      <h2 class="welcome-title">Welcome to One Bite Ticket Display</h2>
+      <p class="welcome-copy">Set the shop name and RepairDesk API key to finish first-time setup. You can change these later in Settings.</p>
+    </div>
+    <div class="welcome-grid">
+      <label class="settings-field full">
+        <span class="settings-label">Shop name</span>
+        <input class="settings-input" id="welcome-shop-name" placeholder="Current Repair Queue" />
+        <span class="settings-help">This is the title shown at the top of the board.</span>
+      </label>
+      <label class="settings-field full">
+        <span class="settings-label">RepairDesk API key</span>
+        <textarea class="settings-textarea" id="welcome-api-key" placeholder="Paste your RepairDesk API key"></textarea>
+        <span class="settings-help">Used for waiting ages, appointment enrichment, priority detection, and other detailed ticket metadata.</span>
+      </label>
+    </div>
+    <div class="welcome-status" id="welcome-status"></div>
+    <div class="welcome-actions">
+      <button class="pill" id="welcome-save" type="button">Save and Continue</button>
+    </div>
+  </div>
+</div>
+
 <script>
   const APP_VERSION = '__APP_VERSION__';
   const state = {
@@ -2249,14 +2327,18 @@
     nextRefreshAt: 0,
     clockTimer: null,
     calendarRotationTimer: null,
+    refurbRotationTimer: null,
+    refurbRotationPhase: 0,
     calendarWeekOffset: 0,
     settingsLoaded: false,
+    welcomeShown: false,
     logoDataUrl: '',
     displays: [],
     updateStatusTimer: null,
   };
 
   const DEFAULT_PAGE_SECONDS = 12;
+  const DEFAULT_REFURB_ROTATE_SECONDS = 12;
 
   function qs(id) {
     return document.getElementById(id);
@@ -2307,15 +2389,14 @@
         displayTarget: 'current',
         customerNameMode: 'first_name_only',
         showAssignedTech: true,
-        hideRefurbs: false,
         assigneeFilter: [],
       },
       columns: {
-        readyToStart: { label: 'Ready to start', visible: true, statuses: [] },
-        inProgress: { label: 'In Progress', visible: true, statuses: [] },
-        needsAttention: { label: 'Needs Attention', visible: true, statuses: [] },
-        waiting: { label: 'Waiting', visible: true, statuses: [] },
-        qualityControl: { label: 'Quality Control', visible: true, statuses: [] },
+        readyToStart: { label: 'Ready to start', visible: true, refurbMode: 'all', statuses: [] },
+        inProgress: { label: 'In Progress', visible: true, refurbMode: 'all', statuses: [] },
+        needsAttention: { label: 'Needs Attention', visible: true, refurbMode: 'all', statuses: [] },
+        waiting: { label: 'Waiting', visible: true, refurbMode: 'all', statuses: [] },
+        qualityControl: { label: 'Quality Control', visible: true, refurbMode: 'all', statuses: [] },
       },
     };
   }
@@ -2677,7 +2758,6 @@
     setDisplayTargetOptions(prefs.display?.displayTarget || 'current');
     qs('pref-customer-name-mode').value = prefs.display?.customerNameMode || 'first_name_only';
     qs('pref-show-assigned-tech').checked = prefs.display?.showAssignedTech !== false;
-    qs('pref-hide-refurbs').checked = !!prefs.display?.hideRefurbs;
     qs('pref-assignee-filter').innerHTML = assigneeFilterMarkup(prefs.display?.assigneeFilter || []);
     qs('pref-included-weekdays').innerHTML = checkboxGroupMarkup('included-weekdays', prefs.schedule.includedWeekdays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']);
     qs('pref-show-calendar').checked = prefs.schedule.showCalendar !== false;
@@ -2700,18 +2780,23 @@
     qs('pref-qc-days').value = prefs.staleRules.qualityControl?.days ?? 0;
     qs('pref-qc-hours').value = prefs.staleRules.qualityControl?.hours ?? 1;
     qs('pref-ready-label').value = prefs.columns.readyToStart.label || 'Ready to start';
+    qs('pref-ready-refurbs').value = prefs.columns.readyToStart.refurbMode || 'all';
     qs('pref-ready-statuses').value = (prefs.columns.readyToStart.statuses || []).join('\n');
     qs('pref-ready-visible').checked = prefs.columns.readyToStart.visible !== false;
     qs('pref-progress-label').value = prefs.columns.inProgress.label || 'In Progress';
+    qs('pref-progress-refurbs').value = prefs.columns.inProgress.refurbMode || 'all';
     qs('pref-progress-statuses').value = (prefs.columns.inProgress.statuses || []).join('\n');
     qs('pref-progress-visible').checked = prefs.columns.inProgress.visible !== false;
     qs('pref-attention-label').value = prefs.columns.needsAttention.label || 'Needs Attention';
+    qs('pref-attention-refurbs').value = prefs.columns.needsAttention.refurbMode || 'all';
     qs('pref-attention-statuses').value = (prefs.columns.needsAttention.statuses || []).join('\n');
     qs('pref-attention-visible').checked = prefs.columns.needsAttention.visible !== false;
     qs('pref-waiting-label').value = prefs.columns.waiting.label || 'Waiting';
+    qs('pref-waiting-refurbs').value = prefs.columns.waiting.refurbMode || 'all';
     qs('pref-waiting-statuses').value = (prefs.columns.waiting.statuses || []).join('\n');
     qs('pref-waiting-visible').checked = prefs.columns.waiting.visible !== false;
     qs('pref-qc-label').value = prefs.columns.qualityControl.label || 'Quality Control';
+    qs('pref-qc-refurbs').value = prefs.columns.qualityControl.refurbMode || 'all';
     qs('pref-qc-statuses').value = (prefs.columns.qualityControl.statuses || []).join('\n');
     qs('pref-qc-visible').checked = prefs.columns.qualityControl.visible !== false;
     qs('settings-status').textContent = '';
@@ -2730,7 +2815,6 @@
         displayTarget: qs('pref-display-target').value || 'current',
         customerNameMode: qs('pref-customer-name-mode').value || 'first_name_only',
         showAssignedTech: qs('pref-show-assigned-tech').checked,
-        hideRefurbs: qs('pref-hide-refurbs').checked,
         assigneeFilter: selectedAssignees(),
       },
       schedule: {
@@ -2768,11 +2852,11 @@
         },
       },
       columns: {
-        readyToStart: { label: qs('pref-ready-label').value || 'Ready to start', visible: qs('pref-ready-visible').checked, statuses: parseLines(qs('pref-ready-statuses').value) },
-        inProgress: { label: qs('pref-progress-label').value || 'In Progress', visible: qs('pref-progress-visible').checked, statuses: parseLines(qs('pref-progress-statuses').value) },
-        needsAttention: { label: qs('pref-attention-label').value || 'Needs Attention', visible: qs('pref-attention-visible').checked, statuses: parseLines(qs('pref-attention-statuses').value) },
-        waiting: { label: qs('pref-waiting-label').value || 'Waiting', visible: qs('pref-waiting-visible').checked, statuses: parseLines(qs('pref-waiting-statuses').value) },
-        qualityControl: { label: qs('pref-qc-label').value || 'Quality Control', visible: qs('pref-qc-visible').checked, statuses: parseLines(qs('pref-qc-statuses').value) },
+        readyToStart: { label: qs('pref-ready-label').value || 'Ready to start', visible: qs('pref-ready-visible').checked, refurbMode: qs('pref-ready-refurbs').value || 'all', statuses: parseLines(qs('pref-ready-statuses').value) },
+        inProgress: { label: qs('pref-progress-label').value || 'In Progress', visible: qs('pref-progress-visible').checked, refurbMode: qs('pref-progress-refurbs').value || 'all', statuses: parseLines(qs('pref-progress-statuses').value) },
+        needsAttention: { label: qs('pref-attention-label').value || 'Needs Attention', visible: qs('pref-attention-visible').checked, refurbMode: qs('pref-attention-refurbs').value || 'all', statuses: parseLines(qs('pref-attention-statuses').value) },
+        waiting: { label: qs('pref-waiting-label').value || 'Waiting', visible: qs('pref-waiting-visible').checked, refurbMode: qs('pref-waiting-refurbs').value || 'all', statuses: parseLines(qs('pref-waiting-statuses').value) },
+        qualityControl: { label: qs('pref-qc-label').value || 'Quality Control', visible: qs('pref-qc-visible').checked, refurbMode: qs('pref-qc-refurbs').value || 'all', statuses: parseLines(qs('pref-qc-statuses').value) },
       },
     };
   }
@@ -2807,6 +2891,7 @@
     const response = await fetch('/api/config');
     const payload = await response.json();
     qs('api-key').value = payload.apiKey || '';
+    return payload;
   }
 
   async function saveApiConfig() {
@@ -2820,6 +2905,74 @@
     const payload = await response.json();
     if (!response.ok) {
       throw new Error(payload.error || 'Could not save API settings');
+    }
+  }
+
+  function openWelcomeModal(prefill = {}) {
+    qs('welcome-shop-name').value = prefill.shopName || currentPreferences().brand?.title || 'Current Repair Queue';
+    qs('welcome-api-key').value = prefill.apiKey || '';
+    qs('welcome-status').textContent = '';
+    qs('welcome-overlay').classList.add('open');
+    state.welcomeShown = true;
+  }
+
+  function closeWelcomeModal() {
+    qs('welcome-overlay').classList.remove('open');
+  }
+
+  async function maybeShowWelcome(configPayload = null) {
+    if (state.welcomeShown) return;
+    const config = configPayload || await loadApiConfig();
+    if (String(config?.apiKey || '').trim()) return;
+    openWelcomeModal({
+      shopName: currentPreferences().brand?.title || 'Current Repair Queue',
+      apiKey: '',
+    });
+  }
+
+  async function saveWelcomeSetup() {
+    const shopName = String(qs('welcome-shop-name').value || '').trim();
+    const apiKey = String(qs('welcome-api-key').value || '').trim();
+    if (!apiKey) {
+      qs('welcome-status').textContent = 'RepairDesk API key is required.';
+      return;
+    }
+
+    try {
+      qs('welcome-status').textContent = 'Saving...';
+      const nextPreferences = {
+        ...currentPreferences(),
+        brand: {
+          ...(currentPreferences().brand || {}),
+          title: shopName || 'Current Repair Queue',
+        },
+      };
+
+      const configResponse = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey }),
+      });
+      const configPayload = await configResponse.json();
+      if (!configResponse.ok) {
+        throw new Error(configPayload.error || 'Could not save API key');
+      }
+
+      const prefResponse = await fetch('/api/preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(nextPreferences),
+      });
+      const prefPayload = await prefResponse.json();
+      if (!prefResponse.ok) {
+        throw new Error(prefPayload.error || 'Could not save shop name');
+      }
+
+      state.settingsLoaded = false;
+      closeWelcomeModal();
+      await loadFeed();
+    } catch (error) {
+      qs('welcome-status').textContent = error.message || 'Could not save setup.';
     }
   }
 
@@ -2910,6 +3063,42 @@
     }, intervalSeconds * 1000);
   }
 
+  function filterColumnItems(items, refurbMode) {
+    const mode = String(refurbMode || 'all');
+    const source = Array.isArray(items) ? items : [];
+    const customerItems = source.filter((ticket) => !ticket.isRefurb);
+    const refurbItems = source.filter((ticket) => ticket.isRefurb);
+
+    if (mode === 'hide_refurbs') {
+      return { items: customerItems, countLabel: `${customerItems.length} tickets` };
+    }
+    if (mode === 'only_refurbs') {
+      return { items: refurbItems, countLabel: `${refurbItems.length} tickets` };
+    }
+    if (mode === 'rotate_refurbs') {
+      const showingRefurbs = state.refurbRotationPhase === 1;
+      const activeItems = showingRefurbs ? refurbItems : customerItems;
+      return {
+        items: activeItems,
+        countLabel: `${activeItems.length} ${showingRefurbs ? 'refurbs' : 'customer'}`,
+      };
+    }
+    return { items: source, countLabel: `${source.length} tickets` };
+  }
+
+  function setupRefurbRotation() {
+    if (state.refurbRotationTimer) clearInterval(state.refurbRotationTimer);
+    state.refurbRotationTimer = null;
+    state.refurbRotationPhase = 0;
+    const columns = state.data?.uiPreferences?.columns || {};
+    const hasRotatingColumn = Object.values(columns).some((column) => column?.refurbMode === 'rotate_refurbs');
+    if (!hasRotatingColumn) return;
+    state.refurbRotationTimer = setInterval(() => {
+      state.refurbRotationPhase = state.refurbRotationPhase === 0 ? 1 : 0;
+      renderBoard(state.data);
+    }, DEFAULT_REFURB_ROTATE_SECONDS * 1000);
+  }
+
   function renderBoard(data) {
     qs('page-dots').innerHTML = '';
   }
@@ -2936,8 +3125,9 @@
   }
 
   function renderReadyQueue(data) {
-    const items = data.readyQueue || [];
-    qs('ready-count-pill').textContent = items.length + ' tickets';
+    const filtered = filterColumnItems(data.readyQueue || [], data.uiPreferences?.columns?.readyToStart?.refurbMode);
+    const items = filtered.items;
+    qs('ready-count-pill').textContent = filtered.countLabel;
     if (!items.length) {
       qs('ready-queue-content').innerHTML = `
         <div class="state">
@@ -2958,8 +3148,9 @@
   }
 
   function renderProgressQueue(data) {
-    const items = data.inProgressQueue || [];
-    qs('progress-count-pill').textContent = items.length + ' tickets';
+    const filtered = filterColumnItems(data.inProgressQueue || [], data.uiPreferences?.columns?.inProgress?.refurbMode);
+    const items = filtered.items;
+    qs('progress-count-pill').textContent = filtered.countLabel;
     if (!items.length) {
       qs('progress-queue-content').innerHTML = `
         <div class="state">
@@ -2980,8 +3171,9 @@
   }
 
   function renderAttentionQueue(data) {
-    const items = data.needsAttentionQueue || [];
-    qs('attention-count-pill').textContent = items.length + ' tickets';
+    const filtered = filterColumnItems(data.needsAttentionQueue || [], data.uiPreferences?.columns?.needsAttention?.refurbMode);
+    const items = filtered.items;
+    qs('attention-count-pill').textContent = filtered.countLabel;
     if (!items.length) {
       qs('attention-queue-content').innerHTML = `
         <div class="state">
@@ -3002,8 +3194,9 @@
   }
 
   function renderWaitingQueue(data) {
-    const items = data.waitingQueue || [];
-    qs('waiting-count-pill').textContent = items.length + ' tickets';
+    const filtered = filterColumnItems(data.waitingQueue || [], data.uiPreferences?.columns?.waiting?.refurbMode);
+    const items = filtered.items;
+    qs('waiting-count-pill').textContent = filtered.countLabel;
     if (!items.length) {
       qs('waiting-queue-content').innerHTML = `
         <div class="state">
@@ -3024,8 +3217,9 @@
   }
 
   function renderQualityControlQueue(data) {
-    const items = data.qualityControlQueue || [];
-    qs('qc-count-pill').textContent = items.length + ' tickets';
+    const filtered = filterColumnItems(data.qualityControlQueue || [], data.uiPreferences?.columns?.qualityControl?.refurbMode);
+    const items = filtered.items;
+    qs('qc-count-pill').textContent = filtered.countLabel;
     if (!items.length) {
       qs('qc-queue-content').innerHTML = `
         <div class="state">
@@ -3046,6 +3240,11 @@
   }
 
   function renderError(message) {
+    if (state.refurbRotationTimer) {
+      clearInterval(state.refurbRotationTimer);
+      state.refurbRotationTimer = null;
+    }
+    state.refurbRotationPhase = 0;
     qs('summary').innerHTML = '';
     qs('status-row').innerHTML = '';
     qs('page-dots').innerHTML = '';
@@ -3086,6 +3285,7 @@
     renderAttentionQueue(state.data);
     renderWaitingQueue(state.data);
     renderQualityControlQueue(state.data);
+    setupRefurbRotation();
     qs('footer-note').textContent = state.data.displayTicketCounts
       ? 'RepairDesk count widgets are enabled for this token. This custom board still prioritizes full ticket cards.'
       : 'This board groups duplicate issue lines into a single readable ticket card for TV use.';
@@ -3110,6 +3310,7 @@
       setupPaging();
       setupRefresh();
       setupCalendarRotation();
+      loadApiConfig().then((config) => maybeShowWelcome(config)).catch(() => {});
     } catch (error) {
       renderError(error.message || 'Could not load the RepairDesk ticket feed.');
     }
@@ -3325,6 +3526,7 @@
   qs('settings-feature-request').addEventListener('click', openFeatureRequest);
   qs('settings-restart').addEventListener('click', restartServer);
   qs('settings-save').addEventListener('click', savePreferences);
+  qs('welcome-save').addEventListener('click', saveWelcomeSetup);
   qs('pref-brand-logo').addEventListener('change', () => {
     const file = qs('pref-brand-logo').files && qs('pref-brand-logo').files[0];
     if (!file) {
