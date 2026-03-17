@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.20';
+const APP_VERSION = 'v2.1.21';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -870,6 +870,28 @@ function durationRuleToHours(rule = {}) {
   return (days * 24) + hours;
 }
 
+function normalizeStatusMatchValue(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function matchesConfiguredStatus(status, configuredStatuses = []) {
+  const normalizedStatus = normalizeStatusMatchValue(status);
+  if (!normalizedStatus) return false;
+  return configuredStatuses.some((configuredStatus) => {
+    const normalizedConfiguredStatus = normalizeStatusMatchValue(configuredStatus);
+    return normalizedConfiguredStatus && normalizedStatus.includes(normalizedConfiguredStatus);
+  });
+}
+
+function findMatchingColumnForStatus(status, columns = {}) {
+  for (const column of Object.values(columns)) {
+    if (matchesConfiguredStatus(status, column?.statuses || [])) {
+      return column;
+    }
+  }
+  return null;
+}
+
 function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderId = {}, uiPreferences = DEFAULT_UI_PREFERENCES) {
   const config = configRaw?.data || {};
   const ticketsData = ticketsRaw?.data || {};
@@ -886,13 +908,7 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
   const rawCounts = Array.isArray(ticketsData?.total_res) ? ticketsData.total_res : [];
   const statusCountMap = Object.create(null);
   const groupedByOrder = new Map();
-  const statusDisplayMap = Object.create(null);
   const visibleColumns = Object.values(preferences.columns).filter((column) => column.visible !== false);
-  for (const column of Object.values(preferences.columns)) {
-    for (const status of column.statuses) {
-      statusDisplayMap[status] = column.label;
-    }
-  }
   const rawStatusLabels = ticketsRaw?.status_label && typeof ticketsRaw.status_label === 'object'
     ? ticketsRaw.status_label
     : {};
@@ -982,13 +998,13 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
 
   const mergedStatusCountMap = Object.create(null);
   for (const [status, count] of Object.entries(statusCountMap)) {
-    const displayStatus = statusDisplayMap[status] || status;
+    const displayStatus = findMatchingColumnForStatus(status, preferences.columns)?.label || status;
     mergedStatusCountMap[displayStatus] = (mergedStatusCountMap[displayStatus] || 0) + count;
   }
 
   const mergedStatusOrder = [];
   for (const status of statusOrder) {
-    const displayStatus = statusDisplayMap[status] || status;
+    const displayStatus = findMatchingColumnForStatus(status, preferences.columns)?.label || status;
     if (!mergedStatusOrder.includes(displayStatus)) {
       mergedStatusOrder.push(displayStatus);
     }
@@ -1000,7 +1016,7 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
   ].filter((status, index, list) => list.indexOf(status) === index);
 
   const readyQueue = allTickets
-    .filter((ticket) => preferences.columns.readyToStart.statuses.includes(ticket.status))
+    .filter((ticket) => matchesConfiguredStatus(ticket.status, preferences.columns.readyToStart.statuses))
     .map((ticket) => {
       const createdAt = Number(ticket.createdAt || 0) || null;
       const waitingDays = createdAt
@@ -1029,7 +1045,7 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
     });
 
   const needsAttentionQueue = allTickets
-    .filter((ticket) => preferences.columns.needsAttention.statuses.includes(ticket.status))
+    .filter((ticket) => matchesConfiguredStatus(ticket.status, preferences.columns.needsAttention.statuses))
     .map((ticket) => {
       const lastTouchedAt = Number(ticket.updatedAt || ticket.createdAt || 0) || null;
       const staleDays = lastTouchedAt
@@ -1066,7 +1082,7 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
     });
 
   const inProgressQueue = allTickets
-    .filter((ticket) => preferences.columns.inProgress.statuses.includes(ticket.status))
+    .filter((ticket) => matchesConfiguredStatus(ticket.status, preferences.columns.inProgress.statuses))
     .map((ticket) => {
       const lastTouchedAt = Number(ticket.updatedAt || ticket.createdAt || 0) || null;
       return {
@@ -1098,7 +1114,7 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
     });
 
   const waitingQueue = allTickets
-    .filter((ticket) => preferences.columns.waiting.statuses.includes(ticket.status))
+    .filter((ticket) => matchesConfiguredStatus(ticket.status, preferences.columns.waiting.statuses))
     .map((ticket) => {
       const lastTouchedAt = Number(ticket.updatedAt || ticket.createdAt || 0) || null;
       const waitingDays = lastTouchedAt
@@ -1137,7 +1153,7 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
     });
 
   const qualityControlQueue = allTickets
-    .filter((ticket) => preferences.columns.qualityControl.statuses.includes(ticket.status))
+    .filter((ticket) => matchesConfiguredStatus(ticket.status, preferences.columns.qualityControl.statuses))
     .map((ticket) => {
       const lastTouchedAt = Number(ticket.updatedAt || ticket.createdAt || 0) || null;
       return {

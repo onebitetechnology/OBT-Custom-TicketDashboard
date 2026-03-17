@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.21
+
+- Changed column status matching from exact matches to case-insensitive partial-text matching.
+- Added clearer help text in Settings so users can enter full statuses or shorter contains-style values per line.
+
 ## v2.1.20
 
 - Fixed the Windows installer build again by limiting the custom NSIS personal-data uninstall UI to the actual uninstaller build.

@@ -20,6 +20,11 @@ if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   exit 1
 fi
 
+if [[ ! -f "./preflight.sh" ]]; then
+  echo "preflight.sh is required but was not found."
+  exit 1
+fi
+
 VERSION="$(node -p "require('./package.json').version")"
 TAG="v${VERSION}"
 MESSAGE="${1:-Release ${VERSION}}"
@@ -36,6 +41,10 @@ fi
 
 echo "Releasing ${TAG}"
 echo "Commit message: ${MESSAGE}"
+
+echo
+echo "Running preflight checks before release..."
+bash ./preflight.sh
 
 git add .
 git commit -m "$MESSAGE"
