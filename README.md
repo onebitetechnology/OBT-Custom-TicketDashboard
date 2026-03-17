@@ -105,11 +105,24 @@ bash ./release.sh "Release 2.1.13"
 
 The script will:
 
+- run preflight checks before making the release commit
 - stage all changes
 - create the release commit
 - push `main`
 - create the matching git tag from `package.json`
 - push the tag to GitHub
+
+Run the preflight checks by themselves:
+
+```bash
+bash ./preflight.sh
+```
+
+If you want a slower but stronger packaging smoke test before tagging:
+
+```bash
+bash ./preflight.sh --with-packaging
+```
 
 ## Settings and Data Storage
 

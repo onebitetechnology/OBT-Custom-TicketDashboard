@@ -2211,7 +2211,7 @@
   </div>
   <div class="settings-section span-2">
     <h3>Columns</h3>
-    <div class="settings-section-copy">Configure what each queue column is called, whether it is shown, and which RepairDesk statuses feed into it.</div>
+    <div class="settings-section-copy">Configure what each queue column is called, whether it is shown, and which RepairDesk statuses feed into it. Status matching is case-insensitive and works on partial text.</div>
     <div class="column-editor-grid">
       <div class="column-editor">
         <h4 class="editor-title">Column 1</h4>
@@ -2220,7 +2220,7 @@
         <label class="settings-field"><span class="settings-check"><input class="settings-checkbox" id="pref-ready-visible" type="checkbox" /><span class="settings-check-copy"><span class="settings-check-title">Show this column</span></span></span></label>
         <label class="settings-field"><span class="settings-label">Refurb tickets</span><select class="settings-input settings-select" id="pref-ready-refurbs"><option value="all">Show all tickets</option><option value="hide_refurbs">Show Customer Tickets only</option><option value="only_refurbs">Show Refurb Tickets only</option><option value="rotate_refurbs">Rotate between Customer and Refurb Tickets</option></select></label>
         <label class="settings-field"><span class="settings-label">Rotate timing (seconds)</span><input class="settings-input" id="pref-ready-refurb-seconds" type="number" min="5" step="1" /><span class="settings-help">Used when this column is set to rotate between customer and refurb tickets.</span></label>
-        <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-ready-statuses"></textarea></label>
+        <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-ready-statuses"></textarea><span class="settings-help">Enter one status or partial match per line. Example: <code>Ready to Start</code> will match longer status names that contain it.</span></label>
       </div>
       <div class="column-editor">
         <h4 class="editor-title">Column 2</h4>
@@ -2229,7 +2229,7 @@
         <label class="settings-field"><span class="settings-check"><input class="settings-checkbox" id="pref-progress-visible" type="checkbox" /><span class="settings-check-copy"><span class="settings-check-title">Show this column</span></span></span></label>
         <label class="settings-field"><span class="settings-label">Refurb tickets</span><select class="settings-input settings-select" id="pref-progress-refurbs"><option value="all">Show all tickets</option><option value="hide_refurbs">Show Customer Tickets only</option><option value="only_refurbs">Show Refurb Tickets only</option><option value="rotate_refurbs">Rotate between Customer and Refurb Tickets</option></select></label>
         <label class="settings-field"><span class="settings-label">Rotate timing (seconds)</span><input class="settings-input" id="pref-progress-refurb-seconds" type="number" min="5" step="1" /><span class="settings-help">Used when this column is set to rotate between customer and refurb tickets.</span></label>
-        <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-progress-statuses"></textarea></label>
+        <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-progress-statuses"></textarea><span class="settings-help">Enter one status or partial match per line. Matching is case-insensitive.</span></label>
       </div>
       <div class="column-editor">
         <h4 class="editor-title">Column 3</h4>
@@ -2238,7 +2238,7 @@
         <label class="settings-field"><span class="settings-check"><input class="settings-checkbox" id="pref-attention-visible" type="checkbox" /><span class="settings-check-copy"><span class="settings-check-title">Show this column</span></span></span></label>
         <label class="settings-field"><span class="settings-label">Refurb tickets</span><select class="settings-input settings-select" id="pref-attention-refurbs"><option value="all">Show all tickets</option><option value="hide_refurbs">Show Customer Tickets only</option><option value="only_refurbs">Show Refurb Tickets only</option><option value="rotate_refurbs">Rotate between Customer and Refurb Tickets</option></select></label>
         <label class="settings-field"><span class="settings-label">Rotate timing (seconds)</span><input class="settings-input" id="pref-attention-refurb-seconds" type="number" min="5" step="1" /><span class="settings-help">Used when this column is set to rotate between customer and refurb tickets.</span></label>
-        <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-attention-statuses"></textarea></label>
+        <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-attention-statuses"></textarea><span class="settings-help">Enter one status or partial match per line. Matching is case-insensitive.</span></label>
       </div>
       <div class="column-editor">
         <h4 class="editor-title">Column 4</h4>
@@ -2247,7 +2247,7 @@
         <label class="settings-field"><span class="settings-check"><input class="settings-checkbox" id="pref-waiting-visible" type="checkbox" /><span class="settings-check-copy"><span class="settings-check-title">Show this column</span></span></span></label>
         <label class="settings-field"><span class="settings-label">Refurb tickets</span><select class="settings-input settings-select" id="pref-waiting-refurbs"><option value="all">Show all tickets</option><option value="hide_refurbs">Show Customer Tickets only</option><option value="only_refurbs">Show Refurb Tickets only</option><option value="rotate_refurbs">Rotate between Customer and Refurb Tickets</option></select></label>
         <label class="settings-field"><span class="settings-label">Rotate timing (seconds)</span><input class="settings-input" id="pref-waiting-refurb-seconds" type="number" min="5" step="1" /><span class="settings-help">Used when this column is set to rotate between customer and refurb tickets.</span></label>
-        <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-waiting-statuses"></textarea></label>
+        <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-waiting-statuses"></textarea><span class="settings-help">Enter one status or partial match per line. Matching is case-insensitive.</span></label>
       </div>
       <div class="column-editor">
         <h4 class="editor-title">Column 5</h4>
@@ -2256,7 +2256,7 @@
         <label class="settings-field"><span class="settings-check"><input class="settings-checkbox" id="pref-qc-visible" type="checkbox" /><span class="settings-check-copy"><span class="settings-check-title">Show this column</span></span></span></label>
         <label class="settings-field"><span class="settings-label">Refurb tickets</span><select class="settings-input settings-select" id="pref-qc-refurbs"><option value="all">Show all tickets</option><option value="hide_refurbs">Show Customer Tickets only</option><option value="only_refurbs">Show Refurb Tickets only</option><option value="rotate_refurbs">Rotate between Customer and Refurb Tickets</option></select></label>
         <label class="settings-field"><span class="settings-label">Rotate timing (seconds)</span><input class="settings-input" id="pref-qc-refurb-seconds" type="number" min="5" step="1" /><span class="settings-help">Used when this column is set to rotate between customer and refurb tickets.</span></label>
-        <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-qc-statuses"></textarea></label>
+        <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-qc-statuses"></textarea><span class="settings-help">Enter one status or partial match per line. Matching is case-insensitive.</span></label>
       </div>
     </div>
   </div>
