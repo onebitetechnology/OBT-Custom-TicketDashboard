@@ -1991,6 +1991,11 @@
     <div class="settings-section-copy">Connection details for the RepairDesk account this board reads from.</div>
     <div class="settings-grid">
       <label class="settings-field full">
+        <span class="settings-label">Ticket counter token</span>
+        <textarea class="settings-textarea" id="ticket-counter-token"></textarea>
+        <span class="settings-help">This powers the main queue feed. Each shop needs its own RepairDesk ticket counter token.</span>
+      </label>
+      <label class="settings-field full">
         <span class="settings-label">RepairDesk API key</span>
         <textarea class="settings-textarea" id="api-key"></textarea>
         <span class="settings-help">Used for the extra RepairDesk detail lookups that power waiting age, priority detection, and appointment enrichment.</span>
@@ -2300,7 +2305,7 @@
   <div class="welcome-card">
     <div>
       <h2 class="welcome-title">Welcome to One Bite Ticket Display</h2>
-      <p class="welcome-copy">Set the shop name and RepairDesk API key to finish first-time setup. You can change these later in Settings.</p>
+      <p class="welcome-copy">Set the shop name, ticket counter token, and RepairDesk API key to finish first-time setup. You can change these later in Settings.</p>
     </div>
     <div class="welcome-grid">
       <label class="settings-field full">
@@ -2309,9 +2314,14 @@
         <span class="settings-help">This is the title shown at the top of the board.</span>
       </label>
       <label class="settings-field full">
+        <span class="settings-label">Ticket counter token</span>
+        <textarea class="settings-textarea" id="welcome-ticket-token" placeholder="Paste your RepairDesk ticket counter token"></textarea>
+        <span class="settings-help">This is the token used for the main ticket queue feed shown on the board.</span>
+      </label>
+      <label class="settings-field full">
         <span class="settings-label">RepairDesk API key</span>
         <textarea class="settings-textarea" id="welcome-api-key" placeholder="Paste your RepairDesk API key"></textarea>
-        <span class="settings-help">Used for waiting ages, appointment enrichment, priority detection, and other detailed ticket metadata.</span>
+        <span class="settings-help">Used for waiting ages, appointment enrichment, priority detection, and other detailed ticket metadata. Optional, but strongly recommended.</span>
       </label>
     </div>
     <div class="welcome-status" id="welcome-status"></div>
@@ -2899,6 +2909,7 @@
     const response = await fetch('/api/config');
     const payload = await response.json();
     qs('api-key').value = payload.apiKey || '';
+    qs('ticket-counter-token').value = payload.ticketCounterToken || '';
     return payload;
   }
 
@@ -2908,6 +2919,7 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         apiKey: qs('api-key').value,
+        ticketCounterToken: qs('ticket-counter-token').value,
       }),
     });
     const payload = await response.json();
@@ -2918,6 +2930,7 @@
 
   function openWelcomeModal(prefill = {}) {
     qs('welcome-shop-name').value = prefill.shopName || currentPreferences().brand?.title || 'Current Repair Queue';
+    qs('welcome-ticket-token').value = prefill.ticketCounterToken || '';
     qs('welcome-api-key').value = prefill.apiKey || '';
     qs('welcome-status').textContent = '';
     qs('welcome-overlay').classList.add('open');
@@ -2931,18 +2944,20 @@
   async function maybeShowWelcome(configPayload = null) {
     if (state.welcomeShown) return;
     const config = configPayload || await loadApiConfig();
-    if (String(config?.apiKey || '').trim()) return;
+    if (String(config?.ticketCounterToken || '').trim()) return;
     openWelcomeModal({
       shopName: currentPreferences().brand?.title || 'Current Repair Queue',
-      apiKey: '',
+      ticketCounterToken: String(config?.ticketCounterToken || '').trim(),
+      apiKey: String(config?.apiKey || '').trim(),
     });
   }
 
   async function saveWelcomeSetup() {
     const shopName = String(qs('welcome-shop-name').value || '').trim();
+    const ticketCounterToken = String(qs('welcome-ticket-token').value || '').trim();
     const apiKey = String(qs('welcome-api-key').value || '').trim();
-    if (!apiKey) {
-      qs('welcome-status').textContent = 'RepairDesk API key is required.';
+    if (!ticketCounterToken) {
+      qs('welcome-status').textContent = 'Ticket counter token is required.';
       return;
     }
 
@@ -2959,7 +2974,7 @@
       const configResponse = await fetch('/api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey }),
+        body: JSON.stringify({ apiKey, ticketCounterToken }),
       });
       const configPayload = await configResponse.json();
       if (!configResponse.ok) {
@@ -3298,9 +3313,12 @@
   }
 
   async function loadFeed() {
-    const token = params().get('token');
+    const urlToken = String(params().get('token') || '').trim();
+    const config = await loadApiConfig().catch(() => ({ apiKey: '', ticketCounterToken: '' }));
+    const token = urlToken || String(config?.ticketCounterToken || '').trim();
     if (!token) {
-      renderError('Missing token. Open this page with ?token=YOUR_REPAIRDESK_TICKET_COUNTER_TOKEN.');
+      renderError('Missing ticket counter token. Add it in Settings or complete the welcome setup.');
+      maybeShowWelcome(config).catch(() => {});
       return;
     }
 
@@ -3316,7 +3334,7 @@
       setupPaging();
       setupRefresh();
       setupCalendarRotation();
-      loadApiConfig().then((config) => maybeShowWelcome(config)).catch(() => {});
+      maybeShowWelcome(config).catch(() => {});
     } catch (error) {
       renderError(error.message || 'Could not load the RepairDesk ticket feed.');
     }

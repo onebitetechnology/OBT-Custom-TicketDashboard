@@ -4,6 +4,8 @@ Standalone desktop application for displaying a RepairDesk ticket board on a TV 
 
 It packages the custom ticket dashboard as an Electron app for Windows and macOS, with local settings, branding, queue rules, appointment views, and desktop-aware display controls.
 
+On first launch, each install prompts for its own RepairDesk ticket counter token and API key so the app reads the correct shop data.
+
 ## Features
 
 - custom RepairDesk queue display designed for TV use
@@ -86,6 +88,28 @@ For release/update planning, see:
 
 - [RELEASE_CHECKLIST.md](./RELEASE_CHECKLIST.md)
 - [GITHUB_RELEASES_UPDATE_PLAN.md](./GITHUB_RELEASES_UPDATE_PLAN.md)
+
+### Quick Release Helper
+
+If the version has already been bumped in `package.json`, you can publish a release with one command:
+
+```bash
+bash ./release.sh
+```
+
+Optional custom commit message:
+
+```bash
+bash ./release.sh "Release 2.1.13"
+```
+
+The script will:
+
+- stage all changes
+- create the release commit
+- push `main`
+- create the matching git tag from `package.json`
+- push the tag to GitHub
 
 ## Settings and Data Storage
 

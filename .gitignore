@@ -7,3 +7,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+app/config.json
+app/invoice-detail-cache.json
+app/ticket-meta-cache.json

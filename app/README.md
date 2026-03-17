@@ -18,7 +18,7 @@ node server.js
 Then open:
 
 ```text
-http://localhost:3000/ticket-display?token=example-removed-ticket-token
+http://localhost:3000/
 ```
 
 Or just open:

@@ -2,6 +2,12 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.14
+
+- Removed the hardcoded One Bite ticket counter token from the app entry points and Windows launcher scripts.
+- Added a saved per-user ticket counter token setting and welcome-setup field so each install reads the correct shop queue.
+- Removed tracked local config and cache files from the repo so packaged builds no longer inherit developer data.
+
 ## v2.1.13
 
 - Renamed the refurb display options to show all tickets, customer tickets only, refurb tickets only, or rotate between customer and refurb tickets.

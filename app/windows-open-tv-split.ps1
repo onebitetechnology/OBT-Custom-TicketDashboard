@@ -61,7 +61,7 @@ function Move-ProcessWindow {
 }
 
 $projectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$ticketUrl = "http://localhost:3000/ticket-display?token=example-removed-ticket-token"
+$ticketUrl = "http://localhost:3000/"
 $cameraUrl = "http://10.0.10.108/"
 
 $edgePath = Get-BrowserPath @(

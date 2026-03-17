@@ -30,7 +30,7 @@ powershell -ExecutionPolicy Bypass -File .\windows-install-tv-tasks.ps1
 Main display:
 
 ```text
-http://localhost:3000/ticket-display?token=example-removed-ticket-token
+http://localhost:3000/
 ```
 
 Shortcut root URL:
