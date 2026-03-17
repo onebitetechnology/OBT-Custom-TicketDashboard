@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.13';
+const APP_VERSION = 'v2.1.14';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const RD_TICKET_COUNTER_BASE = 'https://obtadmin.repairdesk.co/web/api/v1';
 const DEFAULT_API_KEY = '';
@@ -304,6 +304,7 @@ function normalizeUiPreferences(savedPrefs = {}) {
 function normalizeAppConfig(saved = {}) {
   return {
     apiKey: String(saved?.apiKey || '').trim(),
+    ticketCounterToken: String(saved?.ticketCounterToken || '').trim(),
     uiPreferences: normalizeUiPreferences(saved?.uiPreferences || {}),
   };
 }
@@ -2322,11 +2323,12 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/config' && req.method === 'POST') {
     try {
       const body = await readBody(req);
-      const { apiKey } = JSON.parse(body);
+      const { apiKey, ticketCounterToken } = JSON.parse(body);
       if (apiKey !== undefined) sessionConfig.apiKey = String(apiKey || '').trim();
+      if (ticketCounterToken !== undefined) sessionConfig.ticketCounterToken = String(ticketCounterToken || '').trim();
       saveConfig(sessionConfig);
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: true, message: 'API key saved' }));
+      res.end(JSON.stringify({ ok: true, message: 'RepairDesk settings saved' }));
     } catch (e) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
@@ -2338,6 +2340,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       apiKey: getConfiguredApiKey(),
+      ticketCounterToken: String(sessionConfig?.ticketCounterToken || '').trim(),
     }));
     return;
   }
@@ -2367,6 +2370,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       hasApiKey: !!sessionConfig.apiKey,
+      hasTicketCounterToken: !!sessionConfig.ticketCounterToken,
       preferencesReady: !!sessionConfig.uiPreferences,
       restarting: false,
       version: APP_VERSION,

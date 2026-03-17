@@ -18,7 +18,7 @@ node server.js
 Then open:
 
 ```text
-http://localhost:3000/ticket-display?token=5ffbdae29a88a1610341090
+http://localhost:3000/
 ```
 
 Or just open:
