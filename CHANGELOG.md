@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.20
+
+- Fixed the Windows installer build again by limiting the custom NSIS personal-data uninstall UI to the actual uninstaller build.
+- This resolves the follow-up CI packaging failure where NSIS treated uninstaller-only code as a warning during the normal installer pass.
+
 ## v2.1.19
 
 - Fixed the Windows installer build by wiring the custom personal-data uninstall page as a real uninstall page in NSIS.
