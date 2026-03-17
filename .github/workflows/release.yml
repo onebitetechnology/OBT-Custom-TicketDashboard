@@ -43,8 +43,9 @@ jobs:
           files: |
             dist/*.dmg
             dist/*.zip
-            dist/*.yml
-            dist/*.yaml
+            dist/latest*.yml
+            dist/latest*.yaml
+            dist/*.blockmap
 
   build-windows:
     runs-on: windows-latest
@@ -71,5 +72,6 @@ jobs:
         with:
           files: |
             dist/*.exe
-            dist/*.yml
-            dist/*.yaml
+            dist/latest*.yml
+            dist/latest*.yaml
+            dist/*.blockmap
