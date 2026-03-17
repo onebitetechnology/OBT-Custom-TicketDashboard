@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.12';
+const APP_VERSION = 'v2.1.13';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const RD_TICKET_COUNTER_BASE = 'https://obtadmin.repairdesk.co/web/api/v1';
 const DEFAULT_API_KEY = '';
@@ -63,30 +63,35 @@ const DEFAULT_UI_PREFERENCES = {
       label: 'Ready to start',
       visible: true,
       refurbMode: 'all',
+      refurbRotateSeconds: 12,
       statuses: ['Ready to Start', 'Parts Arrived - Ready to Start', 'Pending - New', 'Pending - New (No Notifications)'],
     },
     inProgress: {
       label: 'In Progress',
       visible: true,
       refurbMode: 'all',
+      refurbRotateSeconds: 12,
       statuses: ['In Progress', 'Diagnostics - In Progress'],
     },
     needsAttention: {
       label: 'Needs Attention',
       visible: true,
       refurbMode: 'all',
+      refurbRotateSeconds: 12,
       statuses: ['Needs Estimate', 'Need to order Parts'],
     },
     waiting: {
       label: 'Waiting',
       visible: true,
       refurbMode: 'all',
+      refurbRotateSeconds: 12,
       statuses: ['Waiting on Customer', 'Waiting for Parts'],
     },
     qualityControl: {
       label: 'Quality Control',
       visible: true,
       refurbMode: 'all',
+      refurbRotateSeconds: 12,
       statuses: ['Quality Control'],
     },
   },
@@ -218,6 +223,10 @@ function normalizeColumnConfig(savedColumn, fallbackColumn) {
     visible: savedColumn?.visible !== undefined ? !!savedColumn.visible : fallbackColumn.visible !== false,
     statuses: normalizeStringArray(savedColumn?.statuses, fallbackColumn.statuses),
     refurbMode,
+    refurbRotateSeconds: Math.max(
+      5,
+      Number(savedColumn?.refurbRotateSeconds ?? fallbackColumn?.refurbRotateSeconds ?? 12) || 12
+    ),
   };
 }
 
