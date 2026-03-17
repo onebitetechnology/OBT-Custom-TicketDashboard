@@ -2,6 +2,12 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.13
+
+- Renamed the refurb display options to show all tickets, customer tickets only, refurb tickets only, or rotate between customer and refurb tickets.
+- Added a per-column rotate timing setting in seconds for refurb/customer rotation.
+- Updated column rotation so each queue can use its own refurb rotation timing instead of one shared fixed interval.
+
 ## v2.1.12
 
 - Added a first-run welcome popup for new installs.
