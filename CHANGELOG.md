@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.24
+
+- Expanded appointment metadata caching to include broader ticket-detail text and fallback due-date extraction from RepairDesk ticket details.
+- This improves appointment detection when a ticket's added service or due date is not fully reflected in the Ticket Counter feed.
+
 ## v2.1.23
 
 - Broadened appointment detection so the calendar can recognize service matches from the raw ticket feed's issue and device lines, not just the enriched RepairDesk service field.

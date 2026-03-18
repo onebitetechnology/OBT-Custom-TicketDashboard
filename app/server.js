@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.23';
+const APP_VERSION = 'v2.1.24';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -21,7 +21,7 @@ const CATEGORY_RULES_PATH = path.join(DATA_DIR, 'category-rules.json');
 const CONSIGNMENT_RULES_PATH = path.join(DATA_DIR, 'consignment-rules.json');
 const INVOICE_DETAIL_CACHE_PATH = path.join(DATA_DIR, 'invoice-detail-cache.json');
 const TICKET_META_CACHE_PATH = path.join(DATA_DIR, 'ticket-meta-cache.json');
-const TICKET_META_CACHE_VERSION = 4;
+const TICKET_META_CACHE_VERSION = 5;
 const TICKET_META_CACHE_TTL_MS = 60 * 1000;
 const DEFAULT_UI_PREFERENCES = {
   brand: {
@@ -736,11 +736,13 @@ async function fetchTicketLookupByOrderId(orderId) {
 
 async function fetchTicketMetaByOrderId(orderId) {
   const key = String(orderId || '').trim();
-  if (!key) return { createdAt: null, updatedAt: null, repairCategory: '', serviceName: '', hasPriorityFee: false };
+  if (!key) return { createdAt: null, updatedAt: null, repairCategory: '', serviceName: '', serviceSearchText: '', dueAt: null, hasPriorityFee: false };
   if (
     ticketMetaCacheByOrderId[key] &&
     typeof ticketMetaCacheByOrderId[key] === 'object' &&
     Object.prototype.hasOwnProperty.call(ticketMetaCacheByOrderId[key], 'serviceName') &&
+    Object.prototype.hasOwnProperty.call(ticketMetaCacheByOrderId[key], 'serviceSearchText') &&
+    Object.prototype.hasOwnProperty.call(ticketMetaCacheByOrderId[key], 'dueAt') &&
     Object.prototype.hasOwnProperty.call(ticketMetaCacheByOrderId[key], 'hasPriorityFee') &&
     Number(ticketMetaCacheByOrderId[key].metaVersion || 0) === TICKET_META_CACHE_VERSION &&
     (Date.now() - Number(ticketMetaCacheByOrderId[key].fetchedAt || 0)) < TICKET_META_CACHE_TTL_MS
@@ -749,9 +751,15 @@ async function fetchTicketMetaByOrderId(orderId) {
   }
   const lookup = await fetchTicketLookupByOrderId(orderId);
   if (!lookup?.summary?.id) {
-    return { createdAt: null, updatedAt: null, repairCategory: '', serviceName: '', hasPriorityFee: false };
+    return { createdAt: null, updatedAt: null, repairCategory: '', serviceName: '', serviceSearchText: '', dueAt: null, hasPriorityFee: false };
   }
   const detail = await fetchTicketDetailRobust(lookup.summary.id, orderId);
+  const detailServiceText = [];
+  collectNestedStrings(detail?.devices || [], detailServiceText);
+  const dueCandidates = [];
+  collectLikelyDueTimestamps(lookup?.summary || {}, dueCandidates);
+  collectLikelyDueTimestamps(detail?.summary || {}, dueCandidates);
+  collectLikelyDueTimestamps(detail?.devices || [], dueCandidates);
   const serviceNames = Array.isArray(detail?.devices)
     ? detail.devices
       .flatMap((device) => Array.isArray(device?.repairProdItems) ? device.repairProdItems : [])
@@ -792,6 +800,8 @@ async function fetchTicketMetaByOrderId(orderId) {
     updatedAt: Number(detail?.summary?.modified_on || 0) || null,
     repairCategory,
     serviceName: serviceNames.join(', '),
+    serviceSearchText: detailServiceText.join(', '),
+    dueAt: dueCandidates.length ? Math.min(...dueCandidates) : null,
     hasPriorityFee,
   };
   ticketMetaCacheByOrderId[key] = meta;
@@ -821,6 +831,40 @@ function parseDueTimestamp(value) {
   return Number.isFinite(timestamp) ? timestamp : null;
 }
 
+function collectNestedStrings(value, sink, depth = 0) {
+  if (depth > 6 || value == null) return;
+  if (typeof value === 'string' || typeof value === 'number') {
+    const text = String(value).trim();
+    if (text) sink.push(text);
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectNestedStrings(item, sink, depth + 1));
+    return;
+  }
+  if (typeof value === 'object') {
+    Object.values(value).forEach((nested) => collectNestedStrings(nested, sink, depth + 1));
+  }
+}
+
+function collectLikelyDueTimestamps(value, sink, depth = 0) {
+  if (depth > 6 || value == null) return;
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectLikelyDueTimestamps(item, sink, depth + 1));
+    return;
+  }
+  if (typeof value !== 'object') return;
+
+  for (const [key, nested] of Object.entries(value)) {
+    if (nested == null) continue;
+    if (/(^|_)(due|due_on|due_at|due_date)$|due(On|At|Date)$/i.test(key)) {
+      const timestamp = parseDueTimestamp(nested);
+      if (timestamp) sink.push(timestamp);
+    }
+    collectLikelyDueTimestamps(nested, sink, depth + 1);
+  }
+}
+
 function isScheduledServiceName(value, preferences = DEFAULT_UI_PREFERENCES) {
   const text = String(value || '');
   const matchers = normalizeStringArray(preferences?.schedule?.serviceMatchers, DEFAULT_UI_PREFERENCES.schedule.serviceMatchers);
@@ -834,6 +878,7 @@ function isCalendarAppointmentTicket(ticket, preferences = DEFAULT_UI_PREFERENCE
   const appointmentSourceText = [
     ticket?.repairCategory,
     ticket?.serviceName,
+    ticket?.serviceSearchText,
     ...(Array.isArray(ticket?.issues) ? ticket.issues : []),
     ...(Array.isArray(ticket?.devices) ? ticket.devices : []),
   ].filter(Boolean).join(', ');
@@ -961,11 +1006,12 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
         organization: '',
         assigneeName: decodeHtml(ticket?.assignee_name || '') || 'Unassigned',
         dueOn: ticket?.due_on || null,
-        dueAt,
+        dueAt: dueAt || Number(ticketMetaByOrderId[orderId]?.dueAt || 0) || null,
         createdAt: Number(ticketMetaByOrderId[orderId]?.createdAt || 0) || null,
         updatedAt: Number(ticketMetaByOrderId[orderId]?.updatedAt || 0) || null,
         repairCategory: String(ticketMetaByOrderId[orderId]?.repairCategory || '').trim(),
         serviceName: String(ticketMetaByOrderId[orderId]?.serviceName || '').trim(),
+        serviceSearchText: String(ticketMetaByOrderId[orderId]?.serviceSearchText || '').trim(),
         hasPriorityFee: !!ticketMetaByOrderId[orderId]?.hasPriorityFee,
         isRefurb: !!ticketMetaByOrderId[orderId]?.isRefurb,
         statusColor: statusColors[status] || '#64748b',
@@ -993,6 +1039,9 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
     if ((!entry.dueAt && dueAt) || (dueAt && entry.dueAt && dueAt < entry.dueAt)) {
       entry.dueAt = dueAt;
       entry.dueOn = ticket?.due_on || entry.dueOn;
+    }
+    if (!entry.dueAt && Number(ticketMetaByOrderId[orderId]?.dueAt || 0)) {
+      entry.dueAt = Number(ticketMetaByOrderId[orderId].dueAt) || null;
     }
     if (entry.assigneeName === 'Unassigned' && ticket?.assignee_name) {
       entry.assigneeName = decodeHtml(ticket.assignee_name);
