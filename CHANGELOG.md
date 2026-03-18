@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.22
+
+- Fixed Settings so the drawer opens back at the top instead of dropping into the previous scroll position.
+- Added optional appointment audio alerts with chime, spoken message, or both, plus a repeat cooldown setting.
+
 ## v2.1.21
 
 - Changed column status matching from exact matches to case-insensitive partial-text matching.
