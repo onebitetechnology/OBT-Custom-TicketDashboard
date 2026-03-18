@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.24';
+const APP_VERSION = 'v2.1.25';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -826,6 +826,17 @@ function decodeHtml(value) {
 
 function parseDueTimestamp(value) {
   if (!value || value === '0000-00-00 00:00:00') return null;
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    if (value > 1e12) return value;
+    if (value > 1e9) return value * 1000;
+  }
+  if (typeof value === 'string' && /^\d{10,13}$/.test(value.trim())) {
+    const numeric = Number(value.trim());
+    if (Number.isFinite(numeric)) {
+      if (numeric > 1e12) return numeric;
+      if (numeric > 1e9) return numeric * 1000;
+    }
+  }
   const isoLike = String(value).replace(' ', 'T');
   const timestamp = Date.parse(isoLike);
   return Number.isFinite(timestamp) ? timestamp : null;
@@ -2598,6 +2609,80 @@ const server = http.createServer(async (req, res) => {
       cachedInvoiceDetails: Object.keys(invoiceDetailCacheById).length,
       cachedTicketDetails: Object.keys(ticketDetailCacheByInternalId).length,
     }));
+    return;
+  }
+
+  if (pathname === '/api/debug/ticket-appointment') {
+    const orderId = String(requestUrl.searchParams.get('orderId') || '').trim();
+    if (!orderId) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'orderId is required' }));
+      return;
+    }
+
+    const overrideDisplayUrl = String(requestUrl.searchParams.get('displayUrl') || '').trim();
+    const savedConnection = getTicketCounterConnection();
+    const overrideConnection = parseTicketCounterDisplayUrl(overrideDisplayUrl);
+    const apiBase = overrideConnection.apiBase || savedConnection.apiBase;
+    const token = overrideConnection.token || savedConnection.token;
+
+    if (!token || !apiBase) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Ticket Counter Display URL is required before using this debug endpoint.' }));
+      return;
+    }
+
+    try {
+      const ticketsResp = await rdTicketCounter(apiBase, 'tcd/tickets_by_date', { token });
+      const ticketsRaw = parseJsonSafe(ticketsResp.body);
+      if (ticketsResp.status !== 200 || !ticketsRaw || Number(ticketsRaw.status) !== 1) {
+        throw new Error('RepairDesk ticket counter ticket request failed');
+      }
+
+      const rawTickets = Array.isArray(ticketsRaw?.data?.pagination?.data) ? ticketsRaw.data.pagination.data : [];
+      const matchingRows = rawTickets.filter((ticket) => String(ticket?.order_id || '').trim() === orderId);
+      const meta = await fetchTicketMetaByOrderId(orderId);
+      const rawDueCandidates = matchingRows
+        .map((ticket) => ({ raw: ticket?.due_on, parsed: parseDueTimestamp(ticket?.due_on) }))
+        .filter((item) => item.parsed);
+
+      const rawIssues = Array.from(new Set(matchingRows.map((ticket) => decodeHtml(ticket?.device_issue || '')).filter(Boolean)));
+      const rawDevices = Array.from(new Set(matchingRows.map((ticket) => decodeHtml(ticket?.device || '')).filter(Boolean)));
+      const combinedText = [
+        meta.repairCategory,
+        meta.serviceName,
+        meta.serviceSearchText,
+        ...rawIssues,
+        ...rawDevices,
+      ].filter(Boolean).join(', ');
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(escJson({
+        version: APP_VERSION,
+        orderId,
+        foundInTicketCounter: matchingRows.length > 0,
+        rawRowCount: matchingRows.length,
+        rawRows: matchingRows,
+        meta,
+        rawDueCandidates,
+        computed: {
+          rawIssues,
+          rawDevices,
+          combinedText,
+          hasDueAt: !!(rawDueCandidates[0]?.parsed || meta?.dueAt),
+          dueAt: rawDueCandidates[0]?.parsed || meta?.dueAt || null,
+          matchesTechSupport: /tech support/i.test(combinedText),
+          matchesServiceMatchers: isScheduledServiceName(combinedText, sessionConfig.uiPreferences),
+          qualifiesAsAppointment: !!((rawDueCandidates[0]?.parsed || meta?.dueAt) && (
+            /tech support/i.test(combinedText) ||
+            isScheduledServiceName(combinedText, sessionConfig.uiPreferences)
+          )),
+        },
+      }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
     return;
   }
 

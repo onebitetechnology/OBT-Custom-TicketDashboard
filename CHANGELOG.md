@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.25
+
+- Added numeric RepairDesk due-date parsing so appointment detection can use UNIX-style timestamps as well as date strings.
+- Added a per-ticket appointment debug endpoint to make it easier to diagnose why a specific order is or is not appearing in the calendar.
+
 ## v2.1.24
 
 - Expanded appointment metadata caching to include broader ticket-detail text and fallback due-date extraction from RepairDesk ticket details.
