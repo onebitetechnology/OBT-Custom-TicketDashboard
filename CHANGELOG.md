@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.26
+
+- Appointment calendar tickets now qualify automatically when their status contains `Scheduled` and they have a due date.
+- This keeps scheduled appointments visible even when RepairDesk service metadata is incomplete or inconsistent.
+
 ## v2.1.25
 
 - Added numeric RepairDesk due-date parsing so appointment detection can use UNIX-style timestamps as well as date strings.
