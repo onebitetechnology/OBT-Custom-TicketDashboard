@@ -2207,6 +2207,34 @@
         <span class="settings-label">Fast flash threshold (minutes)</span>
         <input class="settings-input" id="pref-imminent-minutes" type="number" min="0" />
       </label>
+      <label class="settings-field full">
+        <span class="settings-label">Appointment audio alerts</span>
+        <span class="settings-check">
+          <input class="settings-checkbox" id="pref-alert-audio-enabled" type="checkbox" />
+          <span class="settings-check-copy">
+            <span class="settings-check-title">Play audio for upcoming appointment alerts</span>
+            <span class="settings-help">Uses the same urgent and imminent timing as the flashing appointment cards.</span>
+          </span>
+        </span>
+      </label>
+      <label class="settings-field">
+        <span class="settings-label">Alert audio type</span>
+        <select class="settings-input settings-select" id="pref-alert-audio-mode">
+          <option value="chime">Chime</option>
+          <option value="speech">Spoken message</option>
+          <option value="both">Chime and spoken message</option>
+        </select>
+      </label>
+      <label class="settings-field">
+        <span class="settings-label">Alert repeat cooldown (seconds)</span>
+        <input class="settings-input" id="pref-alert-audio-cooldown" type="number" min="5" step="1" />
+        <span class="settings-help">Prevents the same appointment warning from repeating too often.</span>
+      </label>
+      <label class="settings-field full">
+        <span class="settings-label">Spoken alert message</span>
+        <input class="settings-input" id="pref-alert-audio-message" />
+        <span class="settings-help">Used when the alert type includes spoken message.</span>
+      </label>
     </div>
   </div>
   <div class="settings-section span-2">
@@ -2350,6 +2378,8 @@
     logoDataUrl: '',
     displays: [],
     updateStatusTimer: null,
+    appointmentAlertHistory: {},
+    alertAudioContext: null,
   };
 
   const DEFAULT_PAGE_SECONDS = 12;
@@ -2384,6 +2414,10 @@
         defaultLeadMinutes: 45,
         onsiteLeadMinutes: 60,
         imminentMinutes: 20,
+        alertAudioEnabled: false,
+        alertAudioMode: 'chime',
+        alertAudioMessage: 'Appointment coming up soon',
+        alertAudioCooldownSeconds: 45,
       },
       staleRules: {
         inProgress: { days: 0, hours: 12 },
@@ -2762,6 +2796,115 @@
     };
   }
 
+  function ensureAlertAudioContext() {
+    if (state.alertAudioContext) return state.alertAudioContext;
+    const AudioCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtor) return null;
+    state.alertAudioContext = new AudioCtor();
+    return state.alertAudioContext;
+  }
+
+  function unlockAlertAudio() {
+    const context = ensureAlertAudioContext();
+    if (!context || context.state !== 'suspended') return;
+    context.resume().catch(() => {});
+  }
+
+  function playAppointmentChime() {
+    const context = ensureAlertAudioContext();
+    if (!context) return;
+    if (context.state === 'suspended') {
+      context.resume().catch(() => {});
+    }
+
+    const now = context.currentTime;
+    const notes = [
+      { frequency: 880, start: now, duration: 0.12 },
+      { frequency: 1174.66, start: now + 0.12, duration: 0.14 },
+      { frequency: 1318.51, start: now + 0.26, duration: 0.18 },
+    ];
+
+    notes.forEach((note) => {
+      const osc = context.createOscillator();
+      const gain = context.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(note.frequency, note.start);
+      gain.gain.setValueAtTime(0.0001, note.start);
+      gain.gain.exponentialRampToValueAtTime(0.06, note.start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, note.start + note.duration);
+      osc.connect(gain);
+      gain.connect(context.destination);
+      osc.start(note.start);
+      osc.stop(note.start + note.duration + 0.02);
+    });
+  }
+
+  function playAppointmentSpeech(message) {
+    const text = String(message || '').trim();
+    if (!text || !window.speechSynthesis || typeof SpeechSynthesisUtterance === 'undefined') return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function appointmentAlertCandidates(data) {
+    const days = currentCalendarDays(data);
+    const candidates = [];
+    days.forEach((day) => {
+      if (day.blocked) return;
+      (day.appointments || []).forEach((appointment) => {
+        const urgency = appointmentUrgencyMeta(appointment.dueOn, appointment.device || '');
+        if (!urgency.className) return;
+        candidates.push({
+          ...appointment,
+          urgencyClass: urgency.className,
+          sortTime: new Date(appointment.dueOn).getTime() || Number.MAX_SAFE_INTEGER,
+        });
+      });
+    });
+    return candidates.sort((a, b) => {
+      const urgencyRank = (value) => (value === 'imminent' ? 0 : 1);
+      if (urgencyRank(a.urgencyClass) !== urgencyRank(b.urgencyClass)) {
+        return urgencyRank(a.urgencyClass) - urgencyRank(b.urgencyClass);
+      }
+      return a.sortTime - b.sortTime;
+    });
+  }
+
+  function maybePlayAppointmentAlert(data) {
+    const prefs = data?.uiPreferences?.schedule || currentPreferences().schedule || {};
+    if (!prefs.alertAudioEnabled) return;
+    const candidates = appointmentAlertCandidates(data);
+    if (!candidates.length) return;
+
+    const cooldownMs = Math.max(5000, (Number(prefs.alertAudioCooldownSeconds || 45) || 45) * 1000);
+    const now = Date.now();
+    Object.keys(state.appointmentAlertHistory).forEach((key) => {
+      if ((now - state.appointmentAlertHistory[key]) > (cooldownMs * 4)) {
+        delete state.appointmentAlertHistory[key];
+      }
+    });
+
+    const nextAlert = candidates[0];
+    const alertKey = `${nextAlert.orderId}|${nextAlert.dueOn}|${nextAlert.urgencyClass}`;
+    const lastPlayedAt = Number(state.appointmentAlertHistory[alertKey] || 0);
+    if (lastPlayedAt && (now - lastPlayedAt) < cooldownMs) return;
+
+    state.appointmentAlertHistory[alertKey] = now;
+    const mode = String(prefs.alertAudioMode || 'chime').toLowerCase();
+    const message = String(prefs.alertAudioMessage || 'Appointment coming up soon').trim() || 'Appointment coming up soon';
+
+    if (mode === 'chime' || mode === 'both') {
+      playAppointmentChime();
+    }
+    if (mode === 'speech' || mode === 'both') {
+      playAppointmentSpeech(message);
+    }
+  }
+
   function fillSettingsForm(preferences) {
     const prefs = preferences || currentPreferences();
     qs('pref-brand-title').value = prefs.brand?.title || 'Current Repair Queue';
@@ -2783,6 +2926,10 @@
     qs('pref-default-lead').value = prefs.schedule.defaultLeadMinutes ?? 45;
     qs('pref-onsite-lead').value = prefs.schedule.onsiteLeadMinutes ?? 60;
     qs('pref-imminent-minutes').value = prefs.schedule.imminentMinutes ?? 20;
+    qs('pref-alert-audio-enabled').checked = !!prefs.schedule.alertAudioEnabled;
+    qs('pref-alert-audio-mode').value = prefs.schedule.alertAudioMode || 'chime';
+    qs('pref-alert-audio-cooldown').value = prefs.schedule.alertAudioCooldownSeconds ?? 45;
+    qs('pref-alert-audio-message').value = prefs.schedule.alertAudioMessage || 'Appointment coming up soon';
     qs('pref-inprogress-days').value = prefs.staleRules.inProgress?.days ?? 0;
     qs('pref-inprogress-hours').value = prefs.staleRules.inProgress?.hours ?? 12;
     qs('pref-attention-days').value = prefs.staleRules.needsAttention?.days ?? 1;
@@ -2847,6 +2994,10 @@
         defaultLeadMinutes: Number(qs('pref-default-lead').value || 0),
         onsiteLeadMinutes: Number(qs('pref-onsite-lead').value || 0),
         imminentMinutes: Number(qs('pref-imminent-minutes').value || 0),
+        alertAudioEnabled: qs('pref-alert-audio-enabled').checked,
+        alertAudioMode: qs('pref-alert-audio-mode').value || 'chime',
+        alertAudioCooldownSeconds: Math.max(5, Number(qs('pref-alert-audio-cooldown').value || 45) || 45),
+        alertAudioMessage: String(qs('pref-alert-audio-message').value || 'Appointment coming up soon').trim() || 'Appointment coming up soon',
       },
       staleRules: {
         inProgress: {
@@ -3068,6 +3219,7 @@
         </div>
       </article>
     `).join('');
+    maybePlayAppointmentAlert(data);
   }
 
   function setupCalendarRotation() {
@@ -3496,7 +3648,9 @@
   }
 
   function openSettings() {
-    qs('settings-drawer').classList.add('open');
+    const drawer = qs('settings-drawer');
+    drawer.classList.add('open');
+    drawer.scrollTop = 0;
     state.logoDataUrl = currentPreferences().brand?.logoDataUrl || '';
     fillSettingsForm(currentPreferences());
     loadApiConfig().catch(() => {
@@ -3506,6 +3660,10 @@
     refreshUpdateStatus();
     if (state.updateStatusTimer) clearInterval(state.updateStatusTimer);
     state.updateStatusTimer = setInterval(refreshUpdateStatus, 1500);
+    requestAnimationFrame(() => {
+      drawer.scrollTop = 0;
+      qs('settings-close')?.focus({ preventScroll: true });
+    });
   }
 
   function closeSettings() {
@@ -3562,6 +3720,9 @@
     renderBoard(state.data);
     setupPaging();
   });
+
+  window.addEventListener('pointerdown', unlockAlertAudio, { passive: true });
+  window.addEventListener('keydown', unlockAlertAudio);
 
   qs('settings-open').addEventListener('click', openSettings);
   qs('settings-close').addEventListener('click', closeSettings);

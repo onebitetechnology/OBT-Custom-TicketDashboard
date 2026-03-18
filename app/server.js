@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.21';
+const APP_VERSION = 'v2.1.22';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -49,6 +49,10 @@ const DEFAULT_UI_PREFERENCES = {
     defaultLeadMinutes: 45,
     onsiteLeadMinutes: 60,
     imminentMinutes: 20,
+    alertAudioEnabled: false,
+    alertAudioMode: 'chime',
+    alertAudioMessage: 'Appointment coming up soon',
+    alertAudioCooldownSeconds: 45,
   },
   staleRules: {
     inProgress: { days: 0, hours: 12 },
@@ -282,6 +286,19 @@ function normalizeUiPreferences(savedPrefs = {}) {
       defaultLeadMinutes: Math.max(0, Number(savedPrefs?.schedule?.defaultLeadMinutes ?? DEFAULT_UI_PREFERENCES.schedule.defaultLeadMinutes) || DEFAULT_UI_PREFERENCES.schedule.defaultLeadMinutes),
       onsiteLeadMinutes: Math.max(0, Number(savedPrefs?.schedule?.onsiteLeadMinutes ?? DEFAULT_UI_PREFERENCES.schedule.onsiteLeadMinutes) || DEFAULT_UI_PREFERENCES.schedule.onsiteLeadMinutes),
       imminentMinutes: Math.max(0, Number(savedPrefs?.schedule?.imminentMinutes ?? DEFAULT_UI_PREFERENCES.schedule.imminentMinutes) || DEFAULT_UI_PREFERENCES.schedule.imminentMinutes),
+      alertAudioEnabled: savedPrefs?.schedule?.alertAudioEnabled !== undefined
+        ? !!savedPrefs.schedule.alertAudioEnabled
+        : DEFAULT_UI_PREFERENCES.schedule.alertAudioEnabled,
+      alertAudioMode: ['chime', 'speech', 'both'].includes(String(savedPrefs?.schedule?.alertAudioMode || '').toLowerCase())
+        ? String(savedPrefs.schedule.alertAudioMode).toLowerCase()
+        : DEFAULT_UI_PREFERENCES.schedule.alertAudioMode,
+      alertAudioMessage: String(savedPrefs?.schedule?.alertAudioMessage || DEFAULT_UI_PREFERENCES.schedule.alertAudioMessage).trim()
+        || DEFAULT_UI_PREFERENCES.schedule.alertAudioMessage,
+      alertAudioCooldownSeconds: Math.max(
+        5,
+        Number(savedPrefs?.schedule?.alertAudioCooldownSeconds ?? DEFAULT_UI_PREFERENCES.schedule.alertAudioCooldownSeconds)
+          || DEFAULT_UI_PREFERENCES.schedule.alertAudioCooldownSeconds
+      ),
     },
     staleRules: {
       inProgress: normalizeDurationRule(savedPrefs?.staleRules?.inProgress, DEFAULT_UI_PREFERENCES.staleRules.inProgress, savedPrefs?.staleRules?.inProgressHours, 'hours'),
