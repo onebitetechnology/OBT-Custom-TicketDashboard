@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.23
+
+- Broadened appointment detection so the calendar can recognize service matches from the raw ticket feed's issue and device lines, not just the enriched RepairDesk service field.
+- This helps existing tickets with newly added Tech Support or Remote Support services show up in the appointment calendar more reliably.
+
 ## v2.1.22
 
 - Fixed Settings so the drawer opens back at the top instead of dropping into the previous scroll position.
