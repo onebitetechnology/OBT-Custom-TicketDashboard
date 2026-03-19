@@ -2,6 +2,17 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.35
+
+- Made the appointment calendar taller so each day has more room for appointment details and is easier to read from a distance.
+
+## v2.1.34
+
+- Added separate calendar rotation durations for this week and next week.
+- Reworked appointment audio into customizable alert rules, so you can stack different chimes/messages by appointment type and lead time.
+- Settings sections now open collapsed by default, and the settings drawer resets to the top when opened.
+- Strengthened the queue column headers and top summary pills so they read more clearly from a distance.
+
 ## v2.1.33
 
 - Cleaned up the appointment merge code with shared helpers for scheduled status, scheduled service labels, and empty metadata defaults.
