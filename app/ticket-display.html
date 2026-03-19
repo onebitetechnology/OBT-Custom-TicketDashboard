@@ -1123,9 +1123,9 @@
   }
 
   .audio-rule-head {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    justify-content: flex-start;
     gap: 10px;
   }
 
@@ -1139,9 +1139,11 @@
     color: var(--soft);
   }
 
+  .audio-rule-remove-wrap {
+    justify-self: end;
+  }
+
   .audio-rule-remove {
-    flex: 0 0 auto;
-    margin-left: auto;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -2315,11 +2317,6 @@
           </span>
         </span>
       </label>
-      <label class="settings-field">
-        <span class="settings-label">Alert repeat cooldown (seconds)</span>
-        <input class="settings-input" id="pref-alert-audio-cooldown" type="number" min="5" step="1" />
-        <span class="settings-help">Prevents the same appointment warning from repeating too often.</span>
-      </label>
       <label class="settings-field full">
         <span class="settings-label">Alert rules</span>
         <div class="audio-rule-list" id="pref-alert-rules"></div>
@@ -2509,10 +2506,9 @@
         onsiteLeadMinutes: 60,
         imminentMinutes: 20,
         alertAudioEnabled: false,
-        alertAudioCooldownSeconds: 45,
         alertAudioRules: [
-          { appointmentType: 'default', leadMinutes: 45, mode: 'chime', message: 'Appointment coming up soon', serviceMatcher: '' },
-          { appointmentType: 'on_site', leadMinutes: 60, mode: 'both', message: 'On-site appointment coming up soon', serviceMatcher: '' },
+          { appointmentType: 'default', leadMinutes: 45, cooldownSeconds: 45, mode: 'chime', message: 'Appointment coming up soon', serviceMatcher: '' },
+          { appointmentType: 'on_site', leadMinutes: 60, cooldownSeconds: 45, mode: 'both', message: 'On-site appointment coming up soon', serviceMatcher: '' },
         ],
       },
       staleRules: {
@@ -2608,6 +2604,7 @@
     return {
       appointmentType,
       leadMinutes: Math.max(0, Number(rule.leadMinutes ?? fallback.leadMinutes ?? 45) || 45),
+      cooldownSeconds: Math.max(5, Number(rule.cooldownSeconds ?? fallback.cooldownSeconds ?? 45) || 45),
       mode,
       message: String(rule.message || fallback.message || defaultMessage).trim() || defaultMessage,
       serviceMatcher: String(rule.serviceMatcher || fallback.serviceMatcher || '').trim(),
@@ -2619,12 +2616,14 @@
       normalizeAlertAudioRule({
         appointmentType: 'default',
         leadMinutes: schedulePrefs.defaultLeadMinutes ?? 45,
+        cooldownSeconds: schedulePrefs.alertAudioCooldownSeconds ?? 45,
         mode: schedulePrefs.alertAudioMode || 'chime',
         message: schedulePrefs.alertAudioMessage || 'Appointment coming up soon',
       }),
       normalizeAlertAudioRule({
         appointmentType: 'on_site',
         leadMinutes: schedulePrefs.onsiteLeadMinutes ?? 60,
+        cooldownSeconds: schedulePrefs.alertAudioCooldownSeconds ?? 45,
         mode: schedulePrefs.alertAudioMode || 'both',
         message: schedulePrefs.alertAudioMessage || 'On-site appointment coming up soon',
       }),
@@ -2657,7 +2656,9 @@
         <div class="audio-rule-card" data-alert-rule-index="${index}">
           <div class="audio-rule-head">
             <div class="audio-rule-title">${escapeHtml(alertRuleTitle(normalized, index))}</div>
-            <button class="pill audio-rule-remove" type="button" data-remove-alert-rule="${index}">Remove</button>
+            <div class="audio-rule-remove-wrap">
+              <button class="pill audio-rule-remove" type="button" data-remove-alert-rule="${index}">Remove</button>
+            </div>
           </div>
           <div class="audio-rule-grid">
             <label class="settings-field">
@@ -2672,6 +2673,10 @@
             <label class="settings-field">
               <span class="settings-label">Lead time (minutes)</span>
               <input class="settings-input" data-alert-field="leadMinutes" data-alert-index="${index}" type="number" min="0" step="1" value="${escapeHtml(normalized.leadMinutes)}" />
+            </label>
+            <label class="settings-field">
+              <span class="settings-label">Repeat cooldown (seconds)</span>
+              <input class="settings-input" data-alert-field="cooldownSeconds" data-alert-index="${index}" type="number" min="5" step="1" value="${escapeHtml(normalized.cooldownSeconds)}" />
             </label>
             <label class="settings-field">
               <span class="settings-label">Audio type</span>
@@ -2706,6 +2711,7 @@
     return indices.map((index) => normalizeAlertAudioRule({
       appointmentType: document.querySelector(`[data-alert-field="appointmentType"][data-alert-index="${index}"]`)?.value || 'default',
       leadMinutes: document.querySelector(`[data-alert-field="leadMinutes"][data-alert-index="${index}"]`)?.value || 0,
+      cooldownSeconds: document.querySelector(`[data-alert-field="cooldownSeconds"][data-alert-index="${index}"]`)?.value || 45,
       mode: document.querySelector(`[data-alert-field="mode"][data-alert-index="${index}"]`)?.value || 'chime',
       message: document.querySelector(`[data-alert-field="message"][data-alert-index="${index}"]`)?.value || '',
       serviceMatcher: document.querySelector(`[data-alert-field="serviceMatcher"][data-alert-index="${index}"]`)?.value || '',
@@ -3127,16 +3133,18 @@
     const candidates = appointmentAlertCandidates(data);
     if (!candidates.length) return;
 
-    const cooldownMs = Math.max(5000, (Number(prefs.alertAudioCooldownSeconds || 45) || 45) * 1000);
+    const maxCooldownSeconds = Math.max(5, ...candidates.map((candidate) => Number(candidate.alertRule?.cooldownSeconds || 45) || 45));
+    const cooldownMsForCleanup = maxCooldownSeconds * 1000;
     const now = Date.now();
     Object.keys(state.appointmentAlertHistory).forEach((key) => {
-      if ((now - state.appointmentAlertHistory[key]) > (cooldownMs * 4)) {
+      if ((now - state.appointmentAlertHistory[key]) > (cooldownMsForCleanup * 4)) {
         delete state.appointmentAlertHistory[key];
       }
     });
 
     const nextAlert = candidates[0];
     const rule = normalizeAlertAudioRule(nextAlert.alertRule || {});
+    const cooldownMs = rule.cooldownSeconds * 1000;
     const alertKey = `${nextAlert.orderId}|${nextAlert.dueAt || nextAlert.dueOn}|${rule.appointmentType}|${rule.serviceMatcher}|${rule.leadMinutes}|${rule.mode}`;
     const lastPlayedAt = Number(state.appointmentAlertHistory[alertKey] || 0);
     if (lastPlayedAt && (now - lastPlayedAt) < cooldownMs) return;
@@ -3176,7 +3184,6 @@
     qs('pref-onsite-lead').value = prefs.schedule.onsiteLeadMinutes ?? 60;
     qs('pref-imminent-minutes').value = prefs.schedule.imminentMinutes ?? 20;
     qs('pref-alert-audio-enabled').checked = !!prefs.schedule.alertAudioEnabled;
-    qs('pref-alert-audio-cooldown').value = prefs.schedule.alertAudioCooldownSeconds ?? 45;
     renderAlertAudioRules(alertAudioRulesFromPreferences(prefs.schedule || {}));
     qs('pref-inprogress-days').value = prefs.staleRules.inProgress?.days ?? 0;
     qs('pref-inprogress-hours').value = prefs.staleRules.inProgress?.hours ?? 12;
@@ -3244,7 +3251,6 @@
         onsiteLeadMinutes: Number(qs('pref-onsite-lead').value || 0),
         imminentMinutes: Number(qs('pref-imminent-minutes').value || 0),
         alertAudioEnabled: qs('pref-alert-audio-enabled').checked,
-        alertAudioCooldownSeconds: Math.max(5, Number(qs('pref-alert-audio-cooldown').value || 45) || 45),
         alertAudioRules: collectAlertAudioRules(),
       },
       staleRules: {
@@ -4007,13 +4013,14 @@
   qs('welcome-save').addEventListener('click', saveWelcomeSetup);
   qs('pref-add-alert-rule').addEventListener('click', () => {
     const rules = collectAlertAudioRules();
-    rules.push(normalizeAlertAudioRule({ appointmentType: 'default', leadMinutes: 30, mode: 'speech', message: 'Appointment coming up soon' }));
+    rules.push(normalizeAlertAudioRule({ appointmentType: 'default', leadMinutes: 30, cooldownSeconds: 45, mode: 'speech', message: 'Appointment coming up soon' }));
     renderAlertAudioRules(rules);
     updateAlertRuleVisibility();
   });
   qs('pref-alert-rules').addEventListener('click', (event) => {
-    const removeButton = event.target.closest('[data-remove-alert-rule]');
-    if (!removeButton) return;
+    if (!(event.target instanceof HTMLButtonElement)) return;
+    if (!event.target.matches('button[data-remove-alert-rule]')) return;
+    const removeButton = event.target;
     const removeIndex = Number(removeButton.dataset.removeAlertRule);
     const rules = collectAlertAudioRules().filter((_, index) => index !== removeIndex);
     renderAlertAudioRules(rules);
