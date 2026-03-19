@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.42
+
+- Fixed the queue grid so when some ticket columns are hidden, the remaining visible columns expand to fill the available board width instead of leaving empty slots behind.
+
 ## v2.1.41
 
 - Changed automatic update checks from weekly to hourly so overnight releases can be picked up by morning on running shop displays.
