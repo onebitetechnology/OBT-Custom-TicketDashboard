@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.39
+
+- Removed the obsolete Appointment Service Matchers setting from the calendar section.
+- Reworked audio alert rules to target service type text directly, so rules can follow values like `onsite`, `remote`, or `in-store`.
+
 ## v2.1.38
 
 - Fixed the Alert Rules settings block so clicks inside the rule editor no longer behave like label activation and accidentally remove rules.

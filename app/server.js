@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.38';
+const APP_VERSION = 'v2.1.39';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -46,14 +46,13 @@ const DEFAULT_UI_PREFERENCES = {
     currentWeekDurationSeconds: 20,
     nextWeekDurationSeconds: 5,
     dimPastDays: true,
-    serviceMatchers: ['support', 'pickup & delivery service'],
     defaultLeadMinutes: 45,
     onsiteLeadMinutes: 60,
     imminentMinutes: 20,
     alertAudioEnabled: false,
     alertAudioRules: [
-      { appointmentType: 'default', leadMinutes: 45, cooldownSeconds: 45, mode: 'chime', message: 'Appointment coming up soon', serviceMatcher: '' },
-      { appointmentType: 'on_site', leadMinutes: 60, cooldownSeconds: 45, mode: 'both', message: 'On-site appointment coming up soon', serviceMatcher: '' },
+      { matchMode: 'service_contains', serviceMatcher: 'onsite', leadMinutes: 60, cooldownSeconds: 45, mode: 'both', message: 'On-site appointment coming up soon' },
+      { matchMode: 'service_contains', serviceMatcher: 'remote', leadMinutes: 45, cooldownSeconds: 45, mode: 'chime', message: 'Remote appointment coming up soon' },
     ],
   },
   staleRules: {
@@ -252,37 +251,42 @@ function normalizeDurationRule(savedRule, fallbackRule, legacyValue = null, lega
 }
 
 function normalizeAlertAudioRule(savedRule, fallbackRule = {}) {
-  const appointmentType = ['default', 'on_site', 'any', 'service_match'].includes(String(savedRule?.appointmentType || '').toLowerCase())
-    ? String(savedRule.appointmentType).toLowerCase()
-    : (['default', 'on_site', 'any', 'service_match'].includes(String(fallbackRule?.appointmentType || '').toLowerCase())
-      ? String(fallbackRule.appointmentType).toLowerCase()
-      : 'default');
+  const legacyType = String(savedRule?.appointmentType || fallbackRule?.appointmentType || '').toLowerCase();
+  const matchMode = ['any_service', 'service_contains'].includes(String(savedRule?.matchMode || '').toLowerCase())
+    ? String(savedRule.matchMode).toLowerCase()
+    : (['any_service', 'service_contains'].includes(String(fallbackRule?.matchMode || '').toLowerCase())
+      ? String(fallbackRule.matchMode).toLowerCase()
+      : (legacyType === 'service_match' || legacyType === 'on_site' ? 'service_contains' : 'any_service'));
   const mode = ['chime', 'speech', 'both'].includes(String(savedRule?.mode || '').toLowerCase())
     ? String(savedRule.mode).toLowerCase()
     : (['chime', 'speech', 'both'].includes(String(fallbackRule?.mode || '').toLowerCase())
       ? String(fallbackRule.mode).toLowerCase()
       : 'chime');
-  const defaultMessage = appointmentType === 'on_site' ? 'On-site appointment coming up soon' : 'Appointment coming up soon';
+  const legacyMatcher = legacyType === 'on_site' ? 'onsite' : '';
+  const matcher = String(savedRule?.serviceMatcher || fallbackRule?.serviceMatcher || legacyMatcher).trim();
+  const defaultMessage = matcher ? `${matcher.charAt(0).toUpperCase()}${matcher.slice(1)} appointment coming up soon` : 'Appointment coming up soon';
   return {
-    appointmentType,
+    matchMode,
     leadMinutes: Math.max(0, Number(savedRule?.leadMinutes ?? fallbackRule?.leadMinutes ?? 45) || 45),
     cooldownSeconds: Math.max(5, Number(savedRule?.cooldownSeconds ?? fallbackRule?.cooldownSeconds ?? 45) || 45),
     mode,
     message: String(savedRule?.message || fallbackRule?.message || defaultMessage).trim() || defaultMessage,
-    serviceMatcher: String(savedRule?.serviceMatcher || fallbackRule?.serviceMatcher || '').trim(),
+    serviceMatcher: matcher,
   };
 }
 
 function defaultAlertAudioRulesFromLegacy(savedSchedule = {}) {
   return [
     normalizeAlertAudioRule({
-      appointmentType: 'default',
+      matchMode: 'service_contains',
+      serviceMatcher: 'remote',
       leadMinutes: savedSchedule?.defaultLeadMinutes ?? DEFAULT_UI_PREFERENCES.schedule.defaultLeadMinutes,
       mode: savedSchedule?.alertAudioMode ?? 'chime',
-      message: savedSchedule?.alertAudioMessage || 'Appointment coming up soon',
+      message: savedSchedule?.alertAudioMessage || 'Remote appointment coming up soon',
     }),
     normalizeAlertAudioRule({
-      appointmentType: 'on_site',
+      matchMode: 'service_contains',
+      serviceMatcher: 'onsite',
       leadMinutes: savedSchedule?.onsiteLeadMinutes ?? DEFAULT_UI_PREFERENCES.schedule.onsiteLeadMinutes,
       mode: savedSchedule?.alertAudioMode ?? 'both',
       message: savedSchedule?.alertAudioMessage || 'On-site appointment coming up soon',
@@ -332,7 +336,6 @@ function normalizeUiPreferences(savedPrefs = {}) {
           || DEFAULT_UI_PREFERENCES.schedule.nextWeekDurationSeconds
       ),
       dimPastDays: savedPrefs?.schedule?.dimPastDays !== undefined ? !!savedPrefs.schedule.dimPastDays : DEFAULT_UI_PREFERENCES.schedule.dimPastDays,
-      serviceMatchers: normalizeStringArray(savedPrefs?.schedule?.serviceMatchers, DEFAULT_UI_PREFERENCES.schedule.serviceMatchers),
       defaultLeadMinutes: Math.max(0, Number(savedPrefs?.schedule?.defaultLeadMinutes ?? DEFAULT_UI_PREFERENCES.schedule.defaultLeadMinutes) || DEFAULT_UI_PREFERENCES.schedule.defaultLeadMinutes),
       onsiteLeadMinutes: Math.max(0, Number(savedPrefs?.schedule?.onsiteLeadMinutes ?? DEFAULT_UI_PREFERENCES.schedule.onsiteLeadMinutes) || DEFAULT_UI_PREFERENCES.schedule.onsiteLeadMinutes),
       imminentMinutes: Math.max(0, Number(savedPrefs?.schedule?.imminentMinutes ?? DEFAULT_UI_PREFERENCES.schedule.imminentMinutes) || DEFAULT_UI_PREFERENCES.schedule.imminentMinutes),
@@ -957,12 +960,7 @@ function collectLikelyDueTimestamps(value, sink, depth = 0) {
 }
 
 function isScheduledServiceName(value, preferences = DEFAULT_UI_PREFERENCES) {
-  const text = String(value || '');
-  const matchers = normalizeStringArray(preferences?.schedule?.serviceMatchers, DEFAULT_UI_PREFERENCES.schedule.serviceMatchers);
-  return matchers.some((matcher) => {
-    const escaped = matcher.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    return new RegExp(escaped, 'i').test(text);
-  });
+  return false;
 }
 
 function isCalendarAppointmentTicket(ticket, preferences = DEFAULT_UI_PREFERENCES) {
