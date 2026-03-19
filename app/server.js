@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.26';
+const APP_VERSION = 'v2.1.27';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -886,19 +886,7 @@ function isScheduledServiceName(value, preferences = DEFAULT_UI_PREFERENCES) {
 }
 
 function isCalendarAppointmentTicket(ticket, preferences = DEFAULT_UI_PREFERENCES) {
-  const appointmentSourceText = [
-    ticket?.status,
-    ticket?.repairCategory,
-    ticket?.serviceName,
-    ticket?.serviceSearchText,
-    ...(Array.isArray(ticket?.issues) ? ticket.issues : []),
-    ...(Array.isArray(ticket?.devices) ? ticket.devices : []),
-  ].filter(Boolean).join(', ');
-  return !!(ticket?.dueAt && (
-    /scheduled/i.test(String(ticket?.status || '')) ||
-    /tech support/i.test(appointmentSourceText) ||
-    isScheduledServiceName(appointmentSourceText, preferences)
-  ));
+  return !!(ticket?.dueAt && /scheduled/i.test(String(ticket?.status || '')));
 }
 
 function buildCustomerName(ticket) {

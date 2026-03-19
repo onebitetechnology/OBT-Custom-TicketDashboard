@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.27
+
+- Tightened appointment calendar rules so tickets now appear only when their status contains `Scheduled` and they have a due date.
+- This removes the older service-name fallback that could leave appointments visible after a status change.
+
 ## v2.1.26
 
 - Appointment calendar tickets now qualify automatically when their status contains `Scheduled` and they have a due date.
