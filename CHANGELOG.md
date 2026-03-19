@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.29
+
+- Fixed appointment calendar day grouping to use local dates instead of UTC, so late-day appointments stay on the correct day.
+- Fixed the displayed appointment time to use the normalized due timestamp, which helps updated appointment times show correctly.
+
 ## v2.1.28
 
 - Appointment calendar grouping now prefers the due time from scheduled rows when a ticket has multiple merged lines.
