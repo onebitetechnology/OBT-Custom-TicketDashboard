@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.37
+
+- Tightened the alert-rule remove interaction so only the actual Remove button can delete a rule.
+- Moved alert repeat cooldown into each alert rule, so different reminders can repeat on their own schedules.
+
 ## v2.1.36
 
 - Fixed the appointment alert rule remove button hit area so clicks beside the button no longer trigger removal.
