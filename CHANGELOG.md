@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.33
+
+- Cleaned up the appointment merge code with shared helpers for scheduled status, scheduled service labels, and empty metadata defaults.
+- Aligned the appointment alert logic to use the same normalized due timestamp as the calendar display.
+
 ## v2.1.32
 
 - Scheduled appointment rows now own the merged appointment time and displayed service label for tickets with multiple line items.

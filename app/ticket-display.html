@@ -2771,11 +2771,6 @@
     return `${label} - ${month} ${dayOfMonth}${suffix}`;
   }
 
-  function appointmentUrgencyClass(dateLike) {
-    const meta = appointmentUrgencyMeta(dateLike, '');
-    return meta.className;
-  }
-
   function appointmentUrgencyMeta(dateLike, serviceName) {
     if (!dateLike) return { className: '', style: '' };
     const appt = new Date(dateLike);
@@ -2866,12 +2861,12 @@
     days.forEach((day) => {
       if (day.blocked) return;
       (day.appointments || []).forEach((appointment) => {
-        const urgency = appointmentUrgencyMeta(appointment.dueOn, appointment.device || '');
+        const urgency = appointmentUrgencyMeta(appointment.dueAt || appointment.dueOn, appointment.device || '');
         if (!urgency.className) return;
         candidates.push({
           ...appointment,
           urgencyClass: urgency.className,
-          sortTime: new Date(appointment.dueOn).getTime() || Number.MAX_SAFE_INTEGER,
+          sortTime: new Date(appointment.dueAt || appointment.dueOn).getTime() || Number.MAX_SAFE_INTEGER,
         });
       });
     });

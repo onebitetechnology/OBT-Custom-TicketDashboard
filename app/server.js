@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.32';
+const APP_VERSION = 'v2.1.33';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -737,7 +737,7 @@ async function fetchTicketLookupByOrderId(orderId) {
 async function fetchTicketMetaByOrderId(orderId, options = {}) {
   const forceFresh = !!options.forceFresh;
   const key = String(orderId || '').trim();
-  if (!key) return { createdAt: null, updatedAt: null, repairCategory: '', serviceName: '', serviceSearchText: '', dueAt: null, hasPriorityFee: false };
+  if (!key) return emptyTicketMeta();
   if (
     !forceFresh &&
     ticketMetaCacheByOrderId[key] &&
@@ -753,7 +753,7 @@ async function fetchTicketMetaByOrderId(orderId, options = {}) {
   }
   const lookup = await fetchTicketLookupByOrderId(orderId);
   if (!lookup?.summary?.id) {
-    return { createdAt: null, updatedAt: null, repairCategory: '', serviceName: '', serviceSearchText: '', dueAt: null, hasPriorityFee: false };
+    return emptyTicketMeta();
   }
   const detail = await fetchTicketDetailRobust(lookup.summary.id, orderId);
   const detailServiceText = [];
@@ -854,6 +854,26 @@ function localDateKeyFromTimestamp(value) {
   return `${year}-${month}-${day}`;
 }
 
+function emptyTicketMeta() {
+  return {
+    createdAt: null,
+    updatedAt: null,
+    repairCategory: '',
+    serviceName: '',
+    serviceSearchText: '',
+    dueAt: null,
+    hasPriorityFee: false,
+  };
+}
+
+function isScheduledStatus(status) {
+  return /scheduled/i.test(String(status || ''));
+}
+
+function scheduledServiceLabelForRow(ticket) {
+  return decodeHtml(ticket?.device_issue || '') || decodeHtml(ticket?.device || '') || null;
+}
+
 function collectNestedStrings(value, sink, depth = 0) {
   if (depth > 6 || value == null) return;
   if (typeof value === 'string' || typeof value === 'number') {
@@ -898,7 +918,7 @@ function isScheduledServiceName(value, preferences = DEFAULT_UI_PREFERENCES) {
 }
 
 function isCalendarAppointmentTicket(ticket, preferences = DEFAULT_UI_PREFERENCES) {
-  return !!(ticket?.dueAt && /scheduled/i.test(String(ticket?.status || '')));
+  return !!(ticket?.dueAt && isScheduledStatus(ticket?.status));
 }
 
 function buildCustomerName(ticket) {
@@ -1010,7 +1030,8 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
     const status = decodeHtml(ticket?.status || 'Unknown');
     const dueAt = parseDueTimestamp(ticket?.due_on);
     const metaDueAt = Number(ticketMetaByOrderId[orderId]?.dueAt || 0) || null;
-    const effectiveScheduledDueAt = /scheduled/i.test(status) ? (dueAt || metaDueAt || null) : null;
+    const ticketIsScheduled = isScheduledStatus(status);
+    const effectiveScheduledDueAt = ticketIsScheduled ? (dueAt || metaDueAt || null) : null;
     let entry = groupedByOrder.get(orderId);
 
     if (!entry) {
@@ -1022,11 +1043,9 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
         assigneeName: decodeHtml(ticket?.assignee_name || '') || 'Unassigned',
         dueOn: ticket?.due_on || null,
         dueAt: effectiveScheduledDueAt || dueAt || metaDueAt || null,
-        scheduledDueOn: /scheduled/i.test(status) ? (ticket?.due_on || null) : null,
+        scheduledDueOn: ticketIsScheduled ? (ticket?.due_on || null) : null,
         scheduledDueAt: effectiveScheduledDueAt,
-        scheduledServiceLabel: /scheduled/i.test(status)
-          ? (decodeHtml(ticket?.device_issue || '') || decodeHtml(ticket?.device || '') || null)
-          : null,
+        scheduledServiceLabel: ticketIsScheduled ? scheduledServiceLabelForRow(ticket) : null,
         createdAt: Number(ticketMetaByOrderId[orderId]?.createdAt || 0) || null,
         updatedAt: Number(ticketMetaByOrderId[orderId]?.updatedAt || 0) || null,
         repairCategory: String(ticketMetaByOrderId[orderId]?.repairCategory || '').trim(),
@@ -1056,11 +1075,11 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
       entry.issues.push(issue);
     }
     entry.issueCount = entry.issues.length;
-    if (/scheduled/i.test(status) && effectiveScheduledDueAt && (!entry.scheduledDueAt || effectiveScheduledDueAt !== entry.scheduledDueAt)) {
+    if (ticketIsScheduled && effectiveScheduledDueAt && (!entry.scheduledDueAt || effectiveScheduledDueAt !== entry.scheduledDueAt)) {
       entry.status = status;
       entry.scheduledDueAt = effectiveScheduledDueAt;
       entry.scheduledDueOn = ticket?.due_on || entry.scheduledDueOn;
-      entry.scheduledServiceLabel = decodeHtml(ticket?.device_issue || '') || decodeHtml(ticket?.device || '') || entry.scheduledServiceLabel;
+      entry.scheduledServiceLabel = scheduledServiceLabelForRow(ticket) || entry.scheduledServiceLabel;
       entry.dueAt = effectiveScheduledDueAt;
       entry.dueOn = ticket?.due_on || entry.dueOn;
     } else if (!entry.scheduledDueAt && ((!entry.dueAt && dueAt) || (dueAt && entry.dueAt && dueAt < entry.dueAt))) {
@@ -2760,29 +2779,13 @@ const server = http.createServer(async (req, res) => {
         .filter(Boolean));
       const queueMetaEntries = await Promise.all(queueMetaOrderIds.map(async (orderId) => {
         if (!hasApiKey) {
-          return [orderId, {
-            createdAt: null,
-            updatedAt: null,
-            repairCategory: '',
-            serviceName: '',
-            serviceSearchText: '',
-            dueAt: null,
-            hasPriorityFee: false,
-          }];
+          return [orderId, emptyTicketMeta()];
         }
         try {
           return [orderId, await fetchTicketMetaByOrderId(orderId, { forceFresh: forceFreshMetaOrderIds.has(orderId) })];
         } catch (e) {
           console.log(`[TICKET] Meta lookup failed for order=${orderId}: ${e.message}`);
-          return [orderId, {
-            createdAt: null,
-            updatedAt: null,
-            repairCategory: '',
-            serviceName: '',
-            serviceSearchText: '',
-            dueAt: null,
-            hasPriorityFee: false,
-          }];
+          return [orderId, emptyTicketMeta()];
         }
       }));
       const queueMetaByOrderId = Object.fromEntries(queueMetaEntries);
