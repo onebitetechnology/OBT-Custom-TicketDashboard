@@ -37,9 +37,25 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run dist:mac
 
+      - name: Extract release notes
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v version="$VERSION" '
+            $0 == "## v" version { capture=1; next }
+            /^## v/ && capture { exit }
+            capture { print }
+          ' CHANGELOG.md | sed '/^[[:space:]]*$/N;/^\n$/D' > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "Release ${VERSION}" > release-notes.md
+            echo "" >> release-notes.md
+            echo "- No changelog text was captured for this release." >> release-notes.md
+          fi
+
       - name: Upload macOS artifacts to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          body_path: release-notes.md
           files: |
             dist/*.dmg
             dist/*.zip
@@ -67,9 +83,25 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run dist:win
 
+      - name: Extract release notes
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v version="$VERSION" '
+            $0 == "## v" version { capture=1; next }
+            /^## v/ && capture { exit }
+            capture { print }
+          ' CHANGELOG.md | sed '/^[[:space:]]*$/N;/^\n$/D' > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "Release ${VERSION}" > release-notes.md
+            echo "" >> release-notes.md
+            echo "- No changelog text was captured for this release." >> release-notes.md
+          fi
+
       - name: Upload Windows artifacts to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          body_path: release-notes.md
           files: |
             dist/*.exe
             dist/latest*.yml

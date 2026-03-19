@@ -2,6 +2,14 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.46
+
+- Fixed GitHub release publishing so the current changelog entry is included in each release, allowing the in-app update popup to show the list of changes.
+
+## v2.1.45
+
+- Stopped appointment audio alerts from continuing to replay after the appointment time has already been reached or passed.
+
 ## v2.1.44
 
 - Added a global speech voice selector for spoken appointment alerts, using the voices installed on the local computer.

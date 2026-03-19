@@ -3430,7 +3430,7 @@
     const prefs = currentPreferences();
     const onsite = /on[\s-]?site/i.test(String(serviceName || ''));
     const advanceMinutes = onsite ? Number(prefs.schedule.onsiteLeadMinutes || 60) : Number(prefs.schedule.defaultLeadMinutes || 45);
-    if (minutesUntil > advanceMinutes || minutesUntil < -15) {
+    if (minutesUntil > advanceMinutes || minutesUntil <= 0) {
       return { className: '', style: '' };
     }
     if (minutesUntil <= Number(prefs.schedule.imminentMinutes || 20)) {
@@ -3541,7 +3541,7 @@
         const minutesUntil = (appointmentDate.getTime() - now.getTime()) / 60000;
         const matchingRule = rules
           .filter((rule) => appointmentMatchesAlertRule(appointment, rule))
-          .filter((rule) => minutesUntil <= Number(rule.leadMinutes || 0) && minutesUntil >= -15)
+          .filter((rule) => minutesUntil <= Number(rule.leadMinutes || 0) && minutesUntil > 0)
           .sort((a, b) => Number(a.leadMinutes || 0) - Number(b.leadMinutes || 0))[0];
         if (!matchingRule) return;
         candidates.push({
