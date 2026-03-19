@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.29';
+const APP_VERSION = 'v2.1.30';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -734,10 +734,12 @@ async function fetchTicketLookupByOrderId(orderId) {
   return match;
 }
 
-async function fetchTicketMetaByOrderId(orderId) {
+async function fetchTicketMetaByOrderId(orderId, options = {}) {
+  const forceFresh = !!options.forceFresh;
   const key = String(orderId || '').trim();
   if (!key) return { createdAt: null, updatedAt: null, repairCategory: '', serviceName: '', serviceSearchText: '', dueAt: null, hasPriorityFee: false };
   if (
+    !forceFresh &&
     ticketMetaCacheByOrderId[key] &&
     typeof ticketMetaCacheByOrderId[key] === 'object' &&
     Object.prototype.hasOwnProperty.call(ticketMetaCacheByOrderId[key], 'serviceName') &&
@@ -1007,6 +1009,8 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
 
     const status = decodeHtml(ticket?.status || 'Unknown');
     const dueAt = parseDueTimestamp(ticket?.due_on);
+    const metaDueAt = Number(ticketMetaByOrderId[orderId]?.dueAt || 0) || null;
+    const effectiveScheduledDueAt = /scheduled/i.test(status) ? (metaDueAt || dueAt || null) : null;
     let entry = groupedByOrder.get(orderId);
 
     if (!entry) {
@@ -1017,9 +1021,9 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
         organization: '',
         assigneeName: decodeHtml(ticket?.assignee_name || '') || 'Unassigned',
         dueOn: ticket?.due_on || null,
-        dueAt: dueAt || Number(ticketMetaByOrderId[orderId]?.dueAt || 0) || null,
+        dueAt: effectiveScheduledDueAt || dueAt || metaDueAt || null,
         scheduledDueOn: /scheduled/i.test(status) ? (ticket?.due_on || null) : null,
-        scheduledDueAt: /scheduled/i.test(status) ? (dueAt || Number(ticketMetaByOrderId[orderId]?.dueAt || 0) || null) : null,
+        scheduledDueAt: effectiveScheduledDueAt,
         createdAt: Number(ticketMetaByOrderId[orderId]?.createdAt || 0) || null,
         updatedAt: Number(ticketMetaByOrderId[orderId]?.updatedAt || 0) || null,
         repairCategory: String(ticketMetaByOrderId[orderId]?.repairCategory || '').trim(),
@@ -1049,11 +1053,11 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
       entry.issues.push(issue);
     }
     entry.issueCount = entry.issues.length;
-    if (/scheduled/i.test(status) && dueAt && (!entry.scheduledDueAt || dueAt > entry.scheduledDueAt)) {
+    if (/scheduled/i.test(status) && effectiveScheduledDueAt && (!entry.scheduledDueAt || effectiveScheduledDueAt !== entry.scheduledDueAt)) {
       entry.status = status;
-      entry.scheduledDueAt = dueAt;
+      entry.scheduledDueAt = effectiveScheduledDueAt;
       entry.scheduledDueOn = ticket?.due_on || entry.scheduledDueOn;
-      entry.dueAt = dueAt;
+      entry.dueAt = effectiveScheduledDueAt;
       entry.dueOn = ticket?.due_on || entry.dueOn;
     } else if ((!entry.dueAt && dueAt) || (dueAt && entry.dueAt && dueAt < entry.dueAt)) {
       entry.dueAt = dueAt;
@@ -2650,7 +2654,7 @@ const server = http.createServer(async (req, res) => {
 
       const rawTickets = Array.isArray(ticketsRaw?.data?.pagination?.data) ? ticketsRaw.data.pagination.data : [];
       const matchingRows = rawTickets.filter((ticket) => String(ticket?.order_id || '').trim() === orderId);
-      const meta = await fetchTicketMetaByOrderId(orderId);
+      const meta = await fetchTicketMetaByOrderId(orderId, { forceFresh: true });
       const rawDueCandidates = matchingRows
         .map((ticket) => ({ raw: ticket?.due_on, parsed: parseDueTimestamp(ticket?.due_on) }))
         .filter((item) => item.parsed);
@@ -2746,6 +2750,10 @@ const server = http.createServer(async (req, res) => {
         .map((ticket) => String(ticket?.order_id || '').trim())
         .filter(Boolean)));
       const hasApiKey = !!getConfiguredApiKey();
+      const forceFreshMetaOrderIds = new Set(rawTickets
+        .filter((ticket) => !!ticket?.due_on || ticket?.status === 'Scheduled')
+        .map((ticket) => String(ticket?.order_id || '').trim())
+        .filter(Boolean));
       const queueMetaEntries = await Promise.all(queueMetaOrderIds.map(async (orderId) => {
         if (!hasApiKey) {
           return [orderId, {
@@ -2753,11 +2761,13 @@ const server = http.createServer(async (req, res) => {
             updatedAt: null,
             repairCategory: '',
             serviceName: '',
+            serviceSearchText: '',
+            dueAt: null,
             hasPriorityFee: false,
           }];
         }
         try {
-          return [orderId, await fetchTicketMetaByOrderId(orderId)];
+          return [orderId, await fetchTicketMetaByOrderId(orderId, { forceFresh: forceFreshMetaOrderIds.has(orderId) })];
         } catch (e) {
           console.log(`[TICKET] Meta lookup failed for order=${orderId}: ${e.message}`);
           return [orderId, {
@@ -2765,6 +2775,8 @@ const server = http.createServer(async (req, res) => {
             updatedAt: null,
             repairCategory: '',
             serviceName: '',
+            serviceSearchText: '',
+            dueAt: null,
             hasPriorityFee: false,
           }];
         }

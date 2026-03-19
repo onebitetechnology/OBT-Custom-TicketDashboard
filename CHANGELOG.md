@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.30
+
+- Scheduled appointments now prefer fresh ticket-detail due times over stale ticket-counter values when metadata is available.
+- Appointment metadata for scheduled or due-dated tickets now bypasses the short cache window so time changes refresh more reliably.
+
 ## v2.1.29
 
 - Fixed appointment calendar day grouping to use local dates instead of UTC, so late-day appointments stay on the correct day.
