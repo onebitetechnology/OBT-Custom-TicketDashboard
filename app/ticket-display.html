@@ -2290,11 +2290,6 @@
           </span>
         </span>
       </label>
-      <label class="settings-field full">
-        <span class="settings-label">Appointment service matchers</span>
-        <textarea class="settings-textarea" id="pref-service-matchers"></textarea>
-        <span class="settings-help">One matcher per line. Matching services appear in the calendar.</span>
-      </label>
       <label class="settings-field">
         <span class="settings-label">Default warning lead (minutes)</span>
         <input class="settings-input" id="pref-default-lead" type="number" min="0" />
@@ -2501,14 +2496,13 @@
         currentWeekDurationSeconds: 20,
         nextWeekDurationSeconds: 5,
         dimPastDays: true,
-        serviceMatchers: ['support', 'pickup & delivery service'],
         defaultLeadMinutes: 45,
         onsiteLeadMinutes: 60,
         imminentMinutes: 20,
         alertAudioEnabled: false,
         alertAudioRules: [
-          { appointmentType: 'default', leadMinutes: 45, cooldownSeconds: 45, mode: 'chime', message: 'Appointment coming up soon', serviceMatcher: '' },
-          { appointmentType: 'on_site', leadMinutes: 60, cooldownSeconds: 45, mode: 'both', message: 'On-site appointment coming up soon', serviceMatcher: '' },
+          { matchMode: 'service_contains', serviceMatcher: 'onsite', leadMinutes: 60, cooldownSeconds: 45, mode: 'both', message: 'On-site appointment coming up soon' },
+          { matchMode: 'service_contains', serviceMatcher: 'remote', leadMinutes: 45, cooldownSeconds: 45, mode: 'chime', message: 'Remote appointment coming up soon' },
         ],
       },
       staleRules: {
@@ -2590,38 +2584,43 @@
   }
 
   function normalizeAlertAudioRule(rule = {}, fallback = {}) {
-    const appointmentType = ['default', 'on_site', 'any', 'service_match'].includes(String(rule.appointmentType || '').toLowerCase())
-      ? String(rule.appointmentType).toLowerCase()
-      : (['default', 'on_site', 'any', 'service_match'].includes(String(fallback.appointmentType || '').toLowerCase())
-        ? String(fallback.appointmentType).toLowerCase()
-        : 'default');
+    const legacyType = String(rule.appointmentType || fallback.appointmentType || '').toLowerCase();
+    const matchMode = ['any_service', 'service_contains'].includes(String(rule.matchMode || '').toLowerCase())
+      ? String(rule.matchMode).toLowerCase()
+      : (['any_service', 'service_contains'].includes(String(fallback.matchMode || '').toLowerCase())
+        ? String(fallback.matchMode).toLowerCase()
+        : (legacyType === 'service_match' || legacyType === 'on_site' ? 'service_contains' : 'any_service'));
     const mode = ['chime', 'speech', 'both'].includes(String(rule.mode || '').toLowerCase())
       ? String(rule.mode).toLowerCase()
       : (['chime', 'speech', 'both'].includes(String(fallback.mode || '').toLowerCase())
         ? String(fallback.mode).toLowerCase()
         : 'chime');
-    const defaultMessage = appointmentType === 'on_site' ? 'On-site appointment coming up soon' : 'Appointment coming up soon';
+    const legacyMatcher = legacyType === 'on_site' ? 'onsite' : '';
+    const matcher = String(rule.serviceMatcher || fallback.serviceMatcher || legacyMatcher).trim();
+    const defaultMessage = matcher ? `${matcher.charAt(0).toUpperCase()}${matcher.slice(1)} appointment coming up soon` : 'Appointment coming up soon';
     return {
-      appointmentType,
+      matchMode,
       leadMinutes: Math.max(0, Number(rule.leadMinutes ?? fallback.leadMinutes ?? 45) || 45),
       cooldownSeconds: Math.max(5, Number(rule.cooldownSeconds ?? fallback.cooldownSeconds ?? 45) || 45),
       mode,
       message: String(rule.message || fallback.message || defaultMessage).trim() || defaultMessage,
-      serviceMatcher: String(rule.serviceMatcher || fallback.serviceMatcher || '').trim(),
+      serviceMatcher: matcher,
     };
   }
 
   function defaultAlertAudioRulesFromPreferences(schedulePrefs = {}) {
     return [
       normalizeAlertAudioRule({
-        appointmentType: 'default',
+        matchMode: 'service_contains',
+        serviceMatcher: 'remote',
         leadMinutes: schedulePrefs.defaultLeadMinutes ?? 45,
         cooldownSeconds: schedulePrefs.alertAudioCooldownSeconds ?? 45,
         mode: schedulePrefs.alertAudioMode || 'chime',
-        message: schedulePrefs.alertAudioMessage || 'Appointment coming up soon',
+        message: schedulePrefs.alertAudioMessage || 'Remote appointment coming up soon',
       }),
       normalizeAlertAudioRule({
-        appointmentType: 'on_site',
+        matchMode: 'service_contains',
+        serviceMatcher: 'onsite',
         leadMinutes: schedulePrefs.onsiteLeadMinutes ?? 60,
         cooldownSeconds: schedulePrefs.alertAudioCooldownSeconds ?? 45,
         mode: schedulePrefs.alertAudioMode || 'both',
@@ -2638,13 +2637,10 @@
   }
 
   function alertRuleTitle(rule, index) {
-    const typeLabels = {
-      default: 'Default',
-      on_site: 'On-Site',
-      any: 'Any',
-      service_match: 'Service Match',
-    };
-    const label = typeLabels[String(rule?.appointmentType || '').toLowerCase()] || 'Rule';
+    const mode = String(rule?.matchMode || 'any_service').toLowerCase();
+    const label = mode === 'service_contains'
+      ? `Service contains "${String(rule?.serviceMatcher || '').trim() || '...'}"`
+      : 'Any service';
     return `Rule ${index + 1} · ${label}`;
   }
 
@@ -2662,12 +2658,10 @@
           </div>
           <div class="audio-rule-grid">
             <label class="settings-field">
-              <span class="settings-label">Appointment type</span>
-              <select class="settings-input settings-select" data-alert-field="appointmentType" data-alert-index="${index}">
-                <option value="default" ${normalized.appointmentType === 'default' ? 'selected' : ''}>Default</option>
-                <option value="on_site" ${normalized.appointmentType === 'on_site' ? 'selected' : ''}>On-Site</option>
-                <option value="any" ${normalized.appointmentType === 'any' ? 'selected' : ''}>Any appointment</option>
-                <option value="service_match" ${normalized.appointmentType === 'service_match' ? 'selected' : ''}>Matching service text</option>
+              <span class="settings-label">Rule applies when</span>
+              <select class="settings-input settings-select" data-alert-field="matchMode" data-alert-index="${index}">
+                <option value="any_service" ${normalized.matchMode === 'any_service' ? 'selected' : ''}>Any service type</option>
+                <option value="service_contains" ${normalized.matchMode === 'service_contains' ? 'selected' : ''}>Service type contains</option>
               </select>
             </label>
             <label class="settings-field">
@@ -2686,8 +2680,8 @@
                 <option value="both" ${normalized.mode === 'both' ? 'selected' : ''}>Chime and spoken message</option>
               </select>
             </label>
-            <label class="settings-field" ${normalized.appointmentType === 'service_match' ? '' : 'hidden'}>
-              <span class="settings-label">Service text contains</span>
+            <label class="settings-field" ${normalized.matchMode === 'service_contains' ? '' : 'hidden'}>
+              <span class="settings-label">Service type contains</span>
               <input class="settings-input" data-alert-field="serviceMatcher" data-alert-index="${index}" value="${escapeHtml(normalized.serviceMatcher)}" />
             </label>
           </div>
@@ -2709,13 +2703,13 @@
       .map((el) => Number(el.dataset.alertRuleIndex))
       .filter((value) => Number.isFinite(value));
     return indices.map((index) => normalizeAlertAudioRule({
-      appointmentType: document.querySelector(`[data-alert-field="appointmentType"][data-alert-index="${index}"]`)?.value || 'default',
+      matchMode: document.querySelector(`[data-alert-field="matchMode"][data-alert-index="${index}"]`)?.value || 'any_service',
       leadMinutes: document.querySelector(`[data-alert-field="leadMinutes"][data-alert-index="${index}"]`)?.value || 0,
       cooldownSeconds: document.querySelector(`[data-alert-field="cooldownSeconds"][data-alert-index="${index}"]`)?.value || 45,
       mode: document.querySelector(`[data-alert-field="mode"][data-alert-index="${index}"]`)?.value || 'chime',
       message: document.querySelector(`[data-alert-field="message"][data-alert-index="${index}"]`)?.value || '',
       serviceMatcher: document.querySelector(`[data-alert-field="serviceMatcher"][data-alert-index="${index}"]`)?.value || '',
-    })).filter((rule) => rule.appointmentType !== 'service_match' || rule.serviceMatcher);
+    })).filter((rule) => rule.matchMode !== 'service_contains' || rule.serviceMatcher);
   }
 
   function setDisplayTargetOptions(selectedValue = 'current') {
@@ -3079,12 +3073,10 @@
   }
 
   function appointmentMatchesAlertRule(appointment, rule) {
-    const appointmentType = String(rule?.appointmentType || 'default').toLowerCase();
+    const matchMode = String(rule?.matchMode || 'any_service').toLowerCase();
     const serviceName = String(appointment?.device || '');
-    if (appointmentType === 'any') return true;
-    if (appointmentType === 'on_site') return isOnSiteAppointment(serviceName);
-    if (appointmentType === 'default') return !isOnSiteAppointment(serviceName);
-    if (appointmentType === 'service_match') {
+    if (matchMode === 'any_service') return true;
+    if (matchMode === 'service_contains') {
       const matcher = String(rule?.serviceMatcher || '').trim().toLowerCase();
       return !!matcher && serviceName.toLowerCase().includes(matcher);
     }
@@ -3145,7 +3137,7 @@
     const nextAlert = candidates[0];
     const rule = normalizeAlertAudioRule(nextAlert.alertRule || {});
     const cooldownMs = rule.cooldownSeconds * 1000;
-    const alertKey = `${nextAlert.orderId}|${nextAlert.dueAt || nextAlert.dueOn}|${rule.appointmentType}|${rule.serviceMatcher}|${rule.leadMinutes}|${rule.mode}`;
+    const alertKey = `${nextAlert.orderId}|${nextAlert.dueAt || nextAlert.dueOn}|${rule.matchMode}|${rule.serviceMatcher}|${rule.leadMinutes}|${rule.mode}`;
     const lastPlayedAt = Number(state.appointmentAlertHistory[alertKey] || 0);
     if (lastPlayedAt && (now - lastPlayedAt) < cooldownMs) return;
 
@@ -3179,7 +3171,6 @@
     qs('pref-next-week-duration-seconds').value = prefs.schedule.nextWeekDurationSeconds ?? 5;
     qs('pref-blocked-weekdays').innerHTML = checkboxGroupMarkup('blocked-weekdays', prefs.schedule.blockedWeekdays || []);
     qs('pref-dim-past-days').checked = prefs.schedule.dimPastDays !== false;
-    qs('pref-service-matchers').value = (prefs.schedule.serviceMatchers || []).join('\n');
     qs('pref-default-lead').value = prefs.schedule.defaultLeadMinutes ?? 45;
     qs('pref-onsite-lead').value = prefs.schedule.onsiteLeadMinutes ?? 60;
     qs('pref-imminent-minutes').value = prefs.schedule.imminentMinutes ?? 20;
@@ -3246,7 +3237,6 @@
         nextWeekDurationSeconds: Math.max(5, Number(qs('pref-next-week-duration-seconds').value || 5) || 5),
         blockedWeekdays: selectedCheckboxDays('blocked-weekdays'),
         dimPastDays: qs('pref-dim-past-days').checked,
-        serviceMatchers: parseLines(qs('pref-service-matchers').value),
         defaultLeadMinutes: Number(qs('pref-default-lead').value || 0),
         onsiteLeadMinutes: Number(qs('pref-onsite-lead').value || 0),
         imminentMinutes: Number(qs('pref-imminent-minutes').value || 0),
@@ -3503,10 +3493,10 @@
   function updateAlertRuleVisibility() {
     document.querySelectorAll('[data-alert-rule-index]').forEach((card) => {
       const index = card.dataset.alertRuleIndex;
-      const typeSelect = document.querySelector(`[data-alert-field="appointmentType"][data-alert-index="${index}"]`);
+      const typeSelect = document.querySelector(`[data-alert-field="matchMode"][data-alert-index="${index}"]`);
       const matcherField = document.querySelector(`[data-alert-field="serviceMatcher"][data-alert-index="${index}"]`)?.closest('.settings-field');
       if (!typeSelect || !matcherField) return;
-      matcherField.hidden = typeSelect.value !== 'service_match';
+      matcherField.hidden = typeSelect.value !== 'service_contains';
     });
   }
 
@@ -4013,7 +4003,7 @@
   qs('welcome-save').addEventListener('click', saveWelcomeSetup);
   qs('pref-add-alert-rule').addEventListener('click', () => {
     const rules = collectAlertAudioRules();
-    rules.push(normalizeAlertAudioRule({ appointmentType: 'default', leadMinutes: 30, cooldownSeconds: 45, mode: 'speech', message: 'Appointment coming up soon' }));
+    rules.push(normalizeAlertAudioRule({ matchMode: 'service_contains', serviceMatcher: 'remote', leadMinutes: 30, cooldownSeconds: 45, mode: 'speech', message: 'Remote appointment coming up soon' }));
     renderAlertAudioRules(rules);
     updateAlertRuleVisibility();
   });
@@ -4027,7 +4017,7 @@
     updateAlertRuleVisibility();
   });
   qs('pref-alert-rules').addEventListener('change', (event) => {
-    if (event.target.matches('[data-alert-field="appointmentType"]')) {
+    if (event.target.matches('[data-alert-field="matchMode"]')) {
       updateAlertRuleVisibility();
     }
   });
