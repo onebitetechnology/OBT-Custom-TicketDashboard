@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.33';
+const APP_VERSION = 'v2.1.35';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -43,16 +43,19 @@ const DEFAULT_UI_PREFERENCES = {
     blockedWeekdays: ['Monday'],
     showCalendar: true,
     rotateWeeks: false,
-    rotateIntervalSeconds: 20,
+    currentWeekDurationSeconds: 20,
+    nextWeekDurationSeconds: 5,
     dimPastDays: true,
     serviceMatchers: ['support', 'pickup & delivery service'],
     defaultLeadMinutes: 45,
     onsiteLeadMinutes: 60,
     imminentMinutes: 20,
     alertAudioEnabled: false,
-    alertAudioMode: 'chime',
-    alertAudioMessage: 'Appointment coming up soon',
     alertAudioCooldownSeconds: 45,
+    alertAudioRules: [
+      { appointmentType: 'default', leadMinutes: 45, mode: 'chime', message: 'Appointment coming up soon', serviceMatcher: '' },
+      { appointmentType: 'on_site', leadMinutes: 60, mode: 'both', message: 'On-site appointment coming up soon', serviceMatcher: '' },
+    ],
   },
   staleRules: {
     inProgress: { days: 0, hours: 12 },
@@ -249,6 +252,44 @@ function normalizeDurationRule(savedRule, fallbackRule, legacyValue = null, lega
   return { ...fallbackRule };
 }
 
+function normalizeAlertAudioRule(savedRule, fallbackRule = {}) {
+  const appointmentType = ['default', 'on_site', 'any', 'service_match'].includes(String(savedRule?.appointmentType || '').toLowerCase())
+    ? String(savedRule.appointmentType).toLowerCase()
+    : (['default', 'on_site', 'any', 'service_match'].includes(String(fallbackRule?.appointmentType || '').toLowerCase())
+      ? String(fallbackRule.appointmentType).toLowerCase()
+      : 'default');
+  const mode = ['chime', 'speech', 'both'].includes(String(savedRule?.mode || '').toLowerCase())
+    ? String(savedRule.mode).toLowerCase()
+    : (['chime', 'speech', 'both'].includes(String(fallbackRule?.mode || '').toLowerCase())
+      ? String(fallbackRule.mode).toLowerCase()
+      : 'chime');
+  const defaultMessage = appointmentType === 'on_site' ? 'On-site appointment coming up soon' : 'Appointment coming up soon';
+  return {
+    appointmentType,
+    leadMinutes: Math.max(0, Number(savedRule?.leadMinutes ?? fallbackRule?.leadMinutes ?? 45) || 45),
+    mode,
+    message: String(savedRule?.message || fallbackRule?.message || defaultMessage).trim() || defaultMessage,
+    serviceMatcher: String(savedRule?.serviceMatcher || fallbackRule?.serviceMatcher || '').trim(),
+  };
+}
+
+function defaultAlertAudioRulesFromLegacy(savedSchedule = {}) {
+  return [
+    normalizeAlertAudioRule({
+      appointmentType: 'default',
+      leadMinutes: savedSchedule?.defaultLeadMinutes ?? DEFAULT_UI_PREFERENCES.schedule.defaultLeadMinutes,
+      mode: savedSchedule?.alertAudioMode ?? 'chime',
+      message: savedSchedule?.alertAudioMessage || 'Appointment coming up soon',
+    }),
+    normalizeAlertAudioRule({
+      appointmentType: 'on_site',
+      leadMinutes: savedSchedule?.onsiteLeadMinutes ?? DEFAULT_UI_PREFERENCES.schedule.onsiteLeadMinutes,
+      mode: savedSchedule?.alertAudioMode ?? 'both',
+      message: savedSchedule?.alertAudioMessage || 'On-site appointment coming up soon',
+    }),
+  ];
+}
+
 function normalizeUiPreferences(savedPrefs = {}) {
   return {
     brand: {
@@ -280,7 +321,16 @@ function normalizeUiPreferences(savedPrefs = {}) {
       blockedWeekdays: normalizeStringArray(savedPrefs?.schedule?.blockedWeekdays, DEFAULT_UI_PREFERENCES.schedule.blockedWeekdays),
       showCalendar: savedPrefs?.schedule?.showCalendar !== undefined ? !!savedPrefs.schedule.showCalendar : DEFAULT_UI_PREFERENCES.schedule.showCalendar,
       rotateWeeks: savedPrefs?.schedule?.rotateWeeks !== undefined ? !!savedPrefs.schedule.rotateWeeks : DEFAULT_UI_PREFERENCES.schedule.rotateWeeks,
-      rotateIntervalSeconds: Math.max(5, Number(savedPrefs?.schedule?.rotateIntervalSeconds ?? DEFAULT_UI_PREFERENCES.schedule.rotateIntervalSeconds) || DEFAULT_UI_PREFERENCES.schedule.rotateIntervalSeconds),
+      currentWeekDurationSeconds: Math.max(
+        5,
+        Number(savedPrefs?.schedule?.currentWeekDurationSeconds ?? savedPrefs?.schedule?.rotateIntervalSeconds ?? DEFAULT_UI_PREFERENCES.schedule.currentWeekDurationSeconds)
+          || DEFAULT_UI_PREFERENCES.schedule.currentWeekDurationSeconds
+      ),
+      nextWeekDurationSeconds: Math.max(
+        5,
+        Number(savedPrefs?.schedule?.nextWeekDurationSeconds ?? savedPrefs?.schedule?.rotateIntervalSeconds ?? DEFAULT_UI_PREFERENCES.schedule.nextWeekDurationSeconds)
+          || DEFAULT_UI_PREFERENCES.schedule.nextWeekDurationSeconds
+      ),
       dimPastDays: savedPrefs?.schedule?.dimPastDays !== undefined ? !!savedPrefs.schedule.dimPastDays : DEFAULT_UI_PREFERENCES.schedule.dimPastDays,
       serviceMatchers: normalizeStringArray(savedPrefs?.schedule?.serviceMatchers, DEFAULT_UI_PREFERENCES.schedule.serviceMatchers),
       defaultLeadMinutes: Math.max(0, Number(savedPrefs?.schedule?.defaultLeadMinutes ?? DEFAULT_UI_PREFERENCES.schedule.defaultLeadMinutes) || DEFAULT_UI_PREFERENCES.schedule.defaultLeadMinutes),
@@ -289,16 +339,16 @@ function normalizeUiPreferences(savedPrefs = {}) {
       alertAudioEnabled: savedPrefs?.schedule?.alertAudioEnabled !== undefined
         ? !!savedPrefs.schedule.alertAudioEnabled
         : DEFAULT_UI_PREFERENCES.schedule.alertAudioEnabled,
-      alertAudioMode: ['chime', 'speech', 'both'].includes(String(savedPrefs?.schedule?.alertAudioMode || '').toLowerCase())
-        ? String(savedPrefs.schedule.alertAudioMode).toLowerCase()
-        : DEFAULT_UI_PREFERENCES.schedule.alertAudioMode,
-      alertAudioMessage: String(savedPrefs?.schedule?.alertAudioMessage || DEFAULT_UI_PREFERENCES.schedule.alertAudioMessage).trim()
-        || DEFAULT_UI_PREFERENCES.schedule.alertAudioMessage,
       alertAudioCooldownSeconds: Math.max(
         5,
         Number(savedPrefs?.schedule?.alertAudioCooldownSeconds ?? DEFAULT_UI_PREFERENCES.schedule.alertAudioCooldownSeconds)
           || DEFAULT_UI_PREFERENCES.schedule.alertAudioCooldownSeconds
       ),
+      alertAudioRules: (Array.isArray(savedPrefs?.schedule?.alertAudioRules) && savedPrefs.schedule.alertAudioRules.length
+        ? savedPrefs.schedule.alertAudioRules
+        : defaultAlertAudioRulesFromLegacy(savedPrefs?.schedule))
+        .map((rule, index) => normalizeAlertAudioRule(rule, DEFAULT_UI_PREFERENCES.schedule.alertAudioRules[index] || {}))
+        .filter((rule) => rule.leadMinutes >= 0),
     },
     staleRules: {
       inProgress: normalizeDurationRule(savedPrefs?.staleRules?.inProgress, DEFAULT_UI_PREFERENCES.staleRules.inProgress, savedPrefs?.staleRules?.inProgressHours, 'hours'),

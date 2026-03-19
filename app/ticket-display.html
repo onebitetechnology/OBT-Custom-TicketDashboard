@@ -136,14 +136,22 @@
   }
 
   .headline .pill {
-    font-size: 13px;
-    padding: 9px 13px;
+    font-size: 16px;
+    font-weight: 700;
+    padding: 12px 16px;
   }
 
   #open-tickets-pill {
     border-color: rgba(110, 231, 200, 0.32);
     background: rgba(110, 231, 200, 0.08);
     color: #d9fff3;
+  }
+
+  #open-tickets-pill,
+  #oldest-regular-pill,
+  #oldest-priority-pill {
+    font-size: 17px;
+    font-weight: 700;
   }
 
   #oldest-regular-pill {
@@ -202,7 +210,7 @@
     border-radius: 24px;
     box-shadow: var(--shadow);
     backdrop-filter: blur(18px);
-    padding: 14px;
+    padding: 18px;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 10px;
@@ -221,7 +229,7 @@
     padding: 12px;
     display: grid;
     gap: 8px;
-    min-height: 150px;
+    min-height: 200px;
     position: relative;
     overflow: hidden;
   }
@@ -444,11 +452,12 @@
   }
 
   .board-title {
-    font-size: 18px;
-    font-weight: 700;
+    font-size: 24px;
+    font-weight: 900;
     color: var(--text);
     text-transform: uppercase;
     letter-spacing: 0.1em;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
   }
 
   .cards {
@@ -610,40 +619,47 @@
     gap: 10px;
     border: 1px solid var(--line);
     border-radius: 14px;
-    padding: 12px 14px;
-    background: rgba(255,255,255,0.04);
+    padding: 14px 16px;
+    background: rgba(255,255,255,0.08);
   }
 
   .queue-column-head.tone-pink {
     border-color: rgba(255, 105, 180, 0.45);
+    background: linear-gradient(180deg, rgba(255, 105, 180, 0.24), rgba(78, 20, 52, 0.82));
     box-shadow: inset 0 0 0 1px rgba(255, 105, 180, 0.12);
   }
 
   .queue-column-head.tone-accent {
     border-color: rgba(34, 197, 234, 0.42);
+    background: linear-gradient(180deg, rgba(34, 197, 234, 0.24), rgba(15, 64, 82, 0.82));
     box-shadow: inset 0 0 0 1px rgba(34, 197, 234, 0.1);
   }
 
   .queue-column-head.tone-danger {
     border-color: rgba(255, 69, 69, 0.5);
+    background: linear-gradient(180deg, rgba(255, 69, 69, 0.24), rgba(94, 18, 18, 0.84));
     box-shadow: inset 0 0 0 1px rgba(255, 69, 69, 0.12);
   }
 
   .queue-column-head.tone-blue {
     border-color: rgba(96, 165, 250, 0.42);
+    background: linear-gradient(180deg, rgba(96, 165, 250, 0.22), rgba(20, 48, 96, 0.84));
     box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.1);
   }
 
   .queue-column-head.tone-purple {
     border-color: rgba(168, 85, 247, 0.45);
+    background: linear-gradient(180deg, rgba(168, 85, 247, 0.24), rgba(60, 24, 96, 0.84));
     box-shadow: inset 0 0 0 1px rgba(168, 85, 247, 0.12);
   }
 
   .queue-column-head .pill {
-    font-size: 12px;
-    padding: 8px 10px;
-    color: var(--text);
-    background: rgba(255,255,255,0.08);
+    font-size: 15px;
+    font-weight: 800;
+    padding: 10px 12px;
+    color: #fff;
+    background: rgba(255,255,255,0.16);
+    border-color: rgba(255,255,255,0.22);
   }
 
   .queue-list {
@@ -1092,6 +1108,47 @@
     display: block;
   }
 
+  .audio-rule-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .audio-rule-card {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.04);
+  }
+
+  .audio-rule-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .audio-rule-title {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--soft);
+  }
+
+  .audio-rule-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .audio-rule-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
   .settings-logo-meta {
     display: grid;
     gap: 4px;
@@ -1290,6 +1347,11 @@
       font-size: 11px;
     }
 
+    .headline .pill {
+      font-size: 13px;
+      font-weight: 700;
+    }
+
     .status-row {
       gap: 8px;
       padding: 12px;
@@ -1308,6 +1370,10 @@
 
     .schedule-strip {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .schedule-day {
+      min-height: 180px;
     }
 
     .queue-columns {
@@ -1334,6 +1400,10 @@
     .queue-service,
     .queue-issue {
       font-size: 11px;
+    }
+
+    .audio-rule-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 
@@ -1375,6 +1445,11 @@
       font-size: 10px;
     }
 
+    .headline .pill {
+      font-size: 11px;
+      font-weight: 700;
+    }
+
     .status-row {
       gap: 6px;
       padding: 10px;
@@ -1407,7 +1482,7 @@
     }
 
     .schedule-day {
-      min-height: 104px;
+      min-height: 132px;
       padding: 8px;
       gap: 6px;
       border-radius: 12px;
@@ -1481,13 +1556,17 @@
     }
 
     .board-title {
-      font-size: 13px;
+      font-size: 15px;
       letter-spacing: 0.08em;
     }
 
     .queue-column-head .pill {
-      font-size: 10px;
+      font-size: 11px;
       padding: 5px 8px;
+    }
+
+    .audio-rule-grid {
+      grid-template-columns: 1fr;
     }
 
     .queue-list {
@@ -2171,9 +2250,14 @@
         </span>
       </label>
       <label class="settings-field">
-        <span class="settings-label">Week switch interval</span>
-        <input class="settings-input" id="pref-rotate-interval-seconds" type="number" min="5" step="1" />
-        <span class="settings-help">Seconds between week changes when rotation is enabled.</span>
+        <span class="settings-label">Show this week for duration (seconds)</span>
+        <input class="settings-input" id="pref-current-week-duration-seconds" type="number" min="5" step="1" />
+        <span class="settings-help">How long the calendar stays on this week before switching.</span>
+      </label>
+      <label class="settings-field">
+        <span class="settings-label">Show next week for duration (seconds)</span>
+        <input class="settings-input" id="pref-next-week-duration-seconds" type="number" min="5" step="1" />
+        <span class="settings-help">How long the calendar stays on next week before switching back.</span>
       </label>
       <label class="settings-field full">
         <span class="settings-label">Blocked weekdays</span>
@@ -2213,17 +2297,9 @@
           <input class="settings-checkbox" id="pref-alert-audio-enabled" type="checkbox" />
           <span class="settings-check-copy">
             <span class="settings-check-title">Play audio for upcoming appointment alerts</span>
-            <span class="settings-help">Uses the same urgent and imminent timing as the flashing appointment cards.</span>
+            <span class="settings-help">Create one or more timed alert rules for different appointment types.</span>
           </span>
         </span>
-      </label>
-      <label class="settings-field">
-        <span class="settings-label">Alert audio type</span>
-        <select class="settings-input settings-select" id="pref-alert-audio-mode">
-          <option value="chime">Chime</option>
-          <option value="speech">Spoken message</option>
-          <option value="both">Chime and spoken message</option>
-        </select>
       </label>
       <label class="settings-field">
         <span class="settings-label">Alert repeat cooldown (seconds)</span>
@@ -2231,9 +2307,12 @@
         <span class="settings-help">Prevents the same appointment warning from repeating too often.</span>
       </label>
       <label class="settings-field full">
-        <span class="settings-label">Spoken alert message</span>
-        <input class="settings-input" id="pref-alert-audio-message" />
-        <span class="settings-help">Used when the alert type includes spoken message.</span>
+        <span class="settings-label">Alert rules</span>
+        <div class="audio-rule-list" id="pref-alert-rules"></div>
+        <div class="audio-rule-actions">
+          <button class="pill" id="pref-add-alert-rule" type="button">Add Alert Rule</button>
+        </div>
+        <span class="settings-help">Example: chime 60 minutes before, spoken reminder 30 minutes before, custom message 10 minutes before.</span>
       </label>
     </div>
   </div>
@@ -2408,16 +2487,19 @@
         blockedWeekdays: ['Monday'],
         showCalendar: true,
         rotateWeeks: false,
-        rotateIntervalSeconds: 20,
+        currentWeekDurationSeconds: 20,
+        nextWeekDurationSeconds: 5,
         dimPastDays: true,
         serviceMatchers: ['support', 'pickup & delivery service'],
         defaultLeadMinutes: 45,
         onsiteLeadMinutes: 60,
         imminentMinutes: 20,
         alertAudioEnabled: false,
-        alertAudioMode: 'chime',
-        alertAudioMessage: 'Appointment coming up soon',
         alertAudioCooldownSeconds: 45,
+        alertAudioRules: [
+          { appointmentType: 'default', leadMinutes: 45, mode: 'chime', message: 'Appointment coming up soon', serviceMatcher: '' },
+          { appointmentType: 'on_site', leadMinutes: 60, mode: 'both', message: 'On-site appointment coming up soon', serviceMatcher: '' },
+        ],
       },
       staleRules: {
         inProgress: { days: 0, hours: 12 },
@@ -2495,6 +2577,125 @@
 
   function selectedAssignees() {
     return Array.from(document.querySelectorAll('input[data-group="assignee-filter"]:checked')).map((input) => input.dataset.assignee);
+  }
+
+  function normalizeAlertAudioRule(rule = {}, fallback = {}) {
+    const appointmentType = ['default', 'on_site', 'any', 'service_match'].includes(String(rule.appointmentType || '').toLowerCase())
+      ? String(rule.appointmentType).toLowerCase()
+      : (['default', 'on_site', 'any', 'service_match'].includes(String(fallback.appointmentType || '').toLowerCase())
+        ? String(fallback.appointmentType).toLowerCase()
+        : 'default');
+    const mode = ['chime', 'speech', 'both'].includes(String(rule.mode || '').toLowerCase())
+      ? String(rule.mode).toLowerCase()
+      : (['chime', 'speech', 'both'].includes(String(fallback.mode || '').toLowerCase())
+        ? String(fallback.mode).toLowerCase()
+        : 'chime');
+    const defaultMessage = appointmentType === 'on_site' ? 'On-site appointment coming up soon' : 'Appointment coming up soon';
+    return {
+      appointmentType,
+      leadMinutes: Math.max(0, Number(rule.leadMinutes ?? fallback.leadMinutes ?? 45) || 45),
+      mode,
+      message: String(rule.message || fallback.message || defaultMessage).trim() || defaultMessage,
+      serviceMatcher: String(rule.serviceMatcher || fallback.serviceMatcher || '').trim(),
+    };
+  }
+
+  function defaultAlertAudioRulesFromPreferences(schedulePrefs = {}) {
+    return [
+      normalizeAlertAudioRule({
+        appointmentType: 'default',
+        leadMinutes: schedulePrefs.defaultLeadMinutes ?? 45,
+        mode: schedulePrefs.alertAudioMode || 'chime',
+        message: schedulePrefs.alertAudioMessage || 'Appointment coming up soon',
+      }),
+      normalizeAlertAudioRule({
+        appointmentType: 'on_site',
+        leadMinutes: schedulePrefs.onsiteLeadMinutes ?? 60,
+        mode: schedulePrefs.alertAudioMode || 'both',
+        message: schedulePrefs.alertAudioMessage || 'On-site appointment coming up soon',
+      }),
+    ];
+  }
+
+  function alertAudioRulesFromPreferences(schedulePrefs = {}) {
+    const savedRules = Array.isArray(schedulePrefs.alertAudioRules) && schedulePrefs.alertAudioRules.length
+      ? schedulePrefs.alertAudioRules
+      : defaultAlertAudioRulesFromPreferences(schedulePrefs);
+    return savedRules.map((rule) => normalizeAlertAudioRule(rule));
+  }
+
+  function alertRuleTitle(rule, index) {
+    const typeLabels = {
+      default: 'Default',
+      on_site: 'On-Site',
+      any: 'Any',
+      service_match: 'Service Match',
+    };
+    const label = typeLabels[String(rule?.appointmentType || '').toLowerCase()] || 'Rule';
+    return `Rule ${index + 1} · ${label}`;
+  }
+
+  function alertAudioRulesMarkup(rules = []) {
+    const safeRules = rules.length ? rules : defaultAlertAudioRulesFromPreferences(currentPreferences().schedule || {});
+    return safeRules.map((rule, index) => {
+      const normalized = normalizeAlertAudioRule(rule);
+      return `
+        <div class="audio-rule-card" data-alert-rule-index="${index}">
+          <div class="audio-rule-head">
+            <div class="audio-rule-title">${escapeHtml(alertRuleTitle(normalized, index))}</div>
+            <button class="pill" type="button" data-remove-alert-rule="${index}">Remove</button>
+          </div>
+          <div class="audio-rule-grid">
+            <label class="settings-field">
+              <span class="settings-label">Appointment type</span>
+              <select class="settings-input settings-select" data-alert-field="appointmentType" data-alert-index="${index}">
+                <option value="default" ${normalized.appointmentType === 'default' ? 'selected' : ''}>Default</option>
+                <option value="on_site" ${normalized.appointmentType === 'on_site' ? 'selected' : ''}>On-Site</option>
+                <option value="any" ${normalized.appointmentType === 'any' ? 'selected' : ''}>Any appointment</option>
+                <option value="service_match" ${normalized.appointmentType === 'service_match' ? 'selected' : ''}>Matching service text</option>
+              </select>
+            </label>
+            <label class="settings-field">
+              <span class="settings-label">Lead time (minutes)</span>
+              <input class="settings-input" data-alert-field="leadMinutes" data-alert-index="${index}" type="number" min="0" step="1" value="${escapeHtml(normalized.leadMinutes)}" />
+            </label>
+            <label class="settings-field">
+              <span class="settings-label">Audio type</span>
+              <select class="settings-input settings-select" data-alert-field="mode" data-alert-index="${index}">
+                <option value="chime" ${normalized.mode === 'chime' ? 'selected' : ''}>Chime</option>
+                <option value="speech" ${normalized.mode === 'speech' ? 'selected' : ''}>Spoken message</option>
+                <option value="both" ${normalized.mode === 'both' ? 'selected' : ''}>Chime and spoken message</option>
+              </select>
+            </label>
+            <label class="settings-field" ${normalized.appointmentType === 'service_match' ? '' : 'hidden'}>
+              <span class="settings-label">Service text contains</span>
+              <input class="settings-input" data-alert-field="serviceMatcher" data-alert-index="${index}" value="${escapeHtml(normalized.serviceMatcher)}" />
+            </label>
+          </div>
+          <label class="settings-field full">
+            <span class="settings-label">Message</span>
+            <input class="settings-input" data-alert-field="message" data-alert-index="${index}" value="${escapeHtml(normalized.message)}" />
+          </label>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderAlertAudioRules(rules) {
+    qs('pref-alert-rules').innerHTML = alertAudioRulesMarkup(rules);
+  }
+
+  function collectAlertAudioRules() {
+    const indices = Array.from(document.querySelectorAll('[data-alert-rule-index]'))
+      .map((el) => Number(el.dataset.alertRuleIndex))
+      .filter((value) => Number.isFinite(value));
+    return indices.map((index) => normalizeAlertAudioRule({
+      appointmentType: document.querySelector(`[data-alert-field="appointmentType"][data-alert-index="${index}"]`)?.value || 'default',
+      leadMinutes: document.querySelector(`[data-alert-field="leadMinutes"][data-alert-index="${index}"]`)?.value || 0,
+      mode: document.querySelector(`[data-alert-field="mode"][data-alert-index="${index}"]`)?.value || 'chime',
+      message: document.querySelector(`[data-alert-field="message"][data-alert-index="${index}"]`)?.value || '',
+      serviceMatcher: document.querySelector(`[data-alert-field="serviceMatcher"][data-alert-index="${index}"]`)?.value || '',
+    })).filter((rule) => rule.appointmentType !== 'service_match' || rule.serviceMatcher);
   }
 
   function setDisplayTargetOptions(selectedValue = 'current') {
@@ -2612,9 +2813,7 @@
       section.prepend(body);
       section.prepend(toggle);
       section.dataset.enhanced = 'true';
-      if (section.id === 'api-section') {
-        section.classList.add('collapsed');
-      }
+      section.classList.add('collapsed');
 
       toggle.addEventListener('click', () => {
         section.classList.toggle('collapsed');
@@ -2855,17 +3054,46 @@
     window.speechSynthesis.speak(utterance);
   }
 
+  function isOnSiteAppointment(serviceName) {
+    return /on[\s-]?site/i.test(String(serviceName || ''));
+  }
+
+  function appointmentMatchesAlertRule(appointment, rule) {
+    const appointmentType = String(rule?.appointmentType || 'default').toLowerCase();
+    const serviceName = String(appointment?.device || '');
+    if (appointmentType === 'any') return true;
+    if (appointmentType === 'on_site') return isOnSiteAppointment(serviceName);
+    if (appointmentType === 'default') return !isOnSiteAppointment(serviceName);
+    if (appointmentType === 'service_match') {
+      const matcher = String(rule?.serviceMatcher || '').trim().toLowerCase();
+      return !!matcher && serviceName.toLowerCase().includes(matcher);
+    }
+    return false;
+  }
+
   function appointmentAlertCandidates(data) {
     const days = currentCalendarDays(data);
+    const rules = alertAudioRulesFromPreferences(data?.uiPreferences?.schedule || currentPreferences().schedule || {});
     const candidates = [];
     days.forEach((day) => {
       if (day.blocked) return;
       (day.appointments || []).forEach((appointment) => {
         const urgency = appointmentUrgencyMeta(appointment.dueAt || appointment.dueOn, appointment.device || '');
         if (!urgency.className) return;
+        const appointmentDate = new Date(appointment.dueAt || appointment.dueOn);
+        if (Number.isNaN(appointmentDate.getTime())) return;
+        const now = effectiveNow();
+        const minutesUntil = (appointmentDate.getTime() - now.getTime()) / 60000;
+        const matchingRule = rules
+          .filter((rule) => appointmentMatchesAlertRule(appointment, rule))
+          .filter((rule) => minutesUntil <= Number(rule.leadMinutes || 0) && minutesUntil >= -15)
+          .sort((a, b) => Number(a.leadMinutes || 0) - Number(b.leadMinutes || 0))[0];
+        if (!matchingRule) return;
         candidates.push({
           ...appointment,
+          alertRule: matchingRule,
           urgencyClass: urgency.className,
+          minutesUntil,
           sortTime: new Date(appointment.dueAt || appointment.dueOn).getTime() || Number.MAX_SAFE_INTEGER,
         });
       });
@@ -2894,13 +3122,14 @@
     });
 
     const nextAlert = candidates[0];
-    const alertKey = `${nextAlert.orderId}|${nextAlert.dueOn}|${nextAlert.urgencyClass}`;
+    const rule = normalizeAlertAudioRule(nextAlert.alertRule || {});
+    const alertKey = `${nextAlert.orderId}|${nextAlert.dueAt || nextAlert.dueOn}|${rule.appointmentType}|${rule.serviceMatcher}|${rule.leadMinutes}|${rule.mode}`;
     const lastPlayedAt = Number(state.appointmentAlertHistory[alertKey] || 0);
     if (lastPlayedAt && (now - lastPlayedAt) < cooldownMs) return;
 
     state.appointmentAlertHistory[alertKey] = now;
-    const mode = String(prefs.alertAudioMode || 'chime').toLowerCase();
-    const message = String(prefs.alertAudioMessage || 'Appointment coming up soon').trim() || 'Appointment coming up soon';
+    const mode = rule.mode;
+    const message = rule.message;
 
     if (mode === 'chime' || mode === 'both') {
       playAppointmentChime();
@@ -2924,7 +3153,8 @@
     qs('pref-included-weekdays').innerHTML = checkboxGroupMarkup('included-weekdays', prefs.schedule.includedWeekdays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']);
     qs('pref-show-calendar').checked = prefs.schedule.showCalendar !== false;
     qs('pref-rotate-weeks').checked = !!prefs.schedule.rotateWeeks;
-    qs('pref-rotate-interval-seconds').value = prefs.schedule.rotateIntervalSeconds ?? 20;
+    qs('pref-current-week-duration-seconds').value = prefs.schedule.currentWeekDurationSeconds ?? 20;
+    qs('pref-next-week-duration-seconds').value = prefs.schedule.nextWeekDurationSeconds ?? 5;
     qs('pref-blocked-weekdays').innerHTML = checkboxGroupMarkup('blocked-weekdays', prefs.schedule.blockedWeekdays || []);
     qs('pref-dim-past-days').checked = prefs.schedule.dimPastDays !== false;
     qs('pref-service-matchers').value = (prefs.schedule.serviceMatchers || []).join('\n');
@@ -2932,9 +3162,8 @@
     qs('pref-onsite-lead').value = prefs.schedule.onsiteLeadMinutes ?? 60;
     qs('pref-imminent-minutes').value = prefs.schedule.imminentMinutes ?? 20;
     qs('pref-alert-audio-enabled').checked = !!prefs.schedule.alertAudioEnabled;
-    qs('pref-alert-audio-mode').value = prefs.schedule.alertAudioMode || 'chime';
     qs('pref-alert-audio-cooldown').value = prefs.schedule.alertAudioCooldownSeconds ?? 45;
-    qs('pref-alert-audio-message').value = prefs.schedule.alertAudioMessage || 'Appointment coming up soon';
+    renderAlertAudioRules(alertAudioRulesFromPreferences(prefs.schedule || {}));
     qs('pref-inprogress-days').value = prefs.staleRules.inProgress?.days ?? 0;
     qs('pref-inprogress-hours').value = prefs.staleRules.inProgress?.hours ?? 12;
     qs('pref-attention-days').value = prefs.staleRules.needsAttention?.days ?? 1;
@@ -2992,7 +3221,8 @@
         includedWeekdays: selectedCheckboxDays('included-weekdays'),
         showCalendar: qs('pref-show-calendar').checked,
         rotateWeeks: qs('pref-rotate-weeks').checked,
-        rotateIntervalSeconds: Number(qs('pref-rotate-interval-seconds').value || 20),
+        currentWeekDurationSeconds: Math.max(5, Number(qs('pref-current-week-duration-seconds').value || 20) || 20),
+        nextWeekDurationSeconds: Math.max(5, Number(qs('pref-next-week-duration-seconds').value || 5) || 5),
         blockedWeekdays: selectedCheckboxDays('blocked-weekdays'),
         dimPastDays: qs('pref-dim-past-days').checked,
         serviceMatchers: parseLines(qs('pref-service-matchers').value),
@@ -3000,9 +3230,8 @@
         onsiteLeadMinutes: Number(qs('pref-onsite-lead').value || 0),
         imminentMinutes: Number(qs('pref-imminent-minutes').value || 0),
         alertAudioEnabled: qs('pref-alert-audio-enabled').checked,
-        alertAudioMode: qs('pref-alert-audio-mode').value || 'chime',
         alertAudioCooldownSeconds: Math.max(5, Number(qs('pref-alert-audio-cooldown').value || 45) || 45),
-        alertAudioMessage: String(qs('pref-alert-audio-message').value || 'Appointment coming up soon').trim() || 'Appointment coming up soon',
+        alertAudioRules: collectAlertAudioRules(),
       },
       staleRules: {
         inProgress: {
@@ -3209,7 +3438,7 @@
         ${day.blocked ? '<div class="schedule-note">No booking window on this day</div>' : ''}
         <div class="schedule-items">
           ${day.appointments.length ? day.appointments.slice(0, 4).map((appt) => {
-            const urgency = appointmentUrgencyMeta(appt.dueOn, appt.device || '');
+            const urgency = appointmentUrgencyMeta(appt.dueAt || appt.dueOn, appt.device || '');
             return `
             <div class="schedule-item ${urgency.className}" style="${urgency.style}">
               <div class="schedule-top">
@@ -3228,20 +3457,61 @@
   }
 
   function setupCalendarRotation() {
-    if (state.calendarRotationTimer) clearInterval(state.calendarRotationTimer);
+    if (state.calendarRotationTimer) clearTimeout(state.calendarRotationTimer);
     state.calendarRotationTimer = null;
     state.calendarWeekOffset = 0;
     if (!state.data?.uiPreferences?.schedule?.rotateWeeks) return;
-    const intervalSeconds = Math.max(5, Number(state.data.uiPreferences.schedule.rotateIntervalSeconds || 20));
-    state.calendarRotationTimer = setInterval(() => {
-      const strip = qs('schedule-strip');
-      strip.classList.add('fading');
-      setTimeout(() => {
-        state.calendarWeekOffset = state.calendarWeekOffset === 0 ? 1 : 0;
-        renderSchedule(state.data);
-        strip.classList.remove('fading');
-      }, 240);
-    }, intervalSeconds * 1000);
+    const scheduleNextRotation = () => {
+      const schedulePrefs = state.data?.uiPreferences?.schedule || {};
+      const intervalSeconds = state.calendarWeekOffset === 0
+        ? Math.max(5, Number(schedulePrefs.currentWeekDurationSeconds || 20) || 20)
+        : Math.max(5, Number(schedulePrefs.nextWeekDurationSeconds || 5) || 5);
+      state.calendarRotationTimer = setTimeout(() => {
+        const strip = qs('schedule-strip');
+        strip.classList.add('fading');
+        setTimeout(() => {
+          state.calendarWeekOffset = state.calendarWeekOffset === 0 ? 1 : 0;
+          renderSchedule(state.data);
+          strip.classList.remove('fading');
+          scheduleNextRotation();
+        }, 240);
+      }, intervalSeconds * 1000);
+    };
+    scheduleNextRotation();
+  }
+
+  function updateAlertRuleVisibility() {
+    document.querySelectorAll('[data-alert-rule-index]').forEach((card) => {
+      const index = card.dataset.alertRuleIndex;
+      const typeSelect = document.querySelector(`[data-alert-field="appointmentType"][data-alert-index="${index}"]`);
+      const matcherField = document.querySelector(`[data-alert-field="serviceMatcher"][data-alert-index="${index}"]`)?.closest('.settings-field');
+      if (!typeSelect || !matcherField) return;
+      matcherField.hidden = typeSelect.value !== 'service_match';
+    });
+  }
+
+  function openSettings() {
+    const drawer = qs('settings-drawer');
+    drawer.classList.add('open');
+    drawer.scrollTop = 0;
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    state.logoDataUrl = currentPreferences().brand?.logoDataUrl || '';
+    fillSettingsForm(currentPreferences());
+    updateAlertRuleVisibility();
+    loadApiConfig().catch(() => {
+      qs('settings-status').textContent = 'Could not load API settings.';
+    });
+    loadDetectedDisplays();
+    refreshUpdateStatus();
+    if (state.updateStatusTimer) clearInterval(state.updateStatusTimer);
+    state.updateStatusTimer = setInterval(refreshUpdateStatus, 1500);
+    requestAnimationFrame(() => {
+      drawer.scrollTop = 0;
+      drawer.querySelector('.settings-head')?.scrollIntoView?.({ block: 'start' });
+      qs('settings-close')?.focus({ preventScroll: true });
+    });
   }
 
   function filterColumnItems(items, refurbMode, refurbRotateSeconds) {
@@ -3652,25 +3922,6 @@
     }
   }
 
-  function openSettings() {
-    const drawer = qs('settings-drawer');
-    drawer.classList.add('open');
-    drawer.scrollTop = 0;
-    state.logoDataUrl = currentPreferences().brand?.logoDataUrl || '';
-    fillSettingsForm(currentPreferences());
-    loadApiConfig().catch(() => {
-      qs('settings-status').textContent = 'Could not load API settings.';
-    });
-    loadDetectedDisplays();
-    refreshUpdateStatus();
-    if (state.updateStatusTimer) clearInterval(state.updateStatusTimer);
-    state.updateStatusTimer = setInterval(refreshUpdateStatus, 1500);
-    requestAnimationFrame(() => {
-      drawer.scrollTop = 0;
-      qs('settings-close')?.focus({ preventScroll: true });
-    });
-  }
-
   function closeSettings() {
     qs('settings-drawer').classList.remove('open');
     if (state.updateStatusTimer) {
@@ -3740,6 +3991,25 @@
   qs('settings-restart').addEventListener('click', restartServer);
   qs('settings-save').addEventListener('click', savePreferences);
   qs('welcome-save').addEventListener('click', saveWelcomeSetup);
+  qs('pref-add-alert-rule').addEventListener('click', () => {
+    const rules = collectAlertAudioRules();
+    rules.push(normalizeAlertAudioRule({ appointmentType: 'default', leadMinutes: 30, mode: 'speech', message: 'Appointment coming up soon' }));
+    renderAlertAudioRules(rules);
+    updateAlertRuleVisibility();
+  });
+  qs('pref-alert-rules').addEventListener('click', (event) => {
+    const removeButton = event.target.closest('[data-remove-alert-rule]');
+    if (!removeButton) return;
+    const removeIndex = Number(removeButton.dataset.removeAlertRule);
+    const rules = collectAlertAudioRules().filter((_, index) => index !== removeIndex);
+    renderAlertAudioRules(rules);
+    updateAlertRuleVisibility();
+  });
+  qs('pref-alert-rules').addEventListener('change', (event) => {
+    if (event.target.matches('[data-alert-field="appointmentType"]')) {
+      updateAlertRuleVisibility();
+    }
+  });
   qs('pref-brand-logo').addEventListener('change', () => {
     const file = qs('pref-brand-logo').files && qs('pref-brand-logo').files[0];
     if (!file) {
