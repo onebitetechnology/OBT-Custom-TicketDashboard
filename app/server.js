@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.31';
+const APP_VERSION = 'v2.1.32';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -1024,6 +1024,9 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
         dueAt: effectiveScheduledDueAt || dueAt || metaDueAt || null,
         scheduledDueOn: /scheduled/i.test(status) ? (ticket?.due_on || null) : null,
         scheduledDueAt: effectiveScheduledDueAt,
+        scheduledServiceLabel: /scheduled/i.test(status)
+          ? (decodeHtml(ticket?.device_issue || '') || decodeHtml(ticket?.device || '') || null)
+          : null,
         createdAt: Number(ticketMetaByOrderId[orderId]?.createdAt || 0) || null,
         updatedAt: Number(ticketMetaByOrderId[orderId]?.updatedAt || 0) || null,
         repairCategory: String(ticketMetaByOrderId[orderId]?.repairCategory || '').trim(),
@@ -1057,9 +1060,10 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
       entry.status = status;
       entry.scheduledDueAt = effectiveScheduledDueAt;
       entry.scheduledDueOn = ticket?.due_on || entry.scheduledDueOn;
+      entry.scheduledServiceLabel = decodeHtml(ticket?.device_issue || '') || decodeHtml(ticket?.device || '') || entry.scheduledServiceLabel;
       entry.dueAt = effectiveScheduledDueAt;
       entry.dueOn = ticket?.due_on || entry.dueOn;
-    } else if ((!entry.dueAt && dueAt) || (dueAt && entry.dueAt && dueAt < entry.dueAt)) {
+    } else if (!entry.scheduledDueAt && ((!entry.dueAt && dueAt) || (dueAt && entry.dueAt && dueAt < entry.dueAt))) {
       entry.dueAt = dueAt;
       entry.dueOn = ticket?.due_on || entry.dueOn;
     }
@@ -1307,7 +1311,7 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
             customerName: ticket.customerName,
             dueOn: ticket.dueOn,
             dueAt: ticket.dueAt,
-            device: ticket.serviceName || ticket.issues[0] || ticket.devices[0] || '',
+            device: ticket.scheduledServiceLabel || ticket.serviceName || ticket.issues[0] || ticket.devices[0] || '',
           })),
       };
     });
