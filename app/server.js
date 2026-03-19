@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.28';
+const APP_VERSION = 'v2.1.29';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -842,6 +842,16 @@ function parseDueTimestamp(value) {
   return Number.isFinite(timestamp) ? timestamp : null;
 }
 
+function localDateKeyFromTimestamp(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function collectNestedStrings(value, sink, depth = 0) {
   if (depth > 6 || value == null) return;
   if (typeof value === 'string' || typeof value === 'number') {
@@ -1286,12 +1296,13 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
         blocked: preferences.schedule.blockedWeekdays.includes(label),
         appointments: allTickets
           .filter((ticket) => isCalendarAppointmentTicket(ticket, preferences))
-          .filter((ticket) => new Date(ticket.dueAt).toISOString().slice(0, 10) === iso)
+          .filter((ticket) => localDateKeyFromTimestamp(ticket.dueAt) === iso)
           .sort((a, b) => (a.dueAt || 0) - (b.dueAt || 0))
           .map((ticket) => ({
             orderId: ticket.orderId,
             customerName: ticket.customerName,
             dueOn: ticket.dueOn,
+            dueAt: ticket.dueAt,
             device: ticket.serviceName || ticket.issues[0] || ticket.devices[0] || '',
           })),
       };

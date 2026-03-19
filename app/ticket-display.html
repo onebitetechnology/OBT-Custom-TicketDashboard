@@ -2748,6 +2748,16 @@
     return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   }
 
+  function localDateKey(dateLike) {
+    if (!dateLike) return '';
+    const date = new Date(dateLike);
+    if (Number.isNaN(date.getTime())) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
   function formatScheduleDayLabel(label, isoDate) {
     if (!isoDate) return label;
     const date = new Date(`${isoDate}T12:00:00`);
@@ -3192,7 +3202,7 @@
 
   function renderSchedule(data) {
     const days = currentCalendarDays(data);
-    const todayIso = effectiveNow().toISOString().slice(0, 10);
+    const todayIso = localDateKey(effectiveNow());
     qs('schedule-panel-title').textContent = currentCalendarTitle(data);
     qs('schedule-panel-sub').textContent = days.length ? `${days.length} day view` : 'No included weekdays selected';
     qs('schedule-strip').innerHTML = days.map((day) => `
@@ -3209,7 +3219,7 @@
             <div class="schedule-item ${urgency.className}" style="${urgency.style}">
               <div class="schedule-top">
                 <div class="schedule-ticket">T-${escapeHtml(appt.orderId)}</div>
-                <div class="schedule-time">${escapeHtml(formatTimeOnly(appt.dueOn))}</div>
+                <div class="schedule-time">${escapeHtml(formatTimeOnly(appt.dueAt || appt.dueOn))}</div>
               </div>
               <div class="schedule-name">${escapeHtml(appt.customerName)}</div>
               <div class="schedule-device">${escapeHtml(appt.device || 'Tech Support')}</div>
