@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.38
+
+- Fixed the Alert Rules settings block so clicks inside the rule editor no longer behave like label activation and accidentally remove rules.
+
 ## v2.1.37
 
 - Tightened the alert-rule remove interaction so only the actual Remove button can delete a rule.
