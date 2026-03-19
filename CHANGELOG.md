@@ -2,6 +2,17 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.44
+
+- Added a global speech voice selector for spoken appointment alerts, using the voices installed on the local computer.
+- If the chosen voice is unavailable later, spoken alerts automatically fall back to the system default voice.
+
+## v2.1.43
+
+- Made alert rule cooldown optional, with blank meaning the alert plays once for that appointment and does not repeat on later data refreshes.
+- Collapsed audio alert rules by default so the alert editor takes up much less space once rules are set up.
+- Restacked queue column headers so the title sits above the ticket count, keeping header boxes aligned more consistently on vertical displays with longer labels.
+
 ## v2.1.42
 
 - Fixed the queue grid so when some ticket columns are hidden, the remaining visible columns expand to fill the available board width instead of leaving empty slots behind.
