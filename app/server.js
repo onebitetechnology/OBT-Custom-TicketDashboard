@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.39';
+const APP_VERSION = 'v2.1.40';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -28,6 +28,9 @@ const DEFAULT_UI_PREFERENCES = {
     title: 'Current Repair Queue',
     logoDataUrl: '',
     logoSize: 72,
+    sideMediaEnabled: false,
+    sideMediaDataUrl: '',
+    sideMediaWidthPercent: 38,
   },
   display: {
     fullscreen: false,
@@ -300,6 +303,18 @@ function normalizeUiPreferences(savedPrefs = {}) {
       title: String(savedPrefs?.brand?.title || DEFAULT_UI_PREFERENCES.brand.title).trim() || DEFAULT_UI_PREFERENCES.brand.title,
       logoDataUrl: String(savedPrefs?.brand?.logoDataUrl || '').trim(),
       logoSize: Math.max(36, Math.min(180, Number(savedPrefs?.brand?.logoSize ?? DEFAULT_UI_PREFERENCES.brand.logoSize) || DEFAULT_UI_PREFERENCES.brand.logoSize)),
+      sideMediaEnabled: savedPrefs?.brand?.sideMediaEnabled !== undefined
+        ? !!savedPrefs.brand.sideMediaEnabled
+        : DEFAULT_UI_PREFERENCES.brand.sideMediaEnabled,
+      sideMediaDataUrl: String(savedPrefs?.brand?.sideMediaDataUrl || '').trim(),
+      sideMediaWidthPercent: Math.max(
+        20,
+        Math.min(
+          70,
+          Number(savedPrefs?.brand?.sideMediaWidthPercent ?? DEFAULT_UI_PREFERENCES.brand.sideMediaWidthPercent)
+            || DEFAULT_UI_PREFERENCES.brand.sideMediaWidthPercent
+        )
+      ),
     },
     display: {
       fullscreen: savedPrefs?.display?.fullscreen !== undefined

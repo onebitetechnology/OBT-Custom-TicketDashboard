@@ -435,6 +435,47 @@
   }
 
   .board-wrap {
+    --side-media-width: 38%;
+    display: grid;
+    grid-template-columns: minmax(260px, var(--side-media-width)) minmax(0, 1fr);
+    gap: 14px;
+    min-height: 0;
+    height: 100%;
+  }
+
+  .board-wrap.media-hidden {
+    grid-template-columns: 1fr;
+  }
+
+  .side-media-panel {
+    min-height: 0;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at top left, rgba(124, 184, 255, 0.18), transparent 28%),
+      rgba(255,255,255,0.03);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+  }
+
+  .side-media-stage {
+    width: 100%;
+    height: 100%;
+    min-height: 420px;
+    background: rgba(2, 5, 8, 0.88);
+  }
+
+  .side-media-image,
+  .side-media-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: none;
+    background: #020508;
+  }
+
+  .side-media-image.visible,
+  .side-media-video.visible {
     display: block;
   }
 
@@ -1093,6 +1134,42 @@
     background: rgba(255,255,255,0.04);
   }
 
+  .settings-media-preview {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 132px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.04);
+  }
+
+  .settings-media-stage {
+    width: 220px;
+    max-width: 42%;
+    aspect-ratio: 16 / 9;
+    border-radius: 12px;
+    overflow: hidden;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    flex: 0 0 auto;
+  }
+
+  .settings-media-thumb,
+  .settings-media-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: none;
+    background: rgba(255,255,255,0.05);
+  }
+
+  .settings-media-thumb.visible,
+  .settings-media-video.visible {
+    display: block;
+  }
+
   .settings-logo-thumb {
     width: 92px;
     height: 92px;
@@ -1340,6 +1417,10 @@
     .app {
       padding: 14px;
       gap: 12px;
+    }
+
+    .board-wrap {
+      grid-template-columns: 1fr;
     }
 
     .topbar,
@@ -1808,6 +1889,10 @@
     padding: 8px;
   }
 
+  body.force-vertical .board-wrap {
+    grid-template-columns: 1fr;
+  }
+
   body.force-vertical .queue-columns,
   body.force-horizontal .queue-columns {
     grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -2023,7 +2108,13 @@
   <section class="status-row" id="status-row"></section>
 
   <section class="board">
-    <div class="board-wrap">
+    <div class="board-wrap media-hidden" id="board-wrap">
+      <aside class="side-media-panel" id="side-media-panel" hidden>
+        <div class="side-media-stage">
+          <img class="side-media-image" id="side-media-image" alt="Side display media" />
+          <video class="side-media-video" id="side-media-video" muted loop autoplay playsinline></video>
+        </div>
+      </aside>
       <aside class="ready-queue">
         <div class="queue-columns">
           <section class="queue-column" id="ready-column">
@@ -2099,7 +2190,7 @@
   </div>
   <div class="settings-section span-2">
     <h3>Brand</h3>
-    <div class="settings-section-copy">Controls the title and logo shown in the main board header.</div>
+    <div class="settings-section-copy">Controls the title, header logo, and optional side media shown beside the board on wide horizontal displays.</div>
     <div class="settings-grid">
       <label class="settings-field align-end">
         <span class="settings-label">Header title</span>
@@ -2116,12 +2207,45 @@
         <span class="settings-help">Controls how large the logo appears in the board header.</span>
       </label>
       <label class="settings-field full">
+        <span class="settings-label">Horizontal side media</span>
+        <span class="settings-check">
+          <input class="settings-checkbox" id="pref-brand-side-media-enabled" type="checkbox" />
+          <span class="settings-check-copy">
+            <span class="settings-check-title">Show uploaded media beside the board on horizontal layouts</span>
+            <span class="settings-help">Useful for signage, promos, or branded explainer panels. Vertical layouts ignore it automatically.</span>
+          </span>
+        </span>
+      </label>
+      <label class="settings-field align-end">
+        <span class="settings-label">Side media upload</span>
+        <input class="settings-input" id="pref-brand-side-media" type="file" accept="image/*,video/*" />
+        <span class="settings-help">Upload a PNG, JPG, GIF, MP4, or WebM file. Short, optimized videos will work best.</span>
+      </label>
+      <label class="settings-field">
+        <span class="settings-label">Side media width (%)</span>
+        <input class="settings-input" id="pref-brand-side-media-width" type="number" min="20" max="70" step="1" />
+        <span class="settings-help">Controls how much of the board row is given to the side media panel.</span>
+      </label>
+      <label class="settings-field full">
         <span class="settings-label">Current logo</span>
         <div class="settings-logo-preview">
           <img class="settings-logo-thumb" id="pref-brand-logo-preview" alt="Current logo preview" />
           <div class="settings-logo-meta">
             <div class="settings-logo-name" id="pref-brand-logo-name">No logo uploaded</div>
             <div class="settings-logo-note" id="pref-brand-logo-note">Upload a logo to preview how it will appear in the board header.</div>
+          </div>
+        </div>
+      </label>
+      <label class="settings-field full">
+        <span class="settings-label">Current side media</span>
+        <div class="settings-media-preview">
+          <div class="settings-media-stage">
+            <img class="settings-media-thumb" id="pref-brand-side-media-preview-image" alt="Current side media preview" />
+            <video class="settings-media-video" id="pref-brand-side-media-preview-video" muted loop autoplay playsinline></video>
+          </div>
+          <div class="settings-logo-meta">
+            <div class="settings-logo-name" id="pref-brand-side-media-name">No side media uploaded</div>
+            <div class="settings-logo-note" id="pref-brand-side-media-note">Upload an image, GIF, or muted looping video to show beside the board on horizontal layouts.</div>
           </div>
         </div>
       </label>
@@ -2461,6 +2585,7 @@
     settingsLoaded: false,
     welcomeShown: false,
     logoDataUrl: '',
+    sideMediaDataUrl: '',
     displays: [],
     updateStatusTimer: null,
     appointmentAlertHistory: {},
@@ -2516,6 +2641,9 @@
         title: 'Current Repair Queue',
         logoDataUrl: '',
         logoSize: 72,
+        sideMediaEnabled: false,
+        sideMediaDataUrl: '',
+        sideMediaWidthPercent: 38,
       },
       display: {
         fullscreen: false,
@@ -2856,6 +2984,27 @@
     return Math.max(36, Math.min(180, size));
   }
 
+  function normalizedSideMediaWidth(value) {
+    const width = Number(value || 0);
+    if (!width) return 38;
+    return Math.max(20, Math.min(70, width));
+  }
+
+  function detectSideMediaType(dataUrl) {
+    const value = String(dataUrl || '').trim().toLowerCase();
+    if (!value) return 'none';
+    if (value.startsWith('data:video/')) return 'video';
+    if (value.startsWith('data:image/')) return 'image';
+    return 'image';
+  }
+
+  function effectiveOrientation(preferences) {
+    const prefs = preferences || currentPreferences();
+    const selected = String(prefs.display?.orientation || 'auto').toLowerCase();
+    if (selected === 'horizontal' || selected === 'vertical') return selected;
+    return window.innerWidth >= window.innerHeight ? 'horizontal' : 'vertical';
+  }
+
   function applyLogoPreviewSize(sizeLike) {
     const size = normalizedLogoSize(sizeLike);
     const previewEl = qs('pref-brand-logo-preview');
@@ -2880,6 +3029,44 @@
       logoEl.removeAttribute('src');
       logoEl.classList.remove('visible');
     }
+
+    const boardWrap = qs('board-wrap');
+    const panelEl = qs('side-media-panel');
+    const imageEl = qs('side-media-image');
+    const videoEl = qs('side-media-video');
+    const sideMedia = String(brand.sideMediaDataUrl || '').trim();
+    const sideMediaEnabled = !!brand.sideMediaEnabled && !!sideMedia && effectiveOrientation(preferences) === 'horizontal';
+    boardWrap.style.setProperty('--side-media-width', `${normalizedSideMediaWidth(brand.sideMediaWidthPercent || 38)}%`);
+    boardWrap.classList.toggle('media-hidden', !sideMediaEnabled);
+    panelEl.hidden = !sideMediaEnabled;
+
+    if (!sideMediaEnabled) {
+      imageEl.removeAttribute('src');
+      imageEl.classList.remove('visible');
+      videoEl.pause();
+      videoEl.removeAttribute('src');
+      videoEl.classList.remove('visible');
+      return;
+    }
+
+    const mediaType = detectSideMediaType(sideMedia);
+    if (mediaType === 'video') {
+      imageEl.removeAttribute('src');
+      imageEl.classList.remove('visible');
+      if (videoEl.src !== sideMedia) {
+        videoEl.src = sideMedia;
+        videoEl.load();
+      }
+      videoEl.classList.add('visible');
+      videoEl.play().catch(() => {});
+      return;
+    }
+
+    videoEl.pause();
+    videoEl.removeAttribute('src');
+    videoEl.classList.remove('visible');
+    imageEl.src = sideMedia;
+    imageEl.classList.add('visible');
   }
 
   function setLogoPreview(logoDataUrl, labelText = '') {
@@ -2899,6 +3086,46 @@
     previewEl.classList.remove('visible');
     nameEl.textContent = 'No logo uploaded';
     noteEl.textContent = 'Upload a logo to preview how it will appear in the board header.';
+  }
+
+  function setSideMediaPreview(sideMediaDataUrl, labelText = '') {
+    const imageEl = qs('pref-brand-side-media-preview-image');
+    const videoEl = qs('pref-brand-side-media-preview-video');
+    const nameEl = qs('pref-brand-side-media-name');
+    const noteEl = qs('pref-brand-side-media-note');
+    const media = String(sideMediaDataUrl || '').trim();
+    const mediaType = detectSideMediaType(media);
+
+    if (!media) {
+      imageEl.removeAttribute('src');
+      imageEl.classList.remove('visible');
+      videoEl.pause();
+      videoEl.removeAttribute('src');
+      videoEl.classList.remove('visible');
+      nameEl.textContent = 'No side media uploaded';
+      noteEl.textContent = 'Upload an image, GIF, or muted looping video to show beside the board on horizontal layouts.';
+      return;
+    }
+
+    if (mediaType === 'video') {
+      imageEl.removeAttribute('src');
+      imageEl.classList.remove('visible');
+      videoEl.src = media;
+      videoEl.classList.add('visible');
+      videoEl.load();
+      videoEl.play().catch(() => {});
+      nameEl.textContent = labelText || 'Stored video';
+      noteEl.textContent = 'Preview of the video saved for the horizontal side media panel.';
+      return;
+    }
+
+    videoEl.pause();
+    videoEl.removeAttribute('src');
+    videoEl.classList.remove('visible');
+    imageEl.src = media;
+    imageEl.classList.add('visible');
+    nameEl.textContent = labelText || 'Stored image';
+    noteEl.textContent = 'Preview of the media saved for the horizontal side media panel.';
   }
 
   function cardTone(status) {
@@ -3158,6 +3385,12 @@
     qs('pref-brand-title').value = prefs.brand?.title || 'Current Repair Queue';
     qs('pref-brand-logo-size').value = prefs.brand?.logoSize ?? 72;
     setLogoPreview(prefs.brand?.logoDataUrl || '', prefs.brand?.logoDataUrl ? 'Stored logo' : '');
+    qs('pref-brand-side-media-enabled').checked = !!prefs.brand?.sideMediaEnabled;
+    qs('pref-brand-side-media-width').value = prefs.brand?.sideMediaWidthPercent ?? 38;
+    setSideMediaPreview(
+      prefs.brand?.sideMediaDataUrl || '',
+      prefs.brand?.sideMediaDataUrl ? `Stored ${detectSideMediaType(prefs.brand?.sideMediaDataUrl || '')}` : ''
+    );
     qs('pref-fullscreen').checked = !!prefs.display?.fullscreen;
     qs('pref-orientation').value = prefs.display?.orientation || 'auto';
     setDisplayTargetOptions(prefs.display?.displayTarget || 'current');
@@ -3220,6 +3453,9 @@
         title: qs('pref-brand-title').value || 'Current Repair Queue',
         logoDataUrl: state.logoDataUrl || currentPreferences().brand?.logoDataUrl || '',
         logoSize: normalizedLogoSize(qs('pref-brand-logo-size').value || currentPreferences().brand?.logoSize || 72),
+        sideMediaEnabled: qs('pref-brand-side-media-enabled').checked,
+        sideMediaDataUrl: state.sideMediaDataUrl || currentPreferences().brand?.sideMediaDataUrl || '',
+        sideMediaWidthPercent: normalizedSideMediaWidth(qs('pref-brand-side-media-width').value || currentPreferences().brand?.sideMediaWidthPercent || 38),
       },
       display: {
         fullscreen: qs('pref-fullscreen').checked,
@@ -3406,6 +3642,17 @@
     });
   }
 
+  function readSelectedSideMedia() {
+    const file = qs('pref-brand-side-media').files && qs('pref-brand-side-media').files[0];
+    if (!file) return Promise.resolve(state.sideMediaDataUrl || currentPreferences().brand?.sideMediaDataUrl || '');
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(new Error('Could not read side media file'));
+      reader.readAsDataURL(file);
+    });
+  }
+
   function totalPages() {
     if (!state.data || !state.data.tickets.length) return 1;
     return Math.max(1, Math.ceil(state.data.tickets.length / cardsPerPage()));
@@ -3508,6 +3755,7 @@
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
     state.logoDataUrl = currentPreferences().brand?.logoDataUrl || '';
+    state.sideMediaDataUrl = currentPreferences().brand?.sideMediaDataUrl || '';
     fillSettingsForm(currentPreferences());
     updateAlertRuleVisibility();
     loadApiConfig().catch(() => {
@@ -3787,6 +4035,7 @@
       qs('settings-status').textContent = 'Saving...';
       const previousDisplay = currentPreferences().display || { fullscreen: false, orientation: 'auto', displayTarget: 'current' };
       state.logoDataUrl = await readSelectedLogo();
+      state.sideMediaDataUrl = await readSelectedSideMedia();
       const nextPreferences = collectSettingsForm();
       await saveApiConfig();
       const response = await fetch('/api/preferences', {
@@ -3983,6 +4232,7 @@
 
   window.addEventListener('resize', () => {
     if (!state.data) return;
+    updateBrand(currentPreferences());
     renderBoard(state.data);
     setupPaging();
   });
@@ -4038,6 +4288,25 @@
   });
   qs('pref-brand-logo-size').addEventListener('input', () => {
     applyLogoPreviewSize(qs('pref-brand-logo-size').value || 72);
+  });
+  qs('pref-brand-side-media').addEventListener('change', () => {
+    const file = qs('pref-brand-side-media').files && qs('pref-brand-side-media').files[0];
+    if (!file) {
+      const existing = currentPreferences().brand?.sideMediaDataUrl || '';
+      setSideMediaPreview(existing, existing ? `Stored ${detectSideMediaType(existing)}` : '');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || '');
+      const type = detectSideMediaType(result);
+      setSideMediaPreview(result, `${type === 'video' ? 'Selected video' : 'Selected image'}: ${file.name}`);
+    };
+    reader.onerror = () => {
+      const existing = currentPreferences().brand?.sideMediaDataUrl || '';
+      setSideMediaPreview(existing, existing ? `Stored ${detectSideMediaType(existing)}` : '');
+    };
+    reader.readAsDataURL(file);
   });
 
   enhanceSettingsSections();
