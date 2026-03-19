@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.31
+
+- Scheduled appointment times now prefer the Ticket Counter scheduled row's `due_on` value over the ticket-detail metadata timestamp.
+- This fixes cases where the detail API reported an older due time even though RepairDesk's scheduled ticket row had already updated.
+
 ## v2.1.30
 
 - Scheduled appointments now prefer fresh ticket-detail due times over stale ticket-counter values when metadata is available.

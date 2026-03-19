@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.30';
+const APP_VERSION = 'v2.1.31';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -1010,7 +1010,7 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
     const status = decodeHtml(ticket?.status || 'Unknown');
     const dueAt = parseDueTimestamp(ticket?.due_on);
     const metaDueAt = Number(ticketMetaByOrderId[orderId]?.dueAt || 0) || null;
-    const effectiveScheduledDueAt = /scheduled/i.test(status) ? (metaDueAt || dueAt || null) : null;
+    const effectiveScheduledDueAt = /scheduled/i.test(status) ? (dueAt || metaDueAt || null) : null;
     let entry = groupedByOrder.get(orderId);
 
     if (!entry) {
