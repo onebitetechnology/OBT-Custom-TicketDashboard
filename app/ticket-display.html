@@ -3659,6 +3659,35 @@
     return new Set(Object.values(columns).filter((column) => column.visible !== false).map((column) => column.label));
   }
 
+  function visibleQueueColumnCount(preferences) {
+    const columns = preferences?.columns || currentPreferences().columns;
+    return Math.max(1, Object.values(columns).filter((column) => column.visible !== false).length);
+  }
+
+  function applyQueueColumnLayout(preferences) {
+    const queueColumnsEl = document.querySelector('.queue-columns');
+    if (!queueColumnsEl) return;
+    const visibleCount = visibleQueueColumnCount(preferences);
+    const orientation = effectiveOrientation(preferences);
+
+    if (window.innerWidth <= 900) {
+      queueColumnsEl.style.gridTemplateColumns = '1fr';
+      return;
+    }
+
+    if (visibleCount >= 5) {
+      queueColumnsEl.style.removeProperty('grid-template-columns');
+      return;
+    }
+
+    if (window.innerWidth <= 1200 && orientation !== 'vertical') {
+      queueColumnsEl.style.gridTemplateColumns = `repeat(${Math.min(2, visibleCount)}, minmax(0, 1fr))`;
+      return;
+    }
+
+    queueColumnsEl.style.gridTemplateColumns = `repeat(${visibleCount}, minmax(0, 1fr))`;
+  }
+
   function applyDisplayPreferences(preferences) {
     const prefs = preferences || currentPreferences();
     const orientation = prefs.display?.orientation || 'auto';
@@ -3669,6 +3698,7 @@
     qs('attention-column').hidden = prefs.columns.needsAttention.visible === false;
     qs('waiting-column').hidden = prefs.columns.waiting.visible === false;
     qs('qc-column').hidden = prefs.columns.qualityControl.visible === false;
+    applyQueueColumnLayout(prefs);
   }
 
   function applyPreferenceLabels(preferences) {
@@ -4399,6 +4429,7 @@
 
   window.addEventListener('resize', () => {
     if (!state.data) return;
+    applyDisplayPreferences(currentPreferences());
     updateBrand(currentPreferences());
     renderBoard(state.data);
     setupPaging();
