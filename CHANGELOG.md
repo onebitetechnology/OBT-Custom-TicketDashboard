@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.32
+
+- Scheduled appointment rows now own the merged appointment time and displayed service label for tickets with multiple line items.
+- Non-scheduled ticket rows no longer overwrite the scheduled appointment's time or label after the merge.
+
 ## v2.1.31
 
 - Scheduled appointment times now prefer the Ticket Counter scheduled row's `due_on` value over the ticket-detail metadata timestamp.
