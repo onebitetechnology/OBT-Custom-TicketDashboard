@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.27';
+const APP_VERSION = 'v2.1.28';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -1008,6 +1008,8 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
         assigneeName: decodeHtml(ticket?.assignee_name || '') || 'Unassigned',
         dueOn: ticket?.due_on || null,
         dueAt: dueAt || Number(ticketMetaByOrderId[orderId]?.dueAt || 0) || null,
+        scheduledDueOn: /scheduled/i.test(status) ? (ticket?.due_on || null) : null,
+        scheduledDueAt: /scheduled/i.test(status) ? (dueAt || Number(ticketMetaByOrderId[orderId]?.dueAt || 0) || null) : null,
         createdAt: Number(ticketMetaByOrderId[orderId]?.createdAt || 0) || null,
         updatedAt: Number(ticketMetaByOrderId[orderId]?.updatedAt || 0) || null,
         repairCategory: String(ticketMetaByOrderId[orderId]?.repairCategory || '').trim(),
@@ -1037,7 +1039,13 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
       entry.issues.push(issue);
     }
     entry.issueCount = entry.issues.length;
-    if ((!entry.dueAt && dueAt) || (dueAt && entry.dueAt && dueAt < entry.dueAt)) {
+    if (/scheduled/i.test(status) && dueAt && (!entry.scheduledDueAt || dueAt > entry.scheduledDueAt)) {
+      entry.status = status;
+      entry.scheduledDueAt = dueAt;
+      entry.scheduledDueOn = ticket?.due_on || entry.scheduledDueOn;
+      entry.dueAt = dueAt;
+      entry.dueOn = ticket?.due_on || entry.dueOn;
+    } else if ((!entry.dueAt && dueAt) || (dueAt && entry.dueAt && dueAt < entry.dueAt)) {
       entry.dueAt = dueAt;
       entry.dueOn = ticket?.due_on || entry.dueOn;
     }
