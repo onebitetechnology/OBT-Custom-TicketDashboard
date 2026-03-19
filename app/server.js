@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.42';
+const APP_VERSION = 'v2.1.44';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -53,9 +53,10 @@ const DEFAULT_UI_PREFERENCES = {
     onsiteLeadMinutes: 60,
     imminentMinutes: 20,
     alertAudioEnabled: false,
+    speechVoiceUri: '',
     alertAudioRules: [
-      { matchMode: 'service_contains', serviceMatcher: 'onsite', leadMinutes: 60, cooldownSeconds: 45, mode: 'both', message: 'On-site appointment coming up soon' },
-      { matchMode: 'service_contains', serviceMatcher: 'remote', leadMinutes: 45, cooldownSeconds: 45, mode: 'chime', message: 'Remote appointment coming up soon' },
+      { matchMode: 'service_contains', serviceMatcher: 'onsite', leadMinutes: 60, cooldownSeconds: null, mode: 'both', message: 'On-site appointment coming up soon' },
+      { matchMode: 'service_contains', serviceMatcher: 'remote', leadMinutes: 45, cooldownSeconds: null, mode: 'chime', message: 'Remote appointment coming up soon' },
     ],
   },
   staleRules: {
@@ -268,10 +269,14 @@ function normalizeAlertAudioRule(savedRule, fallbackRule = {}) {
   const legacyMatcher = legacyType === 'on_site' ? 'onsite' : '';
   const matcher = String(savedRule?.serviceMatcher || fallbackRule?.serviceMatcher || legacyMatcher).trim();
   const defaultMessage = matcher ? `${matcher.charAt(0).toUpperCase()}${matcher.slice(1)} appointment coming up soon` : 'Appointment coming up soon';
+  const cooldownRaw = savedRule?.cooldownSeconds ?? fallbackRule?.cooldownSeconds;
+  const normalizedCooldown = cooldownRaw === '' || cooldownRaw == null
+    ? null
+    : Math.max(5, Number(cooldownRaw) || 0) || null;
   return {
     matchMode,
     leadMinutes: Math.max(0, Number(savedRule?.leadMinutes ?? fallbackRule?.leadMinutes ?? 45) || 45),
-    cooldownSeconds: Math.max(5, Number(savedRule?.cooldownSeconds ?? fallbackRule?.cooldownSeconds ?? 45) || 45),
+    cooldownSeconds: normalizedCooldown,
     mode,
     message: String(savedRule?.message || fallbackRule?.message || defaultMessage).trim() || defaultMessage,
     serviceMatcher: matcher,
@@ -285,6 +290,7 @@ function defaultAlertAudioRulesFromLegacy(savedSchedule = {}) {
       serviceMatcher: 'remote',
       leadMinutes: savedSchedule?.defaultLeadMinutes ?? DEFAULT_UI_PREFERENCES.schedule.defaultLeadMinutes,
       mode: savedSchedule?.alertAudioMode ?? 'chime',
+      cooldownSeconds: savedSchedule?.alertAudioCooldownSeconds ?? null,
       message: savedSchedule?.alertAudioMessage || 'Remote appointment coming up soon',
     }),
     normalizeAlertAudioRule({
@@ -292,6 +298,7 @@ function defaultAlertAudioRulesFromLegacy(savedSchedule = {}) {
       serviceMatcher: 'onsite',
       leadMinutes: savedSchedule?.onsiteLeadMinutes ?? DEFAULT_UI_PREFERENCES.schedule.onsiteLeadMinutes,
       mode: savedSchedule?.alertAudioMode ?? 'both',
+      cooldownSeconds: savedSchedule?.alertAudioCooldownSeconds ?? null,
       message: savedSchedule?.alertAudioMessage || 'On-site appointment coming up soon',
     }),
   ];
@@ -354,6 +361,7 @@ function normalizeUiPreferences(savedPrefs = {}) {
       defaultLeadMinutes: Math.max(0, Number(savedPrefs?.schedule?.defaultLeadMinutes ?? DEFAULT_UI_PREFERENCES.schedule.defaultLeadMinutes) || DEFAULT_UI_PREFERENCES.schedule.defaultLeadMinutes),
       onsiteLeadMinutes: Math.max(0, Number(savedPrefs?.schedule?.onsiteLeadMinutes ?? DEFAULT_UI_PREFERENCES.schedule.onsiteLeadMinutes) || DEFAULT_UI_PREFERENCES.schedule.onsiteLeadMinutes),
       imminentMinutes: Math.max(0, Number(savedPrefs?.schedule?.imminentMinutes ?? DEFAULT_UI_PREFERENCES.schedule.imminentMinutes) || DEFAULT_UI_PREFERENCES.schedule.imminentMinutes),
+      speechVoiceUri: String(savedPrefs?.schedule?.speechVoiceUri || '').trim(),
       alertAudioEnabled: savedPrefs?.schedule?.alertAudioEnabled !== undefined
         ? !!savedPrefs.schedule.alertAudioEnabled
         : DEFAULT_UI_PREFERENCES.schedule.alertAudioEnabled,
@@ -362,7 +370,7 @@ function normalizeUiPreferences(savedPrefs = {}) {
         : defaultAlertAudioRulesFromLegacy(savedPrefs?.schedule))
         .map((rule, index) => normalizeAlertAudioRule({
           ...rule,
-          cooldownSeconds: rule?.cooldownSeconds ?? savedPrefs?.schedule?.alertAudioCooldownSeconds ?? 45,
+          cooldownSeconds: rule?.cooldownSeconds ?? savedPrefs?.schedule?.alertAudioCooldownSeconds ?? null,
         }, DEFAULT_UI_PREFERENCES.schedule.alertAudioRules[index] || {}))
         .filter((rule) => rule.leadMinutes >= 0),
     },

@@ -493,11 +493,14 @@
   }
 
   .board-title {
-    font-size: 24px;
+    font-size: 22px;
     font-weight: 900;
     color: var(--text);
     text-transform: uppercase;
     letter-spacing: 0.1em;
+    line-height: 1.15;
+    white-space: normal;
+    overflow-wrap: anywhere;
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
   }
 
@@ -654,13 +657,14 @@
   }
 
   .queue-column-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
+    display: grid;
+    grid-template-columns: 1fr;
+    align-content: start;
+    gap: 8px;
     border: 1px solid var(--line);
     border-radius: 14px;
     padding: 14px 16px;
+    min-height: 94px;
     background: rgba(255,255,255,0.08);
   }
 
@@ -701,6 +705,7 @@
     color: #fff;
     background: rgba(255,255,255,0.16);
     border-color: rgba(255,255,255,0.22);
+    justify-self: start;
   }
 
   .queue-list {
@@ -1258,9 +1263,13 @@
     background: rgba(255,255,255,0.04);
   }
 
+  .audio-rule-card.collapsed .audio-rule-body {
+    display: none;
+  }
+
   .audio-rule-head {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     align-items: center;
     gap: 10px;
   }
@@ -1279,6 +1288,10 @@
     justify-self: end;
   }
 
+  .audio-rule-toggle {
+    justify-self: end;
+  }
+
   .audio-rule-remove {
     display: inline-flex;
     align-items: center;
@@ -1292,6 +1305,11 @@
   .audio-rule-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .audio-rule-body {
+    display: grid;
     gap: 10px;
   }
 
@@ -1706,14 +1724,15 @@
 
     .queue-column-head {
       gap: 6px;
-      align-items: center;
       padding: 8px 10px;
       border-radius: 10px;
+      min-height: 64px;
     }
 
     .board-title {
       font-size: 15px;
       letter-spacing: 0.08em;
+      line-height: 1.15;
     }
 
     .queue-column-head .pill {
@@ -1961,15 +1980,16 @@
   body.force-vertical .queue-column-head,
   body.force-horizontal .queue-column-head {
     gap: 6px;
-    align-items: center;
     padding: 8px 10px;
     border-radius: 10px;
+    min-height: 64px;
   }
 
   body.force-vertical .board-title,
   body.force-horizontal .board-title {
     font-size: 13px;
     letter-spacing: 0.08em;
+    line-height: 1.15;
   }
 
   body.force-vertical .queue-column-head .pill,
@@ -2495,6 +2515,13 @@
           </span>
         </span>
       </label>
+      <label class="settings-field">
+        <span class="settings-label">Speech voice</span>
+        <select class="settings-input settings-select" id="pref-speech-voice">
+          <option value="">System default</option>
+        </select>
+        <span class="settings-help">Uses voices installed on this computer. If the selected voice is unavailable later, the app falls back to the system default voice.</span>
+      </label>
       <div class="settings-field full">
         <span class="settings-label">Alert rules</span>
         <div class="audio-rule-list" id="pref-alert-rules"></div>
@@ -2672,6 +2699,7 @@
     updateStatusTimer: null,
     updatePromptTimer: null,
     latestUpdateStatus: null,
+    speechVoices: [],
     appointmentAlertHistory: {},
     alertAudioContext: null,
   };
@@ -2709,9 +2737,10 @@
         onsiteLeadMinutes: 60,
         imminentMinutes: 20,
         alertAudioEnabled: false,
+        speechVoiceUri: '',
         alertAudioRules: [
-          { matchMode: 'service_contains', serviceMatcher: 'onsite', leadMinutes: 60, cooldownSeconds: 45, mode: 'both', message: 'On-site appointment coming up soon' },
-          { matchMode: 'service_contains', serviceMatcher: 'remote', leadMinutes: 45, cooldownSeconds: 45, mode: 'chime', message: 'Remote appointment coming up soon' },
+          { matchMode: 'service_contains', serviceMatcher: 'onsite', leadMinutes: 60, cooldownSeconds: null, mode: 'both', message: 'On-site appointment coming up soon' },
+          { matchMode: 'service_contains', serviceMatcher: 'remote', leadMinutes: 45, cooldownSeconds: null, mode: 'chime', message: 'Remote appointment coming up soon' },
         ],
       },
       staleRules: {
@@ -2795,6 +2824,33 @@
     return Array.from(document.querySelectorAll('input[data-group="assignee-filter"]:checked')).map((input) => input.dataset.assignee);
   }
 
+  function refreshSpeechVoices() {
+    if (!window.speechSynthesis) {
+      state.speechVoices = [];
+      return [];
+    }
+    const voices = window.speechSynthesis.getVoices() || [];
+    state.speechVoices = voices
+      .slice()
+      .sort((a, b) => `${a.lang} ${a.name}`.localeCompare(`${b.lang} ${b.name}`));
+    return state.speechVoices;
+  }
+
+  function populateSpeechVoiceOptions(selectedValue = '') {
+    const select = qs('pref-speech-voice');
+    const voices = refreshSpeechVoices();
+    const availableValues = [''];
+    const options = ['<option value="">System default</option>'];
+    voices.forEach((voice) => {
+      const voiceValue = String(voice.voiceURI || voice.name || '').trim();
+      availableValues.push(voiceValue);
+      const label = `${voice.name}${voice.lang ? ` (${voice.lang})` : ''}${voice.default ? ' · Default' : ''}`;
+      options.push(`<option value="${escapeHtml(voiceValue)}">${escapeHtml(label)}</option>`);
+    });
+    select.innerHTML = options.join('');
+    select.value = availableValues.includes(selectedValue) ? selectedValue : '';
+  }
+
   function normalizeAlertAudioRule(rule = {}, fallback = {}) {
     const legacyType = String(rule.appointmentType || fallback.appointmentType || '').toLowerCase();
     const matchMode = ['any_service', 'service_contains'].includes(String(rule.matchMode || '').toLowerCase())
@@ -2810,10 +2866,14 @@
     const legacyMatcher = legacyType === 'on_site' ? 'onsite' : '';
     const matcher = String(rule.serviceMatcher || fallback.serviceMatcher || legacyMatcher).trim();
     const defaultMessage = matcher ? `${matcher.charAt(0).toUpperCase()}${matcher.slice(1)} appointment coming up soon` : 'Appointment coming up soon';
+    const cooldownRaw = rule.cooldownSeconds ?? fallback.cooldownSeconds;
+    const normalizedCooldown = cooldownRaw === '' || cooldownRaw == null
+      ? null
+      : Math.max(5, Number(cooldownRaw) || 0) || null;
     return {
       matchMode,
       leadMinutes: Math.max(0, Number(rule.leadMinutes ?? fallback.leadMinutes ?? 45) || 45),
-      cooldownSeconds: Math.max(5, Number(rule.cooldownSeconds ?? fallback.cooldownSeconds ?? 45) || 45),
+      cooldownSeconds: normalizedCooldown,
       mode,
       message: String(rule.message || fallback.message || defaultMessage).trim() || defaultMessage,
       serviceMatcher: matcher,
@@ -2826,7 +2886,7 @@
         matchMode: 'service_contains',
         serviceMatcher: 'remote',
         leadMinutes: schedulePrefs.defaultLeadMinutes ?? 45,
-        cooldownSeconds: schedulePrefs.alertAudioCooldownSeconds ?? 45,
+        cooldownSeconds: schedulePrefs.alertAudioCooldownSeconds ?? null,
         mode: schedulePrefs.alertAudioMode || 'chime',
         message: schedulePrefs.alertAudioMessage || 'Remote appointment coming up soon',
       }),
@@ -2834,7 +2894,7 @@
         matchMode: 'service_contains',
         serviceMatcher: 'onsite',
         leadMinutes: schedulePrefs.onsiteLeadMinutes ?? 60,
-        cooldownSeconds: schedulePrefs.alertAudioCooldownSeconds ?? 45,
+        cooldownSeconds: schedulePrefs.alertAudioCooldownSeconds ?? null,
         mode: schedulePrefs.alertAudioMode || 'both',
         message: schedulePrefs.alertAudioMessage || 'On-site appointment coming up soon',
       }),
@@ -2861,46 +2921,50 @@
     return safeRules.map((rule, index) => {
       const normalized = normalizeAlertAudioRule(rule);
       return `
-        <div class="audio-rule-card" data-alert-rule-index="${index}">
+        <div class="audio-rule-card collapsed" data-alert-rule-index="${index}">
           <div class="audio-rule-head">
             <div class="audio-rule-title">${escapeHtml(alertRuleTitle(normalized, index))}</div>
+            <button class="pill audio-rule-toggle" type="button" data-toggle-alert-rule="${index}">Edit</button>
             <div class="audio-rule-remove-wrap">
               <button class="pill audio-rule-remove" type="button" data-remove-alert-rule="${index}">Remove</button>
             </div>
           </div>
-          <div class="audio-rule-grid">
-            <label class="settings-field">
-              <span class="settings-label">Rule applies when</span>
-              <select class="settings-input settings-select" data-alert-field="matchMode" data-alert-index="${index}">
-                <option value="any_service" ${normalized.matchMode === 'any_service' ? 'selected' : ''}>Any service type</option>
-                <option value="service_contains" ${normalized.matchMode === 'service_contains' ? 'selected' : ''}>Service type contains</option>
-              </select>
-            </label>
-            <label class="settings-field">
-              <span class="settings-label">Lead time (minutes)</span>
-              <input class="settings-input" data-alert-field="leadMinutes" data-alert-index="${index}" type="number" min="0" step="1" value="${escapeHtml(normalized.leadMinutes)}" />
-            </label>
-            <label class="settings-field">
-              <span class="settings-label">Repeat cooldown (seconds)</span>
-              <input class="settings-input" data-alert-field="cooldownSeconds" data-alert-index="${index}" type="number" min="5" step="1" value="${escapeHtml(normalized.cooldownSeconds)}" />
-            </label>
-            <label class="settings-field">
-              <span class="settings-label">Audio type</span>
-              <select class="settings-input settings-select" data-alert-field="mode" data-alert-index="${index}">
-                <option value="chime" ${normalized.mode === 'chime' ? 'selected' : ''}>Chime</option>
-                <option value="speech" ${normalized.mode === 'speech' ? 'selected' : ''}>Spoken message</option>
-                <option value="both" ${normalized.mode === 'both' ? 'selected' : ''}>Chime and spoken message</option>
-              </select>
-            </label>
-            <label class="settings-field" ${normalized.matchMode === 'service_contains' ? '' : 'hidden'}>
-              <span class="settings-label">Service type contains</span>
-              <input class="settings-input" data-alert-field="serviceMatcher" data-alert-index="${index}" value="${escapeHtml(normalized.serviceMatcher)}" />
+          <div class="audio-rule-body">
+            <div class="audio-rule-grid">
+              <label class="settings-field">
+                <span class="settings-label">Rule applies when</span>
+                <select class="settings-input settings-select" data-alert-field="matchMode" data-alert-index="${index}">
+                  <option value="any_service" ${normalized.matchMode === 'any_service' ? 'selected' : ''}>Any service type</option>
+                  <option value="service_contains" ${normalized.matchMode === 'service_contains' ? 'selected' : ''}>Service type contains</option>
+                </select>
+              </label>
+              <label class="settings-field">
+                <span class="settings-label">Lead time (minutes)</span>
+                <input class="settings-input" data-alert-field="leadMinutes" data-alert-index="${index}" type="number" min="0" step="1" value="${escapeHtml(normalized.leadMinutes)}" />
+              </label>
+              <label class="settings-field">
+                <span class="settings-label">Repeat cooldown (seconds)</span>
+                <input class="settings-input" data-alert-field="cooldownSeconds" data-alert-index="${index}" type="number" min="0" step="1" value="${normalized.cooldownSeconds == null ? '' : escapeHtml(normalized.cooldownSeconds)}" placeholder="Off" />
+                <span class="settings-help">Leave blank to play this alert only once for the appointment.</span>
+              </label>
+              <label class="settings-field">
+                <span class="settings-label">Audio type</span>
+                <select class="settings-input settings-select" data-alert-field="mode" data-alert-index="${index}">
+                  <option value="chime" ${normalized.mode === 'chime' ? 'selected' : ''}>Chime</option>
+                  <option value="speech" ${normalized.mode === 'speech' ? 'selected' : ''}>Spoken message</option>
+                  <option value="both" ${normalized.mode === 'both' ? 'selected' : ''}>Chime and spoken message</option>
+                </select>
+              </label>
+              <label class="settings-field" ${normalized.matchMode === 'service_contains' ? '' : 'hidden'}>
+                <span class="settings-label">Service type contains</span>
+                <input class="settings-input" data-alert-field="serviceMatcher" data-alert-index="${index}" value="${escapeHtml(normalized.serviceMatcher)}" />
+              </label>
+            </div>
+            <label class="settings-field full">
+              <span class="settings-label">Message</span>
+              <input class="settings-input" data-alert-field="message" data-alert-index="${index}" value="${escapeHtml(normalized.message)}" />
             </label>
           </div>
-          <label class="settings-field full">
-            <span class="settings-label">Message</span>
-            <input class="settings-input" data-alert-field="message" data-alert-index="${index}" value="${escapeHtml(normalized.message)}" />
-          </label>
         </div>
       `;
     }).join('');
@@ -2917,7 +2981,7 @@
     return indices.map((index) => normalizeAlertAudioRule({
       matchMode: document.querySelector(`[data-alert-field="matchMode"][data-alert-index="${index}"]`)?.value || 'any_service',
       leadMinutes: document.querySelector(`[data-alert-field="leadMinutes"][data-alert-index="${index}"]`)?.value || 0,
-      cooldownSeconds: document.querySelector(`[data-alert-field="cooldownSeconds"][data-alert-index="${index}"]`)?.value || 45,
+      cooldownSeconds: document.querySelector(`[data-alert-field="cooldownSeconds"][data-alert-index="${index}"]`)?.value ?? '',
       mode: document.querySelector(`[data-alert-field="mode"][data-alert-index="${index}"]`)?.value || 'chime',
       message: document.querySelector(`[data-alert-field="message"][data-alert-index="${index}"]`)?.value || '',
       serviceMatcher: document.querySelector(`[data-alert-field="serviceMatcher"][data-alert-index="${index}"]`)?.value || '',
@@ -3432,6 +3496,15 @@
     if (!text || !window.speechSynthesis || typeof SpeechSynthesisUtterance === 'undefined') return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
+    const voiceUri = String(currentPreferences().schedule?.speechVoiceUri || '').trim();
+    if (voiceUri) {
+      const voices = refreshSpeechVoices();
+      const selectedVoice = voices.find((voice) => String(voice.voiceURI || voice.name || '').trim() === voiceUri);
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+        if (selectedVoice.lang) utterance.lang = selectedVoice.lang;
+      }
+    }
     utterance.rate = 1;
     utterance.pitch = 1;
     utterance.volume = 1;
@@ -3495,23 +3568,33 @@
     const candidates = appointmentAlertCandidates(data);
     if (!candidates.length) return;
 
-    const maxCooldownSeconds = Math.max(5, ...candidates.map((candidate) => Number(candidate.alertRule?.cooldownSeconds || 45) || 45));
-    const cooldownMsForCleanup = maxCooldownSeconds * 1000;
     const now = Date.now();
+    const historyRetentionMs = 7 * 24 * 60 * 60 * 1000;
+    const appointmentRetentionMs = 3 * 24 * 60 * 60 * 1000;
     Object.keys(state.appointmentAlertHistory).forEach((key) => {
-      if ((now - state.appointmentAlertHistory[key]) > (cooldownMsForCleanup * 4)) {
+      const entry = state.appointmentAlertHistory[key];
+      const playedAt = typeof entry === 'object' ? Number(entry.playedAt || 0) : Number(entry || 0);
+      const dueAtMs = typeof entry === 'object' ? Number(entry.dueAtMs || 0) : 0;
+      if ((playedAt && (now - playedAt) > historyRetentionMs) || (dueAtMs && now > (dueAtMs + appointmentRetentionMs))) {
         delete state.appointmentAlertHistory[key];
       }
     });
 
     const nextAlert = candidates[0];
     const rule = normalizeAlertAudioRule(nextAlert.alertRule || {});
-    const cooldownMs = rule.cooldownSeconds * 1000;
     const alertKey = `${nextAlert.orderId}|${nextAlert.dueAt || nextAlert.dueOn}|${rule.matchMode}|${rule.serviceMatcher}|${rule.leadMinutes}|${rule.mode}`;
-    const lastPlayedAt = Number(state.appointmentAlertHistory[alertKey] || 0);
-    if (lastPlayedAt && (now - lastPlayedAt) < cooldownMs) return;
+    const lastEntry = state.appointmentAlertHistory[alertKey];
+    const lastPlayedAt = typeof lastEntry === 'object' ? Number(lastEntry.playedAt || 0) : Number(lastEntry || 0);
+    if (lastPlayedAt) {
+      if (rule.cooldownSeconds == null) return;
+      const cooldownMs = rule.cooldownSeconds * 1000;
+      if ((now - lastPlayedAt) < cooldownMs) return;
+    }
 
-    state.appointmentAlertHistory[alertKey] = now;
+    state.appointmentAlertHistory[alertKey] = {
+      playedAt: now,
+      dueAtMs: nextAlert.sortTime || 0,
+    };
     const mode = rule.mode;
     const message = rule.message;
 
@@ -3551,6 +3634,7 @@
     qs('pref-onsite-lead').value = prefs.schedule.onsiteLeadMinutes ?? 60;
     qs('pref-imminent-minutes').value = prefs.schedule.imminentMinutes ?? 20;
     qs('pref-alert-audio-enabled').checked = !!prefs.schedule.alertAudioEnabled;
+    populateSpeechVoiceOptions(prefs.schedule?.speechVoiceUri || '');
     renderAlertAudioRules(alertAudioRulesFromPreferences(prefs.schedule || {}));
     qs('pref-inprogress-days').value = prefs.staleRules.inProgress?.days ?? 0;
     qs('pref-inprogress-hours').value = prefs.staleRules.inProgress?.hours ?? 12;
@@ -3620,6 +3704,7 @@
         onsiteLeadMinutes: Number(qs('pref-onsite-lead').value || 0),
         imminentMinutes: Number(qs('pref-imminent-minutes').value || 0),
         alertAudioEnabled: qs('pref-alert-audio-enabled').checked,
+        speechVoiceUri: qs('pref-speech-voice').value || '',
         alertAudioRules: collectAlertAudioRules(),
       },
       staleRules: {
@@ -4437,6 +4522,11 @@
 
   window.addEventListener('pointerdown', unlockAlertAudio, { passive: true });
   window.addEventListener('keydown', unlockAlertAudio);
+  if (window.speechSynthesis && 'onvoiceschanged' in window.speechSynthesis) {
+    window.speechSynthesis.addEventListener('voiceschanged', () => {
+      populateSpeechVoiceOptions(qs('pref-speech-voice')?.value || currentPreferences().schedule?.speechVoiceUri || '');
+    });
+  }
 
   qs('settings-open').addEventListener('click', openSettings);
   qs('settings-close').addEventListener('click', closeSettings);
@@ -4453,12 +4543,19 @@
   qs('welcome-save').addEventListener('click', saveWelcomeSetup);
   qs('pref-add-alert-rule').addEventListener('click', () => {
     const rules = collectAlertAudioRules();
-    rules.push(normalizeAlertAudioRule({ matchMode: 'service_contains', serviceMatcher: 'remote', leadMinutes: 30, cooldownSeconds: 45, mode: 'speech', message: 'Remote appointment coming up soon' }));
+    rules.push(normalizeAlertAudioRule({ matchMode: 'service_contains', serviceMatcher: 'remote', leadMinutes: 30, cooldownSeconds: null, mode: 'speech', message: 'Remote appointment coming up soon' }));
     renderAlertAudioRules(rules);
     updateAlertRuleVisibility();
   });
   qs('pref-alert-rules').addEventListener('click', (event) => {
     if (!(event.target instanceof HTMLButtonElement)) return;
+    if (event.target.matches('button[data-toggle-alert-rule]')) {
+      const card = event.target.closest('.audio-rule-card');
+      if (!card) return;
+      card.classList.toggle('collapsed');
+      event.target.textContent = card.classList.contains('collapsed') ? 'Edit' : 'Hide';
+      return;
+    }
     if (!event.target.matches('button[data-remove-alert-rule]')) return;
     const removeButton = event.target;
     const removeIndex = Number(removeButton.dataset.removeAlertRule);
