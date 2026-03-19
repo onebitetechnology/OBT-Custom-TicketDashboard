@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.40
+
+- Added optional horizontal side media in the Brand settings, including image/video/GIF upload, width percentage control, and live preview.
+- Side media now displays beside the ticket board on horizontal layouts, similar to the original RepairDesk ticket board style.
+
 ## v2.1.39
 
 - Removed the obsolete Appointment Service Matchers setting from the calendar section.
