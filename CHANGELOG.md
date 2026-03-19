@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.28
+
+- Appointment calendar grouping now prefers the due time from scheduled rows when a ticket has multiple merged lines.
+- This helps time changes on scheduled appointments update correctly instead of sticking to an older merged due time.
+
 ## v2.1.27
 
 - Tightened appointment calendar rules so tickets now appear only when their status contains `Scheduled` and they have a due date.
