@@ -2,6 +2,12 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.41
+
+- Changed automatic update checks from weekly to hourly so overnight releases can be picked up by morning on running shop displays.
+- Added an in-app update popup with release notes, background download status, and `Update Now` / `Skip` actions.
+- Skipped updates are now remembered per version so the same release does not keep reappearing once dismissed.
+
 ## v2.1.40
 
 - Added optional horizontal side media in the Brand settings, including image/video/GIF upload, width percentage control, and live preview.

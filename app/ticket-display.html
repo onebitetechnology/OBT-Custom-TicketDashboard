@@ -912,6 +912,65 @@
     display: flex;
   }
 
+  .update-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 39;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(2, 8, 18, 0.78);
+    backdrop-filter: blur(12px);
+  }
+
+  .update-overlay.open {
+    display: flex;
+  }
+
+  .update-card {
+    width: min(760px, 100%);
+    display: grid;
+    gap: 16px;
+    padding: 22px;
+    border-radius: 22px;
+    background: rgba(11, 22, 38, 0.97);
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: var(--shadow);
+  }
+
+  .update-title {
+    margin: 0;
+    font-size: 28px;
+    line-height: 1.05;
+  }
+
+  .update-subtitle {
+    margin: 0;
+    color: var(--soft);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .update-popup-notes {
+    max-height: 38vh;
+    overflow: auto;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04);
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+
+  .update-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
   .welcome-card {
     width: min(680px, 100%);
     display: grid;
@@ -2569,6 +2628,29 @@
   </div>
 </div>
 
+<div class="update-overlay" id="update-overlay">
+  <div class="update-card">
+    <div>
+      <h2 class="update-title" id="update-popup-title">Update Available</h2>
+      <p class="update-subtitle" id="update-popup-subtitle">A newer version of the ticket display is ready.</p>
+    </div>
+    <div class="update-panel">
+      <div class="update-row">
+        <div class="update-copy" id="update-popup-status-copy">Checking for updates...</div>
+      </div>
+      <div class="update-progress" id="update-popup-progress" hidden>
+        <div class="update-progress-bar" id="update-popup-progress-bar"></div>
+      </div>
+      <div class="settings-help" id="update-popup-progress-detail">Downloading update...</div>
+    </div>
+    <div class="update-popup-notes" id="update-popup-notes">Release notes will appear here.</div>
+    <div class="update-actions">
+      <button class="pill" id="update-popup-skip" type="button">Skip</button>
+      <button class="pill" id="update-popup-install" type="button" disabled>Downloading...</button>
+    </div>
+  </div>
+</div>
+
 <script>
   const APP_VERSION = '__APP_VERSION__';
   const state = {
@@ -2588,6 +2670,8 @@
     sideMediaDataUrl: '',
     displays: [],
     updateStatusTimer: null,
+    updatePromptTimer: null,
+    latestUpdateStatus: null,
     appointmentAlertHistory: {},
     alertAudioContext: null,
   };
@@ -2870,6 +2954,7 @@
   }
 
   function renderUpdateStatus(status = {}) {
+    state.latestUpdateStatus = status || {};
     qs('update-status-copy').textContent = status.message || 'Update checks are idle.';
     const installBtn = qs('settings-install-update');
     installBtn.hidden = !status.downloaded || status.supported === false;
@@ -2902,11 +2987,69 @@
     }
   }
 
+  function shouldShowUpdatePopup(status = {}) {
+    if (!window.desktopApp?.getUpdateStatus) return false;
+    if (status.supported === false) return false;
+    if (!status.available) return false;
+    if (!status.version) return false;
+    if (status.skipped) return false;
+    return true;
+  }
+
+  function renderUpdatePopup(status = {}) {
+    const overlay = qs('update-overlay');
+    if (!shouldShowUpdatePopup(status)) {
+      overlay.classList.remove('open');
+      return;
+    }
+
+    const version = String(status.version || '').trim();
+    qs('update-popup-title').textContent = status.downloaded
+      ? `Update Ready: ${version}`
+      : `Update Available: ${version}`;
+    qs('update-popup-subtitle').textContent = status.downloaded
+      ? 'The update has already been downloaded in the background. You can install it now or skip this version.'
+      : 'A newer version was found during the automatic overnight/background checks. It is downloading now.';
+    qs('update-popup-status-copy').textContent = status.message || 'Update available.';
+
+    const progressWrap = qs('update-popup-progress');
+    const progressBar = qs('update-popup-progress-bar');
+    const progressDetail = qs('update-popup-progress-detail');
+    const percent = Math.max(0, Math.min(100, Number(status.progressPercent || 0)));
+    progressWrap.hidden = !!status.downloaded;
+    progressBar.style.width = `${percent}%`;
+
+    if (status.downloaded) {
+      progressDetail.textContent = 'The update is downloaded and ready to install.';
+    } else if (percent > 0) {
+      progressDetail.textContent = `${formatBytes(status.transferredBytes)} of ${formatBytes(status.totalBytes)} downloaded.`;
+    } else {
+      progressDetail.textContent = 'Downloading update in the background...';
+    }
+
+    qs('update-popup-notes').textContent = String(status.releaseNotes || 'No changelog text was included with this release.').trim();
+    const installBtn = qs('update-popup-install');
+    installBtn.disabled = !status.downloaded;
+    installBtn.textContent = status.downloaded ? 'Update Now' : 'Downloading...';
+
+    overlay.classList.add('open');
+  }
+
+  async function refreshUpdateStatusAndPopup() {
+    if (!window.desktopApp?.getUpdateStatus) return;
+    try {
+      const status = await window.desktopApp.getUpdateStatus();
+      renderUpdateStatus(status || {});
+      renderUpdatePopup(status || {});
+    } catch (_) {}
+  }
+
   async function refreshUpdateStatus() {
     if (!window.desktopApp?.getUpdateStatus) return;
     try {
       const status = await window.desktopApp.getUpdateStatus();
       renderUpdateStatus(status || {});
+      renderUpdatePopup(status || {});
     } catch (_) {}
   }
 
@@ -4150,6 +4293,23 @@
     }
   }
 
+  async function skipCurrentUpdate() {
+    const status = state.latestUpdateStatus || {};
+    const version = String(status.version || '').trim();
+    if (!version || !window.desktopApp?.skipUpdateVersion) {
+      qs('update-overlay').classList.remove('open');
+      return;
+    }
+    try {
+      const nextStatus = await window.desktopApp.skipUpdateVersion(version);
+      renderUpdateStatus(nextStatus || {});
+      renderUpdatePopup(nextStatus || {});
+      qs('settings-status').textContent = `Skipped update ${version}.`;
+    } catch (error) {
+      qs('settings-status').textContent = error?.message || 'Could not skip this update.';
+    }
+  }
+
   async function openFeatureRequest() {
     if (window.desktopApp?.openFeatureRequest) {
       try {
@@ -4230,6 +4390,13 @@
     state.clockTimer = setInterval(update, 1000);
   }
 
+  function startUpdatePromptPolling() {
+    if (!window.desktopApp?.getUpdateStatus) return;
+    if (state.updatePromptTimer) clearInterval(state.updatePromptTimer);
+    refreshUpdateStatusAndPopup();
+    state.updatePromptTimer = setInterval(refreshUpdateStatusAndPopup, 15000);
+  }
+
   window.addEventListener('resize', () => {
     if (!state.data) return;
     updateBrand(currentPreferences());
@@ -4247,6 +4414,8 @@
   qs('settings-clear-data').addEventListener('click', clearLocalData);
   qs('settings-check-updates').addEventListener('click', checkForUpdates);
   qs('settings-install-update').addEventListener('click', installUpdateNow);
+  qs('update-popup-install').addEventListener('click', installUpdateNow);
+  qs('update-popup-skip').addEventListener('click', skipCurrentUpdate);
   qs('settings-feature-request').addEventListener('click', openFeatureRequest);
   qs('settings-restart').addEventListener('click', restartServer);
   qs('settings-save').addEventListener('click', savePreferences);
@@ -4312,6 +4481,7 @@
   enhanceSettingsSections();
   qs('page-title').textContent = pageTitle();
   startClock();
+  startUpdatePromptPolling();
   loadFeed();
 </script>
 </body>
