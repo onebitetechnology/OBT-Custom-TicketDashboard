@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.36
+
+- Fixed the appointment alert rule remove button hit area so clicks beside the button no longer trigger removal.
+
 ## v2.1.35
 
 - Made the appointment calendar taller so each day has more room for appointment details and is easier to read from a distance.

@@ -1125,16 +1125,30 @@
   .audio-rule-head {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 10px;
   }
 
   .audio-rule-title {
+    flex: 1 1 auto;
+    min-width: 0;
     font-size: 13px;
     font-weight: 800;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--soft);
+  }
+
+  .audio-rule-remove {
+    flex: 0 0 auto;
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    max-width: max-content;
+    position: relative;
+    z-index: 1;
   }
 
   .audio-rule-grid {
@@ -2643,7 +2657,7 @@
         <div class="audio-rule-card" data-alert-rule-index="${index}">
           <div class="audio-rule-head">
             <div class="audio-rule-title">${escapeHtml(alertRuleTitle(normalized, index))}</div>
-            <button class="pill" type="button" data-remove-alert-rule="${index}">Remove</button>
+            <button class="pill audio-rule-remove" type="button" data-remove-alert-rule="${index}">Remove</button>
           </div>
           <div class="audio-rule-grid">
             <label class="settings-field">
