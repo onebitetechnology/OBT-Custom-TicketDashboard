@@ -1004,6 +1004,71 @@
     gap: 10px;
   }
 
+  .warning-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 38;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(2, 8, 18, 0.72);
+    backdrop-filter: blur(10px);
+  }
+
+  .warning-overlay.open {
+    display: flex;
+  }
+
+  .warning-card {
+    width: min(680px, 100%);
+    display: grid;
+    gap: 16px;
+    padding: 22px;
+    border-radius: 22px;
+    background: rgba(31, 23, 10, 0.97);
+    border: 1px solid rgba(245, 158, 11, 0.28);
+    box-shadow: var(--shadow);
+  }
+
+  .warning-title {
+    margin: 0;
+    font-size: 28px;
+    line-height: 1.05;
+    color: #fcd34d;
+  }
+
+  .warning-subtitle {
+    margin: 0;
+    color: #fde68a;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .warning-copy {
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(245, 158, 11, 0.18);
+    background: rgba(255,255,255,0.04);
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+
+  .warning-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
+  .settings-inline-status {
+    min-height: 18px;
+    color: var(--soft);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
   .welcome-card {
     width: min(680px, 100%);
     display: grid;
@@ -2306,6 +2371,25 @@
         <textarea class="settings-textarea" id="api-key"></textarea>
         <span class="settings-help">Used for the extra RepairDesk detail lookups that power waiting age, priority detection, and appointment enrichment.</span>
       </label>
+      <label class="settings-field full">
+        <span class="settings-label">Rush Sync</span>
+        <span class="settings-check">
+          <input class="settings-checkbox" id="rush-sync-enabled" type="checkbox" />
+          <span class="settings-check-copy">
+            <span class="settings-check-title">Use logged-in RepairDesk web session to detect true Rush tickets</span>
+            <span class="settings-help">Optional. If this disconnects, the board will fall back to fee-based Priority detection automatically.</span>
+          </span>
+        </span>
+      </label>
+      <label class="settings-field full" id="rush-sync-cookie-field">
+        <span class="settings-label">RepairDesk session cookie</span>
+        <textarea class="settings-textarea" id="rush-sync-cookie"></textarea>
+        <span class="settings-help">Paste the full <code>Cookie:</code> value from a logged-in RepairDesk browser session for this store. This is sensitive and should only be used on the local board computer.</span>
+      </label>
+      <div class="settings-field full">
+        <span class="settings-label">Rush Sync status</span>
+        <div class="settings-inline-status" id="rush-sync-status-copy">Rush Sync is disabled.</div>
+      </div>
     </div>
   </div>
   <div class="settings-section span-2">
@@ -2719,6 +2803,20 @@
   </div>
 </div>
 
+<div class="warning-overlay" id="rush-sync-overlay">
+  <div class="warning-card">
+    <div>
+      <h2 class="warning-title">Rush Sync Disconnected</h2>
+      <p class="warning-subtitle">The board can still run, but true RepairDesk Rush tickets are no longer syncing right now.</p>
+    </div>
+    <div class="warning-copy" id="rush-sync-popup-copy">The board has switched back to fee-based Priority detection until Rush Sync reconnects.</div>
+    <div class="warning-actions">
+      <button class="pill" id="rush-sync-popup-dismiss" type="button">Dismiss</button>
+      <button class="pill" id="rush-sync-popup-settings" type="button">Open Settings</button>
+    </div>
+  </div>
+</div>
+
 <script>
   const APP_VERSION = '__APP_VERSION__';
   const state = {
@@ -2743,6 +2841,7 @@
     speechVoices: [],
     appointmentAlertHistory: {},
     alertAudioContext: null,
+    rushSyncDismissedKey: '',
   };
 
   const DEFAULT_PAGE_SECONDS = 12;
@@ -3160,6 +3259,52 @@
     installBtn.textContent = status.downloaded ? 'Update Now' : 'Downloading...';
 
     overlay.classList.add('open');
+  }
+
+  function rushSyncStatusText(status = {}) {
+    if (!status.enabled) return 'Rush Sync is disabled. The board is using fee-based Priority detection only.';
+    if (!status.configured) return 'Rush Sync is enabled, but it still needs a valid RepairDesk session cookie.';
+    if (status.connected) {
+      const checkedAt = status.lastCheckedAt
+        ? ` Last checked ${new Date(status.lastCheckedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`
+        : '';
+      return `Rush Sync is connected and watching ${Number(status.ticketCount || 0)} RepairDesk tickets (${Number(status.rushCount || 0)} marked Rush).${checkedAt}`;
+    }
+    return `Rush Sync is disconnected. Falling back to fee-based Priority detection.${status.lastError ? ` ${status.lastError}` : ''}`;
+  }
+
+  function renderRushSyncStatus(status = {}) {
+    const statusEl = qs('rush-sync-status-copy');
+    if (!statusEl) return;
+    statusEl.textContent = rushSyncStatusText(status);
+  }
+
+  function shouldShowRushSyncPopup(status = {}) {
+    return !!(status.enabled && status.configured && status.connected === false && status.alertKey);
+  }
+
+  function renderRushSyncPopup(status = {}) {
+    const overlay = qs('rush-sync-overlay');
+    if (!overlay) return;
+    if (status.connected) {
+      state.rushSyncDismissedKey = '';
+      overlay.classList.remove('open');
+      return;
+    }
+    if (!shouldShowRushSyncPopup(status) || state.rushSyncDismissedKey === status.alertKey) {
+      overlay.classList.remove('open');
+      return;
+    }
+    qs('rush-sync-popup-copy').textContent = status.lastError
+      ? `Rush Sync could not reach RepairDesk: ${status.lastError}\n\nThe board is still running and has fallen back to fee-based Priority detection until the sync reconnects.`
+      : 'The board has switched back to fee-based Priority detection until Rush Sync reconnects.';
+    overlay.classList.add('open');
+  }
+
+  function updateRushSyncFieldVisibility() {
+    const cookieField = qs('rush-sync-cookie-field');
+    if (!cookieField) return;
+    cookieField.hidden = !qs('rush-sync-enabled').checked;
   }
 
   async function refreshUpdateStatusAndPopup() {
@@ -3742,6 +3887,8 @@
     qs('pref-qc-refurb-seconds').value = prefs.columns.qualityControl.refurbRotateSeconds ?? 12;
     qs('pref-qc-statuses').value = (prefs.columns.qualityControl.statuses || []).join('\n');
     qs('pref-qc-visible').checked = prefs.columns.qualityControl.visible !== false;
+    renderRushSyncStatus(state.data?.rushSync || {});
+    updateRushSyncFieldVisibility();
     qs('settings-status').textContent = '';
   }
 
@@ -3871,6 +4018,9 @@
     const payload = await response.json();
     qs('api-key').value = payload.apiKey || '';
     qs('ticket-counter-url').value = payload.ticketCounterDisplayUrl || '';
+    qs('rush-sync-enabled').checked = !!payload.rushSyncEnabled;
+    qs('rush-sync-cookie').value = payload.rushSyncCookie || '';
+    updateRushSyncFieldVisibility();
     return payload;
   }
 
@@ -3881,6 +4031,8 @@
       body: JSON.stringify({
         apiKey: qs('api-key').value,
         ticketCounterDisplayUrl: qs('ticket-counter-url').value,
+        rushSyncEnabled: qs('rush-sync-enabled').checked,
+        rushSyncCookie: qs('rush-sync-cookie').value,
       }),
     });
     const payload = await response.json();
@@ -4305,6 +4457,7 @@
     qs('qc-count-pill').textContent = '0 tickets';
     qs('qc-queue-content').innerHTML = '';
     qs('schedule-strip').innerHTML = '';
+    qs('rush-sync-overlay').classList.remove('open');
     qs('footer-note').textContent = message;
   }
 
@@ -4328,6 +4481,8 @@
     renderWaitingQueue(state.data);
     renderQualityControlQueue(state.data);
     setupRefurbRotation();
+    renderRushSyncStatus(state.data.rushSync || {});
+    renderRushSyncPopup(state.data.rushSync || {});
     qs('footer-note').textContent = state.data.displayTicketCounts
       ? 'RepairDesk count widgets are enabled for this token. This custom board still prioritizes full ticket cards.'
       : 'This board groups duplicate issue lines into a single readable ticket card for TV use.';
@@ -4608,12 +4763,22 @@
   qs('settings-open').addEventListener('click', openSettings);
   qs('settings-close').addEventListener('click', closeSettings);
   qs('settings-close-bottom').addEventListener('click', closeSettings);
+  qs('rush-sync-enabled').addEventListener('change', updateRushSyncFieldVisibility);
   qs('settings-open-browser').addEventListener('click', openInBrowser);
   qs('settings-clear-data').addEventListener('click', clearLocalData);
   qs('settings-check-updates').addEventListener('click', checkForUpdates);
   qs('settings-install-update').addEventListener('click', installUpdateNow);
   qs('update-popup-install').addEventListener('click', installUpdateNow);
   qs('update-popup-skip').addEventListener('click', skipCurrentUpdate);
+  qs('rush-sync-popup-dismiss').addEventListener('click', () => {
+    state.rushSyncDismissedKey = String(state.data?.rushSync?.alertKey || '');
+    qs('rush-sync-overlay').classList.remove('open');
+  });
+  qs('rush-sync-popup-settings').addEventListener('click', () => {
+    state.rushSyncDismissedKey = String(state.data?.rushSync?.alertKey || '');
+    qs('rush-sync-overlay').classList.remove('open');
+    openSettings();
+  });
   qs('settings-feature-request').addEventListener('click', openFeatureRequest);
   qs('settings-restart').addEventListener('click', restartServer);
   qs('settings-save').addEventListener('click', savePreferences);
