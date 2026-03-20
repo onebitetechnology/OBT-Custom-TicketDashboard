@@ -3435,9 +3435,15 @@
     return 'neutral';
   }
 
-  function waitingBadge(waitingDays) {
-    if (waitingDays == null || Number.isNaN(Number(waitingDays))) {
+  function waitingBadge(waitingDays, waitingHours) {
+    if (waitingDays == null && waitingHours == null) {
       return 'Waiting age n/a';
+    }
+    if (Number.isFinite(Number(waitingDays)) && Number(waitingDays) >= 1) {
+      return `<span class="wait-box-number">${escapeHtml(waitingDays)}</span><span class="wait-box-label">Days Waiting</span>`;
+    }
+    if (Number.isFinite(Number(waitingHours))) {
+      return `<span class="wait-box-number">${escapeHtml(waitingHours)}</span><span class="wait-box-label">Hours Waiting</span>`;
     }
     return `<span class="wait-box-number">${escapeHtml(waitingDays)}</span><span class="wait-box-label">Days Waiting</span>`;
   }
@@ -4144,7 +4150,7 @@
             <div class="queue-ticket">T-${escapeHtml(ticket.orderId)}</div>
             ${priorityBadge}
           </div>
-          <div class="wait-box ${waitingToneClass(ticket.waitingDays)}">${waitingBadge(ticket.waitingDays)}</div>
+          <div class="wait-box ${waitingToneClass(ticket.waitingDays)}">${waitingBadge(ticket.waitingDays, ticket.waitingHours)}</div>
         </div>
         <span class="status-box" style="background:${escapeHtml(ticket.statusColor || '#64748b')}">${escapeHtml(ticket.status || fallbackStatus)}</span>
         <div class="queue-info">
