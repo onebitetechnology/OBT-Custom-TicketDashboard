@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.53
+
+- Added a public-API rush debug endpoint so we can inspect whether the existing API-key-based RepairDesk ticket lookup/detail responses expose any real rush or priority fields.
+
 ## v2.1.52
 
 - Updated the `Oldest Priority Ticket` top summary pill so it now considers both `Ready to Start` and `In Progress` priority jobs instead of only the ready queue.

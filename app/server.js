@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.52';
+const APP_VERSION = 'v2.1.53';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -986,6 +986,29 @@ function collectLikelyDueTimestamps(value, sink, depth = 0) {
       if (timestamp) sink.push(timestamp);
     }
     collectLikelyDueTimestamps(nested, sink, depth + 1);
+  }
+}
+
+function collectRushSignals(value, sink, pathParts = [], depth = 0) {
+  if (depth > 6 || value == null) return;
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => collectRushSignals(item, sink, [...pathParts, index], depth + 1));
+    return;
+  }
+  if (typeof value !== 'object') return;
+
+  for (const [key, nested] of Object.entries(value)) {
+    const currentPath = [...pathParts, key];
+    const keyText = String(key || '');
+    if (/rush|priority/i.test(keyText)) {
+      sink.push({
+        path: currentPath.join('.'),
+        value: nested,
+      });
+    }
+    if (nested && typeof nested === 'object') {
+      collectRushSignals(nested, sink, currentPath, depth + 1);
+    }
   }
 }
 
@@ -2910,6 +2933,46 @@ const server = http.createServer(async (req, res) => {
         anyRowHasRushJob: rushRows.length > 0,
         rawRows: matchingRows,
         rushRows,
+      }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  if (pathname === '/api/debug/ticket-public-rush') {
+    const orderId = String(requestUrl.searchParams.get('orderId') || '').trim();
+    if (!orderId) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'orderId is required' }));
+      return;
+    }
+
+    if (!getConfiguredApiKey()) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'RepairDesk API key is required before using this debug endpoint.' }));
+      return;
+    }
+
+    try {
+      const lookup = await fetchTicketLookupByOrderId(orderId);
+      const detail = lookup?.summary?.id ? await fetchTicketDetailRobust(lookup.summary.id, orderId) : null;
+      const lookupSignals = [];
+      const detailSignals = [];
+      collectRushSignals(lookup || {}, lookupSignals);
+      collectRushSignals(detail || {}, detailSignals);
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(escJson({
+        version: APP_VERSION,
+        orderId,
+        foundLookup: !!lookup,
+        foundDetail: !!detail,
+        lookupSummary: lookup?.summary || null,
+        detailSummary: detail?.summary || null,
+        lookupRushSignals: lookupSignals,
+        detailRushSignals: detailSignals,
       }));
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
