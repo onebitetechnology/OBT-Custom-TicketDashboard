@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.56
+
+- Added a Rush Sync debug endpoint so we can inspect exactly what the authenticated RepairDesk rush listing sees for a specific ticket, including sample rush order ids and matched rows.
+
 ## v2.1.55
 
 - Added optional RepairDesk Rush Sync using a logged-in web session cookie, so the board can merge true `rush_job` flags when that sync is connected.

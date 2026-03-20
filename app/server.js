@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.55';
+const APP_VERSION = 'v2.1.56';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -1118,6 +1118,65 @@ async function fetchRushSyncMap() {
     };
     return { map: Object.create(null), status };
   }
+}
+
+async function fetchRushSyncListingRows(limitPages = RUSH_SYNC_MAX_PAGES) {
+  const rushSync = sessionConfig?.rushSync || {};
+  const enabled = !!rushSync.enabled;
+  const cookie = normalizeRushSyncCookie(rushSync.cookie || '');
+  const origin = getRushSyncOrigin(sessionConfig?.ticketCounterDisplayUrl || '');
+  const configured = enabled && !!cookie && !!origin;
+
+  if (!configured) {
+    return {
+      origin,
+      rows: [],
+      status: emptyRushSyncStatus({
+        enabled,
+        configured,
+        connected: false,
+        usingFallback: true,
+        lastError: !enabled
+          ? 'Rush Sync is disabled.'
+          : (!origin
+            ? 'Rush Sync needs a valid Ticket Counter Display URL to determine the RepairDesk store.'
+            : 'Rush Sync is enabled but no RepairDesk session cookie has been saved yet.'),
+      }),
+    };
+  }
+
+  const rows = [];
+  for (let page = 1; page <= limitPages; page += 1) {
+    const response = await rdWeb(origin, 'ticket/listings', {
+      UnsavedTickets: 0,
+      quick_checkin_tickets: 0,
+      hide_close: 0,
+      per_page: 100,
+      page,
+    }, cookie);
+    const raw = parseJsonSafe(response.body);
+    const pageRows = Array.isArray(raw?.data?.data) ? raw.data.data : [];
+    if (response.status !== 200 || !raw || !Array.isArray(pageRows)) {
+      throw new Error(`RepairDesk rush sync returned ${response.status} or unexpected data.`);
+    }
+    rows.push(...pageRows);
+    if (!raw?.data?.next_page_url) break;
+  }
+
+  return {
+    origin,
+    rows,
+    status: emptyRushSyncStatus({
+      enabled: true,
+      configured: true,
+      connected: true,
+      usingFallback: false,
+      lastCheckedAt: new Date().toISOString(),
+      lastError: '',
+      ticketCount: rows.length,
+      rushCount: rows.filter((row) => isTruthyRushJob(row?.rush_job)).length,
+    }),
+  };
 }
 
 function isTruthyRushJob(value) {
@@ -3176,6 +3235,50 @@ const server = http.createServer(async (req, res) => {
         detailSummary: detail?.summary || null,
         lookupRushSignals: lookupSignals,
         detailRushSignals: detailSignals,
+      }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  if (pathname === '/api/debug/ticket-rush-sync') {
+    const queryId = String(
+      requestUrl.searchParams.get('orderId')
+      || requestUrl.searchParams.get('ticketId')
+      || requestUrl.searchParams.get('id')
+      || ''
+    ).trim();
+    if (!queryId) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'orderId, ticketId, or id is required' }));
+      return;
+    }
+
+    try {
+      const result = await fetchRushSyncListingRows();
+      const matchingRows = result.rows.filter((row) => (
+        String(row?.order_id || '').trim() === queryId
+        || String(row?.id || '').trim() === queryId
+      ));
+      const rushRows = matchingRows.filter((row) => isTruthyRushJob(row?.rush_job));
+      const allRushRows = result.rows.filter((row) => isTruthyRushJob(row?.rush_job));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(escJson({
+        version: APP_VERSION,
+        queryId,
+        origin: result.origin,
+        rushSyncStatus: result.status,
+        totalRows: result.rows.length,
+        totalRushRows: allRushRows.length,
+        sampleRushOrderIds: allRushRows.slice(0, 10).map((row) => String(row?.order_id || '').trim()).filter(Boolean),
+        matchedOrderIds: Array.from(new Set(matchingRows.map((row) => String(row?.order_id || '').trim()).filter(Boolean))),
+        matchedInternalIds: Array.from(new Set(matchingRows.map((row) => String(row?.id || '').trim()).filter(Boolean))),
+        foundInRushSync: matchingRows.length > 0,
+        rushRowCount: rushRows.length,
+        anyRowHasRushJob: rushRows.length > 0,
+        matchingRows,
       }));
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
