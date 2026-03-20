@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.50';
+const APP_VERSION = 'v2.1.51';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -1235,6 +1235,9 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
     .filter((ticket) => matchesConfiguredStatus(ticket.status, preferences.columns.readyToStart.statuses))
     .map((ticket) => {
       const createdAt = Number(ticket.createdAt || 0) || null;
+      const waitingHours = createdAt
+        ? Math.max(0, Math.floor((Date.now() - (createdAt * 1000)) / (1000 * 60 * 60)))
+        : null;
       const waitingDays = createdAt
         ? Math.max(0, Math.floor((Date.now() - (createdAt * 1000)) / (1000 * 60 * 60 * 24)))
         : null;
@@ -1246,6 +1249,7 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
         issues: ticket.issues,
         createdAt,
         updatedAt: ticket.updatedAt,
+        waitingHours,
         waitingDays,
         status: ticket.status,
         statusColor: ticket.statusColor,
@@ -1284,6 +1288,9 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
       isRushJob: !!ticket.isRushJob,
       isPriorityTicket: !!ticket.isPriorityTicket,
       isRefurb: !!ticket.isRefurb,
+      waitingHours: lastTouchedAt
+        ? Math.max(0, Math.floor((Date.now() - (lastTouchedAt * 1000)) / (1000 * 60 * 60)))
+        : null,
       waitingDays: lastTouchedAt
         ? Math.max(0, Math.floor((Date.now() - (lastTouchedAt * 1000)) / (1000 * 60 * 60 * 24)))
         : null,
@@ -1321,6 +1328,9 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
       isRushJob: !!ticket.isRushJob,
       isPriorityTicket: !!ticket.isPriorityTicket,
       isRefurb: !!ticket.isRefurb,
+      waitingHours: lastTouchedAt
+        ? Math.max(0, Math.floor((Date.now() - (lastTouchedAt * 1000)) / (1000 * 60 * 60)))
+        : null,
       waitingDays: lastTouchedAt
         ? Math.max(0, Math.floor((Date.now() - (lastTouchedAt * 1000)) / (1000 * 60 * 60 * 24)))
         : null,
@@ -1362,6 +1372,9 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
         isRushJob: !!ticket.isRushJob,
         isPriorityTicket: !!ticket.isPriorityTicket,
         isRefurb: !!ticket.isRefurb,
+        waitingHours: lastTouchedAt
+          ? Math.max(0, Math.floor((Date.now() - (lastTouchedAt * 1000)) / (1000 * 60 * 60)))
+          : null,
         waitingDays,
         staleDays: lastTouchedAt
           ? (Date.now() - (lastTouchedAt * 1000)) / (1000 * 60 * 60 * 24)
@@ -1398,6 +1411,9 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
         isRushJob: !!ticket.isRushJob,
         isPriorityTicket: !!ticket.isPriorityTicket,
         isRefurb: !!ticket.isRefurb,
+        waitingHours: lastTouchedAt
+          ? Math.max(0, Math.floor((Date.now() - (lastTouchedAt * 1000)) / (1000 * 60 * 60)))
+          : null,
         waitingDays: lastTouchedAt
           ? Math.max(0, Math.floor((Date.now() - (lastTouchedAt * 1000)) / (1000 * 60 * 60 * 24)))
           : null,
