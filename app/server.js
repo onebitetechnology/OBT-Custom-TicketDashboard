@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.47';
+const APP_VERSION = 'v2.1.49';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -2823,10 +2823,15 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (pathname === '/api/debug/ticket-rush') {
-    const orderId = String(requestUrl.searchParams.get('orderId') || '').trim();
-    if (!orderId) {
+    const queryId = String(
+      requestUrl.searchParams.get('orderId')
+      || requestUrl.searchParams.get('ticketId')
+      || requestUrl.searchParams.get('id')
+      || ''
+    ).trim();
+    if (!queryId) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'orderId is required' }));
+      res.end(JSON.stringify({ error: 'orderId, ticketId, or id is required' }));
       return;
     }
 
@@ -2850,13 +2855,19 @@ const server = http.createServer(async (req, res) => {
       }
 
       const rawTickets = Array.isArray(ticketsRaw?.data?.pagination?.data) ? ticketsRaw.data.pagination.data : [];
-      const matchingRows = rawTickets.filter((ticket) => String(ticket?.order_id || '').trim() === orderId);
+      const matchingRows = rawTickets.filter((ticket) => (
+        String(ticket?.order_id || '').trim() === queryId
+        || String(ticket?.id || '').trim() === queryId
+        || String(ticket?.orderIdToSort || '').trim() === queryId
+      ));
       const rushRows = matchingRows.filter((ticket) => isTruthyRushJob(ticket?.rush_job));
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(escJson({
         version: APP_VERSION,
-        orderId,
+        queryId,
+        matchedOrderIds: Array.from(new Set(matchingRows.map((ticket) => String(ticket?.order_id || '').trim()).filter(Boolean))),
+        matchedInternalIds: Array.from(new Set(matchingRows.map((ticket) => String(ticket?.id || '').trim()).filter(Boolean))),
         foundInTicketCounter: matchingRows.length > 0,
         rawRowCount: matchingRows.length,
         rushRowCount: rushRows.length,
