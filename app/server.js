@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.49';
+const APP_VERSION = 'v2.1.50';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -1133,6 +1133,7 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
         isPriorityTicket: rawRushJob || !!ticketMetaByOrderId[orderId]?.isRushJob || !!ticketMetaByOrderId[orderId]?.hasPriorityFee,
         isRefurb: !!ticketMetaByOrderId[orderId]?.isRefurb,
         statusColor: statusColors[status] || '#64748b',
+        rowStatuses: [status],
         devices: [],
         issues: [],
         issueCount: 0,
@@ -1150,6 +1151,9 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
 
     if (isInternalRefurbishmentTicket(ticket)) {
       entry.isRefurb = true;
+    }
+    if (status && !entry.rowStatuses.includes(status)) {
+      entry.rowStatuses.push(status);
     }
 
     const device = decodeHtml(ticket?.device || '');
@@ -1177,6 +1181,14 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
     }
     if (entry.assigneeName === 'Unassigned' && ticket?.assignee_name) {
       entry.assigneeName = decodeHtml(ticket.assignee_name);
+    }
+  }
+
+  for (const entry of groupedByOrder.values()) {
+    const qualityControlStatus = entry.rowStatuses.find((status) => matchesConfiguredStatus(status, preferences.columns.qualityControl.statuses));
+    if (qualityControlStatus) {
+      entry.status = qualityControlStatus;
+      entry.statusColor = statusColors[qualityControlStatus] || entry.statusColor;
     }
   }
 

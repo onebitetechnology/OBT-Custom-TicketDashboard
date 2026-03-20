@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.50
+
+- Fixed grouped multi-line tickets so a `Quality Control` service row can correctly move the merged ticket card into the Quality Control column instead of being hidden behind another row status.
+
 ## v2.1.49
 
 - Made the rush debug endpoint accept either the public ticket number or the internal RepairDesk row id, and return the matched ids more clearly.
