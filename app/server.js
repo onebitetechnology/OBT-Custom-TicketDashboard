@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.56';
+const APP_VERSION = 'v2.1.57';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -470,6 +470,12 @@ function emptyRushSyncStatus(overrides = {}) {
     alertKey: '',
     ...overrides,
   };
+}
+
+function extractRushSyncListingRows(raw) {
+  if (Array.isArray(raw?.data)) return raw.data;
+  if (Array.isArray(raw?.data?.data)) return raw.data.data;
+  return [];
 }
 
 function getTicketCounterConnection() {
@@ -1064,7 +1070,7 @@ async function fetchRushSyncMap() {
         page,
       }, cookie);
       const raw = parseJsonSafe(response.body);
-      const rows = Array.isArray(raw?.data?.data) ? raw.data.data : [];
+      const rows = extractRushSyncListingRows(raw);
       if (response.status !== 200 || !raw || !Array.isArray(rows)) {
         throw new Error(`RepairDesk rush sync returned ${response.status} or unexpected data.`);
       }
@@ -1155,7 +1161,7 @@ async function fetchRushSyncListingRows(limitPages = RUSH_SYNC_MAX_PAGES) {
       page,
     }, cookie);
     const raw = parseJsonSafe(response.body);
-    const pageRows = Array.isArray(raw?.data?.data) ? raw.data.data : [];
+    const pageRows = extractRushSyncListingRows(raw);
     if (response.status !== 200 || !raw || !Array.isArray(pageRows)) {
       throw new Error(`RepairDesk rush sync returned ${response.status} or unexpected data.`);
     }

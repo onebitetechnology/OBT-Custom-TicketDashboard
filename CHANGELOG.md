@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.57
+
+- Fixed RepairDesk Rush Sync parsing so it reads ticket rows from the authenticated `ticket/listings` response shape actually returned by RepairDesk, instead of treating a connected sync as empty.
+
 ## v2.1.56
 
 - Added a Rush Sync debug endpoint so we can inspect exactly what the authenticated RepairDesk rush listing sees for a specific ticket, including sample rush order ids and matched rows.
