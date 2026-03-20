@@ -3058,6 +3058,28 @@
     return `${size >= 10 ? Math.round(size) : size.toFixed(1)} ${units[unitIndex]}`;
   }
 
+  function formatReleaseNotesText(rawValue) {
+    const raw = String(rawValue || '').trim();
+    if (!raw) return '';
+    return raw
+      .replace(/<\/li>\s*<li>/gi, '\n- ')
+      .replace(/<li>/gi, '- ')
+      .replace(/<\/li>/gi, '\n')
+      .replace(/<\/?(ul|ol|p|div|br)\b[^>]*>/gi, '\n')
+      .replace(/<\/?code\b[^>]*>/gi, '`')
+      .replace(/<\/?[^>]+>/g, '')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/gi, "'")
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/\r/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/^\s*-\s*/gm, '- ')
+      .trim();
+  }
+
   function renderUpdateStatus(status = {}) {
     state.latestUpdateStatus = status || {};
     qs('update-status-copy').textContent = status.message || 'Update checks are idle.';
@@ -3075,7 +3097,7 @@
     const showProgress = progressPercent > 0 && !status.downloaded;
     progressWrap.hidden = !showProgress;
     progressBar.style.width = `${progressPercent}%`;
-    const notes = String(status.releaseNotes || '').trim();
+    const notes = formatReleaseNotesText(status.releaseNotes || '');
     notesWrap.hidden = !notes;
     notesCopy.textContent = notes;
     notesLabel.textContent = status.version ? `What’s New in ${status.version}` : 'What’s New';
@@ -3132,7 +3154,7 @@
       progressDetail.textContent = 'Downloading update in the background...';
     }
 
-    qs('update-popup-notes').textContent = String(status.releaseNotes || 'No changelog text was included with this release.').trim();
+    qs('update-popup-notes').textContent = formatReleaseNotesText(status.releaseNotes || 'No changelog text was included with this release.');
     const installBtn = qs('update-popup-install');
     installBtn.disabled = !status.downloaded;
     installBtn.textContent = status.downloaded ? 'Update Now' : 'Downloading...';

@@ -2,6 +2,14 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.49
+
+- Made the rush debug endpoint accept either the public ticket number or the internal RepairDesk row id, and return the matched ids more clearly.
+
+## v2.1.48
+
+- Cleaned up update popup changelog formatting so release notes render as readable plain bullets instead of raw HTML tags.
+
 ## v2.1.47
 
 - Added rush-job plumbing so the board now preserves a real `rush_job` flag from incoming RepairDesk ticket rows when available.
