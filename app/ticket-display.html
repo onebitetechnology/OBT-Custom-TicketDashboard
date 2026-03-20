@@ -3441,13 +3441,13 @@
     }
     if (Number.isFinite(Number(waitingDays)) && Number(waitingDays) >= 1) {
       const dayCount = Number(waitingDays);
-      return `<span class="wait-box-number">${escapeHtml(dayCount)}</span><span class="wait-box-label">${dayCount === 1 ? 'Day Waiting' : 'Days Waiting'}</span>`;
+      return `<span class="wait-box-number">${escapeHtml(dayCount)}</span><span class="wait-box-label">${dayCount === 1 ? 'Day' : 'Days'}</span>`;
     }
     if (Number.isFinite(Number(waitingHours))) {
       const hourCount = Number(waitingHours);
-      return `<span class="wait-box-number">${escapeHtml(hourCount)}</span><span class="wait-box-label">${hourCount === 1 ? 'Hour Waiting' : 'Hours Waiting'}</span>`;
+      return `<span class="wait-box-number">${escapeHtml(hourCount)}</span><span class="wait-box-label">${hourCount === 1 ? 'Hour' : 'Hours'}</span>`;
     }
-    return `<span class="wait-box-number">${escapeHtml(waitingDays)}</span><span class="wait-box-label">Days Waiting</span>`;
+    return `<span class="wait-box-number">${escapeHtml(waitingDays)}</span><span class="wait-box-label">Days</span>`;
   }
 
   function cardsPerPage() {
