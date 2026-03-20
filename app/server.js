@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.46';
+const APP_VERSION = 'v2.1.47';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -937,7 +937,14 @@ function emptyTicketMeta() {
     serviceSearchText: '',
     dueAt: null,
     hasPriorityFee: false,
+    isRushJob: false,
   };
+}
+
+function isTruthyRushJob(value) {
+  if (value === true || value === 1) return true;
+  const normalized = String(value ?? '').trim().toLowerCase();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes';
 }
 
 function isScheduledStatus(status) {
@@ -1101,6 +1108,7 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
     const metaDueAt = Number(ticketMetaByOrderId[orderId]?.dueAt || 0) || null;
     const ticketIsScheduled = isScheduledStatus(status);
     const effectiveScheduledDueAt = ticketIsScheduled ? (dueAt || metaDueAt || null) : null;
+    const rawRushJob = isTruthyRushJob(ticket?.rush_job);
     let entry = groupedByOrder.get(orderId);
 
     if (!entry) {
@@ -1121,6 +1129,8 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
         serviceName: String(ticketMetaByOrderId[orderId]?.serviceName || '').trim(),
         serviceSearchText: String(ticketMetaByOrderId[orderId]?.serviceSearchText || '').trim(),
         hasPriorityFee: !!ticketMetaByOrderId[orderId]?.hasPriorityFee,
+        isRushJob: rawRushJob || !!ticketMetaByOrderId[orderId]?.isRushJob,
+        isPriorityTicket: rawRushJob || !!ticketMetaByOrderId[orderId]?.isRushJob || !!ticketMetaByOrderId[orderId]?.hasPriorityFee,
         isRefurb: !!ticketMetaByOrderId[orderId]?.isRefurb,
         statusColor: statusColors[status] || '#64748b',
         devices: [],
@@ -1129,6 +1139,13 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
         sortOrderId: Number(ticket?.orderIdToSort || ticket?.order_id || 0) || 0,
       };
       groupedByOrder.set(orderId, entry);
+    }
+
+    if (rawRushJob) {
+      entry.isRushJob = true;
+      entry.isPriorityTicket = true;
+    } else if (entry.hasPriorityFee) {
+      entry.isPriorityTicket = true;
     }
 
     if (isInternalRefurbishmentTicket(ticket)) {
@@ -1221,6 +1238,8 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
         status: ticket.status,
         statusColor: ticket.statusColor,
         hasPriorityFee: ticket.hasPriorityFee,
+        isRushJob: !!ticket.isRushJob,
+        isPriorityTicket: !!ticket.isPriorityTicket,
         isRefurb: !!ticket.isRefurb,
       };
     })
@@ -1249,6 +1268,9 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
       dueOn: ticket.dueOn,
       dueAt: ticket.dueAt,
       updatedAt: ticket.updatedAt,
+      hasPriorityFee: ticket.hasPriorityFee,
+      isRushJob: !!ticket.isRushJob,
+      isPriorityTicket: !!ticket.isPriorityTicket,
       isRefurb: !!ticket.isRefurb,
       waitingDays: lastTouchedAt
         ? Math.max(0, Math.floor((Date.now() - (lastTouchedAt * 1000)) / (1000 * 60 * 60 * 24)))
@@ -1283,6 +1305,9 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
       dueOn: ticket.dueOn,
       dueAt: ticket.dueAt,
       updatedAt: ticket.updatedAt,
+      hasPriorityFee: ticket.hasPriorityFee,
+      isRushJob: !!ticket.isRushJob,
+      isPriorityTicket: !!ticket.isPriorityTicket,
       isRefurb: !!ticket.isRefurb,
       waitingDays: lastTouchedAt
         ? Math.max(0, Math.floor((Date.now() - (lastTouchedAt * 1000)) / (1000 * 60 * 60 * 24)))
@@ -1321,6 +1346,9 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
         dueOn: ticket.dueOn,
         dueAt: ticket.dueAt,
         updatedAt: ticket.updatedAt,
+        hasPriorityFee: ticket.hasPriorityFee,
+        isRushJob: !!ticket.isRushJob,
+        isPriorityTicket: !!ticket.isPriorityTicket,
         isRefurb: !!ticket.isRefurb,
         waitingDays,
         staleDays: lastTouchedAt
@@ -1354,6 +1382,9 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
         dueOn: ticket.dueOn,
         dueAt: ticket.dueAt,
         updatedAt: ticket.updatedAt,
+        hasPriorityFee: ticket.hasPriorityFee,
+        isRushJob: !!ticket.isRushJob,
+        isPriorityTicket: !!ticket.isPriorityTicket,
         isRefurb: !!ticket.isRefurb,
         waitingDays: lastTouchedAt
           ? Math.max(0, Math.floor((Date.now() - (lastTouchedAt * 1000)) / (1000 * 60 * 60 * 24)))
@@ -1425,7 +1456,7 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
   ]);
   const tickets = allTickets.filter((ticket) => !columnTicketIds.has(ticket.orderId));
   const oldestRegularReadyTicket = readyQueue.find((ticket) => ticket.customerName !== 'Walk-in Customer') || null;
-  const oldestPriorityReadyTicket = readyQueue.find((ticket) => ticket.hasPriorityFee && ticket.customerName !== 'Walk-in Customer') || null;
+  const oldestPriorityReadyTicket = readyQueue.find((ticket) => ticket.isPriorityTicket && ticket.customerName !== 'Walk-in Customer') || null;
 
   return {
     fetchedAt: new Date().toISOString(),
@@ -2783,6 +2814,55 @@ const server = http.createServer(async (req, res) => {
             isScheduledServiceName(combinedText, sessionConfig.uiPreferences)
           )),
         },
+      }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  if (pathname === '/api/debug/ticket-rush') {
+    const orderId = String(requestUrl.searchParams.get('orderId') || '').trim();
+    if (!orderId) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'orderId is required' }));
+      return;
+    }
+
+    const overrideDisplayUrl = String(requestUrl.searchParams.get('displayUrl') || '').trim();
+    const savedConnection = getTicketCounterConnection();
+    const overrideConnection = parseTicketCounterDisplayUrl(overrideDisplayUrl);
+    const apiBase = overrideConnection.apiBase || savedConnection.apiBase;
+    const token = overrideConnection.token || savedConnection.token;
+
+    if (!token || !apiBase) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Ticket Counter Display URL is required before using this debug endpoint.' }));
+      return;
+    }
+
+    try {
+      const ticketsResp = await rdTicketCounter(apiBase, 'tcd/tickets_by_date', { token });
+      const ticketsRaw = parseJsonSafe(ticketsResp.body);
+      if (ticketsResp.status !== 200 || !ticketsRaw || Number(ticketsRaw.status) !== 1) {
+        throw new Error('RepairDesk ticket counter ticket request failed');
+      }
+
+      const rawTickets = Array.isArray(ticketsRaw?.data?.pagination?.data) ? ticketsRaw.data.pagination.data : [];
+      const matchingRows = rawTickets.filter((ticket) => String(ticket?.order_id || '').trim() === orderId);
+      const rushRows = matchingRows.filter((ticket) => isTruthyRushJob(ticket?.rush_job));
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(escJson({
+        version: APP_VERSION,
+        orderId,
+        foundInTicketCounter: matchingRows.length > 0,
+        rawRowCount: matchingRows.length,
+        rushRowCount: rushRows.length,
+        anyRowHasRushJob: rushRows.length > 0,
+        rawRows: matchingRows,
+        rushRows,
       }));
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
