@@ -2,6 +2,12 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.47
+
+- Added rush-job plumbing so the board now preserves a real `rush_job` flag from incoming RepairDesk ticket rows when available.
+- Added rush/priority badges to queue cards, with rush taking precedence when a real rush flag is present and fee-based priority remaining as a fallback.
+- Added a `/api/debug/ticket-rush?orderId=...` endpoint to inspect whether a live ticket row includes the RepairDesk rush flag.
+
 ## v2.1.46
 
 - Fixed GitHub release publishing so the current changelog entry is included in each release, allowing the in-app update popup to show the list of changes.

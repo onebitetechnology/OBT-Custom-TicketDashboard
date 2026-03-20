@@ -760,6 +760,34 @@
     flex-wrap: wrap;
   }
 
+  .queue-flag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 24px;
+    border-radius: 999px;
+    padding: 4px 9px;
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+    border: 1px solid transparent;
+  }
+
+  .queue-flag.rush {
+    background: rgba(255, 92, 92, 0.18);
+    border-color: rgba(255, 92, 92, 0.4);
+    color: #ffb3b3;
+  }
+
+  .queue-flag.priority {
+    background: rgba(255, 210, 122, 0.18);
+    border-color: rgba(255, 210, 122, 0.38);
+    color: #ffd98b;
+  }
+
   .queue-name {
     font-size: 15px;
     font-weight: 600;
@@ -1768,6 +1796,12 @@
       font-size: 13px;
     }
 
+    .queue-flag {
+      min-height: 20px;
+      padding: 3px 7px;
+      font-size: 8px;
+    }
+
     .status-box {
       font-size: 10px;
       padding: 4px 6px;
@@ -2013,6 +2047,13 @@
   body.force-vertical .queue-ticket,
   body.force-horizontal .queue-ticket {
     font-size: 13px;
+  }
+
+  body.force-vertical .queue-flag,
+  body.force-horizontal .queue-flag {
+    min-height: 20px;
+    padding: 3px 7px;
+    font-size: 8px;
   }
 
   body.force-vertical .status-box,
@@ -4071,10 +4112,16 @@
 
   function queueCardMarkup(ticket, fallbackStatus, staleClass) {
     const showAssignedTech = currentPreferences().display?.showAssignedTech !== false;
+    const priorityBadge = ticket.isRushJob
+      ? '<span class="queue-flag rush">Rush</span>'
+      : (ticket.isPriorityTicket ? '<span class="queue-flag priority">Priority</span>' : '');
     return `
       <article class="queue-item${staleClass ? ' ' + staleClass : ''}">
         <div class="queue-top">
-          <div class="queue-ticket">T-${escapeHtml(ticket.orderId)}</div>
+          <div class="queue-top-main">
+            <div class="queue-ticket">T-${escapeHtml(ticket.orderId)}</div>
+            ${priorityBadge}
+          </div>
           <div class="wait-box ${waitingToneClass(ticket.waitingDays)}">${waitingBadge(ticket.waitingDays)}</div>
         </div>
         <span class="status-box" style="background:${escapeHtml(ticket.statusColor || '#64748b')}">${escapeHtml(ticket.status || fallbackStatus)}</span>
