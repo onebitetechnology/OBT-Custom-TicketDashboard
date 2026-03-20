@@ -2,9 +2,13 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.52
+
+- Updated the `Oldest Priority Ticket` top summary pill so it now considers both `Ready to Start` and `In Progress` priority jobs instead of only the ready queue.
+
 ## v2.1.51
 
-- Updated the ticket wait badge so same-day tickets now show `Hours Waiting` instead of an awkward zero-day label.
+- Updated the ticket wait badge so same-day tickets now show `Hours Waiting` instead of an awkward zero-day label, and cleaned up singular/plural wording like `1 Hour Waiting` and `1 Day Waiting`.
 
 ## v2.1.50
 

@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.51';
+const APP_VERSION = 'v2.1.52';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -1484,7 +1484,15 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
   ]);
   const tickets = allTickets.filter((ticket) => !columnTicketIds.has(ticket.orderId));
   const oldestRegularReadyTicket = readyQueue.find((ticket) => ticket.customerName !== 'Walk-in Customer') || null;
-  const oldestPriorityReadyTicket = readyQueue.find((ticket) => ticket.isPriorityTicket && ticket.customerName !== 'Walk-in Customer') || null;
+  const activePriorityTickets = [...readyQueue, ...inProgressQueue]
+    .filter((ticket) => ticket.isPriorityTicket && ticket.customerName !== 'Walk-in Customer')
+    .sort((a, b) => {
+      if ((b.waitingDays ?? -1) !== (a.waitingDays ?? -1)) {
+        return (b.waitingDays ?? -1) - (a.waitingDays ?? -1);
+      }
+      return Number(a.orderId || 0) - Number(b.orderId || 0);
+    });
+  const oldestPriorityReadyTicket = activePriorityTickets[0] || null;
 
   return {
     fetchedAt: new Date().toISOString(),
