@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.54';
+const APP_VERSION = 'v2.1.55';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -23,6 +23,8 @@ const INVOICE_DETAIL_CACHE_PATH = path.join(DATA_DIR, 'invoice-detail-cache.json
 const TICKET_META_CACHE_PATH = path.join(DATA_DIR, 'ticket-meta-cache.json');
 const TICKET_META_CACHE_VERSION = 5;
 const TICKET_META_CACHE_TTL_MS = 60 * 1000;
+const RUSH_SYNC_CACHE_TTL_MS = 45 * 1000;
+const RUSH_SYNC_MAX_PAGES = 10;
 const DEFAULT_UI_PREFERENCES = {
   brand: {
     title: 'Current Repair Queue',
@@ -396,6 +398,10 @@ function normalizeAppConfig(saved = {}) {
     apiKey: String(saved?.apiKey || '').trim(),
     ticketCounterDisplayUrl: String(saved?.ticketCounterDisplayUrl || '').trim(),
     ticketCounterToken: String(saved?.ticketCounterToken || '').trim(),
+    rushSync: {
+      enabled: saved?.rushSync?.enabled !== undefined ? !!saved.rushSync.enabled : false,
+      cookie: normalizeRushSyncCookie(saved?.rushSync?.cookie || ''),
+    },
     uiPreferences: normalizeUiPreferences(saved?.uiPreferences || {}),
   };
 }
@@ -430,6 +436,42 @@ function parseTicketCounterDisplayUrl(rawValue) {
   }
 }
 
+function normalizeRushSyncCookie(rawValue) {
+  return String(rawValue || '')
+    .replace(/^cookie\s*:\s*/i, '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join('; ')
+    .trim();
+}
+
+function getRushSyncOrigin(rawDisplayUrl = '') {
+  const parsed = parseTicketCounterDisplayUrl(rawDisplayUrl);
+  if (!parsed.displayUrl) return '';
+  try {
+    const url = new URL(parsed.displayUrl);
+    return `${url.protocol}//${url.host}`;
+  } catch (_) {
+    return '';
+  }
+}
+
+function emptyRushSyncStatus(overrides = {}) {
+  return {
+    enabled: false,
+    configured: false,
+    connected: false,
+    usingFallback: true,
+    lastCheckedAt: null,
+    lastError: '',
+    ticketCount: 0,
+    rushCount: 0,
+    alertKey: '',
+    ...overrides,
+  };
+}
+
 function getTicketCounterConnection() {
   const fromUrl = parseTicketCounterDisplayUrl(sessionConfig?.ticketCounterDisplayUrl);
   if (fromUrl.apiBase && fromUrl.token) return fromUrl;
@@ -441,6 +483,13 @@ function getTicketCounterConnection() {
 }
 
 let sessionConfig = loadConfig();
+let rushSyncCache = {
+  fetchedAt: 0,
+  origin: '',
+  cookie: '',
+  map: Object.create(null),
+  status: emptyRushSyncStatus(),
+};
 
 function restartServerProcess() {
   try {
@@ -674,6 +723,22 @@ function fetchJson(fullUrl, headers = {}) {
       req.destroy();
       reject(new Error('Request timed out'));
     });
+  });
+}
+
+function rdWeb(baseOrigin, endpoint, params = {}, cookie = '') {
+  const origin = String(baseOrigin || '').trim();
+  const normalizedCookie = normalizeRushSyncCookie(cookie);
+  if (!origin || !normalizedCookie) {
+    throw new Error('RepairDesk rush sync is missing a base URL or cookie');
+  }
+  const queryParams = new URLSearchParams(params);
+  const fullUrl = `${origin}/web/api/v1/${endpoint}?${queryParams.toString()}`;
+  return fetchJson(fullUrl, {
+    Accept: 'application/json, text/plain, */*',
+    Cookie: normalizedCookie,
+    Referer: `${origin}/index.php?r=ticket/index`,
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36',
   });
 }
 
@@ -941,6 +1006,120 @@ function emptyTicketMeta() {
   };
 }
 
+async function fetchRushSyncMap() {
+  const rushSync = sessionConfig?.rushSync || {};
+  const enabled = !!rushSync.enabled;
+  const cookie = normalizeRushSyncCookie(rushSync.cookie || '');
+  const origin = getRushSyncOrigin(sessionConfig?.ticketCounterDisplayUrl || '');
+  const configured = enabled && !!cookie && !!origin;
+
+  if (!enabled) {
+    const status = emptyRushSyncStatus({ enabled: false, configured: false, connected: false, usingFallback: true });
+    rushSyncCache = { fetchedAt: 0, origin: '', cookie: '', map: Object.create(null), status };
+    return { map: Object.create(null), status };
+  }
+
+  if (
+    configured &&
+    rushSyncCache.fetchedAt &&
+    rushSyncCache.origin === origin &&
+    rushSyncCache.cookie === cookie &&
+    (Date.now() - rushSyncCache.fetchedAt) < RUSH_SYNC_CACHE_TTL_MS
+  ) {
+    return { map: rushSyncCache.map, status: rushSyncCache.status };
+  }
+
+  if (!configured) {
+    const status = emptyRushSyncStatus({
+      enabled: true,
+      configured: false,
+      connected: false,
+      usingFallback: true,
+      lastError: !origin
+        ? 'Rush Sync needs a valid Ticket Counter Display URL to determine the RepairDesk store.'
+        : 'Rush Sync is enabled but no RepairDesk session cookie has been saved yet.',
+      alertKey: '',
+    });
+    rushSyncCache = {
+      fetchedAt: Date.now(),
+      origin,
+      cookie,
+      map: Object.create(null),
+      status,
+    };
+    return { map: Object.create(null), status };
+  }
+
+  try {
+    const rushMap = Object.create(null);
+    let ticketCount = 0;
+    let rushCount = 0;
+    let page = 1;
+    for (; page <= RUSH_SYNC_MAX_PAGES; page += 1) {
+      const response = await rdWeb(origin, 'ticket/listings', {
+        UnsavedTickets: 0,
+        quick_checkin_tickets: 0,
+        hide_close: 0,
+        per_page: 100,
+        page,
+      }, cookie);
+      const raw = parseJsonSafe(response.body);
+      const rows = Array.isArray(raw?.data?.data) ? raw.data.data : [];
+      if (response.status !== 200 || !raw || !Array.isArray(rows)) {
+        throw new Error(`RepairDesk rush sync returned ${response.status} or unexpected data.`);
+      }
+      ticketCount += rows.length;
+      for (const row of rows) {
+        const orderId = String(row?.order_id || '').trim();
+        if (!orderId) continue;
+        if (isTruthyRushJob(row?.rush_job)) {
+          rushMap[orderId] = true;
+          rushCount += 1;
+        }
+      }
+      if (!raw?.data?.next_page_url) break;
+    }
+
+    const status = emptyRushSyncStatus({
+      enabled: true,
+      configured: true,
+      connected: true,
+      usingFallback: false,
+      lastCheckedAt: new Date().toISOString(),
+      lastError: '',
+      ticketCount,
+      rushCount,
+      alertKey: '',
+    });
+    rushSyncCache = {
+      fetchedAt: Date.now(),
+      origin,
+      cookie,
+      map: rushMap,
+      status,
+    };
+    return { map: rushMap, status };
+  } catch (error) {
+    const status = emptyRushSyncStatus({
+      enabled: true,
+      configured: true,
+      connected: false,
+      usingFallback: true,
+      lastCheckedAt: new Date().toISOString(),
+      lastError: error.message || 'Rush Sync could not reach RepairDesk.',
+      alertKey: `rush-sync-disconnected:${origin}:${String(error.message || 'unknown').slice(0, 160)}`,
+    });
+    rushSyncCache = {
+      fetchedAt: Date.now(),
+      origin,
+      cookie,
+      map: Object.create(null),
+      status,
+    };
+    return { map: Object.create(null), status };
+  }
+}
+
 function isTruthyRushJob(value) {
   if (value === true || value === 1) return true;
   const normalized = String(value ?? '').trim().toLowerCase();
@@ -1092,7 +1271,14 @@ function findMatchingColumnForStatus(status, columns = {}) {
   return null;
 }
 
-function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderId = {}, uiPreferences = DEFAULT_UI_PREFERENCES) {
+function normalizeTicketCounterPayload(
+  configRaw,
+  ticketsRaw,
+  ticketMetaByOrderId = {},
+  uiPreferences = DEFAULT_UI_PREFERENCES,
+  rushSyncMap = Object.create(null),
+  rushSyncStatus = emptyRushSyncStatus()
+) {
   const config = configRaw?.data || {};
   const ticketsData = ticketsRaw?.data || {};
   const preferences = normalizeUiPreferences(uiPreferences);
@@ -1132,6 +1318,7 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
     const ticketIsScheduled = isScheduledStatus(status);
     const effectiveScheduledDueAt = ticketIsScheduled ? (dueAt || metaDueAt || null) : null;
     const rawRushJob = isTruthyRushJob(ticket?.rush_job);
+    const syncedRushJob = !!rushSyncMap[orderId];
     let entry = groupedByOrder.get(orderId);
 
     if (!entry) {
@@ -1152,8 +1339,8 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
         serviceName: String(ticketMetaByOrderId[orderId]?.serviceName || '').trim(),
         serviceSearchText: String(ticketMetaByOrderId[orderId]?.serviceSearchText || '').trim(),
         hasPriorityFee: !!ticketMetaByOrderId[orderId]?.hasPriorityFee,
-        isRushJob: rawRushJob || !!ticketMetaByOrderId[orderId]?.isRushJob,
-        isPriorityTicket: rawRushJob || !!ticketMetaByOrderId[orderId]?.isRushJob || !!ticketMetaByOrderId[orderId]?.hasPriorityFee,
+        isRushJob: rawRushJob || syncedRushJob || !!ticketMetaByOrderId[orderId]?.isRushJob,
+        isPriorityTicket: rawRushJob || syncedRushJob || !!ticketMetaByOrderId[orderId]?.isRushJob || !!ticketMetaByOrderId[orderId]?.hasPriorityFee,
         isRefurb: !!ticketMetaByOrderId[orderId]?.isRefurb,
         statusColor: statusColors[status] || '#64748b',
         rowStatuses: [status],
@@ -1165,7 +1352,7 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
       groupedByOrder.set(orderId, entry);
     }
 
-    if (rawRushJob) {
+    if (rawRushJob || syncedRushJob) {
       entry.isRushJob = true;
       entry.isPriorityTicket = true;
     } else if (entry.hasPriorityFee) {
@@ -1543,6 +1730,7 @@ function normalizeTicketCounterPayload(configRaw, ticketsRaw, ticketMetaByOrderI
     qualityControlQueue,
     scheduledCalendar,
     nextScheduledCalendar,
+    rushSync: rushSyncStatus,
     uiPreferences: preferences,
     statusColors,
     assignees: availableAssignees,
@@ -2647,10 +2835,22 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/config' && req.method === 'POST') {
     try {
       const body = await readBody(req);
-      const { apiKey, ticketCounterToken, ticketCounterDisplayUrl } = JSON.parse(body);
+      const { apiKey, ticketCounterToken, ticketCounterDisplayUrl, rushSyncEnabled, rushSyncCookie } = JSON.parse(body);
       if (apiKey !== undefined) sessionConfig.apiKey = String(apiKey || '').trim();
       if (ticketCounterDisplayUrl !== undefined) sessionConfig.ticketCounterDisplayUrl = String(ticketCounterDisplayUrl || '').trim();
       if (ticketCounterToken !== undefined) sessionConfig.ticketCounterToken = String(ticketCounterToken || '').trim();
+      if (!sessionConfig.rushSync || typeof sessionConfig.rushSync !== 'object') {
+        sessionConfig.rushSync = { enabled: false, cookie: '' };
+      }
+      if (rushSyncEnabled !== undefined) sessionConfig.rushSync.enabled = !!rushSyncEnabled;
+      if (rushSyncCookie !== undefined) sessionConfig.rushSync.cookie = normalizeRushSyncCookie(rushSyncCookie);
+      rushSyncCache = {
+        fetchedAt: 0,
+        origin: '',
+        cookie: '',
+        map: Object.create(null),
+        status: emptyRushSyncStatus(),
+      };
       saveConfig(sessionConfig);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true, message: 'RepairDesk settings saved' }));
@@ -2668,6 +2868,8 @@ const server = http.createServer(async (req, res) => {
       apiKey: getConfiguredApiKey(),
       ticketCounterDisplayUrl: String(sessionConfig?.ticketCounterDisplayUrl || '').trim(),
       ticketCounterToken: ticketCounterConnection.token,
+      rushSyncEnabled: !!sessionConfig?.rushSync?.enabled,
+      rushSyncCookie: String(sessionConfig?.rushSync?.cookie || ''),
     }));
     return;
   }
@@ -2700,6 +2902,7 @@ const server = http.createServer(async (req, res) => {
       hasApiKey: !!sessionConfig.apiKey,
       hasTicketCounterToken: !!ticketCounterConnection.token,
       hasTicketCounterDisplayUrl: !!ticketCounterConnection.displayUrl,
+      rushSync: rushSyncCache.status,
       preferencesReady: !!sessionConfig.uiPreferences,
       restarting: false,
       version: APP_VERSION,
@@ -3000,9 +3203,10 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      const [configResp, ticketsResp] = await Promise.all([
+      const [configResp, ticketsResp, rushSyncResult] = await Promise.all([
         rdTicketCounter(apiBase, 'tcd/tcd_configuration', { token }),
         rdTicketCounter(apiBase, 'tcd/tickets_by_date', { token }),
+        fetchRushSyncMap(),
       ]);
       const configRaw = parseJsonSafe(configResp.body);
       const ticketsRaw = parseJsonSafe(ticketsResp.body);
@@ -3049,7 +3253,16 @@ const server = http.createServer(async (req, res) => {
       }));
       const queueMetaByOrderId = Object.fromEntries(queueMetaEntries);
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(normalizeTicketCounterPayload(configRaw, ticketsRaw, queueMetaByOrderId, sessionConfig.uiPreferences)));
+      res.end(JSON.stringify(
+        normalizeTicketCounterPayload(
+          configRaw,
+          ticketsRaw,
+          queueMetaByOrderId,
+          sessionConfig.uiPreferences,
+          rushSyncResult.map,
+          rushSyncResult.status
+        )
+      ));
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));

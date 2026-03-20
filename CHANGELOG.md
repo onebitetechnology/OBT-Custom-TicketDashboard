@@ -2,6 +2,12 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.55
+
+- Added optional RepairDesk Rush Sync using a logged-in web session cookie, so the board can merge true `rush_job` flags when that sync is connected.
+- Kept fee-based Priority detection as the fallback path whenever Rush Sync is disabled, unconfigured, or temporarily disconnected.
+- Added Rush Sync settings fields plus a warning popup when the authenticated rush sync drops and the board falls back to fee-based priority detection.
+
 ## v2.1.54
 
 - Shortened the ticket wait badge labels to `Day/Days` and `Hour/Hours` so queue cards have a little more room for rush/priority tags.
