@@ -1,6 +1,6 @@
 {
   "name": "onebite-ticket-display-desktop",
-  "version": "2.1.51",
+  "version": "2.1.52",
   "description": "Installable desktop wrapper for the One Bite ticket display",
   "main": "main.js",
   "author": "One Bite Technology",

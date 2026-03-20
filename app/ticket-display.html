@@ -3440,10 +3440,12 @@
       return 'Waiting age n/a';
     }
     if (Number.isFinite(Number(waitingDays)) && Number(waitingDays) >= 1) {
-      return `<span class="wait-box-number">${escapeHtml(waitingDays)}</span><span class="wait-box-label">Days Waiting</span>`;
+      const dayCount = Number(waitingDays);
+      return `<span class="wait-box-number">${escapeHtml(dayCount)}</span><span class="wait-box-label">${dayCount === 1 ? 'Day Waiting' : 'Days Waiting'}</span>`;
     }
     if (Number.isFinite(Number(waitingHours))) {
-      return `<span class="wait-box-number">${escapeHtml(waitingHours)}</span><span class="wait-box-label">Hours Waiting</span>`;
+      const hourCount = Number(waitingHours);
+      return `<span class="wait-box-number">${escapeHtml(hourCount)}</span><span class="wait-box-label">${hourCount === 1 ? 'Hour Waiting' : 'Hours Waiting'}</span>`;
     }
     return `<span class="wait-box-number">${escapeHtml(waitingDays)}</span><span class="wait-box-label">Days Waiting</span>`;
   }
