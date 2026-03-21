@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.58
+
+- Updated true Rush ticket badges to display as `Priority`, with a solid red strobe-style badge so authenticated RepairDesk priority jobs stand out more clearly on the board.
+
 ## v2.1.57
 
 - Fixed RepairDesk Rush Sync parsing so it reads ticket rows from the authenticated `ticket/listings` response shape actually returned by RepairDesk, instead of treating a connected sync as empty.
