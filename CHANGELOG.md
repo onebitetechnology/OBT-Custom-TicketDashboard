@@ -2,6 +2,13 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.59
+
+- Added optional Priority strobe controls so shops can turn the red synced-priority flash on or off and choose a subtle, medium, or intense effect.
+- Added an optional top ticker bar in Branding for scrolling specials, promos, reminders, or other shop announcements.
+- Added an optional sixth queue column, disabled by default, so wider board layouts can support one more custom status bucket when needed.
+- Moved the Appointments settings section up under Brand so signage and scheduling controls sit together more naturally.
+
 ## v2.1.58
 
 - Updated true Rush ticket badges to display as `Priority`, with a solid red strobe-style badge so authenticated RepairDesk priority jobs stand out more clearly on the board.
