@@ -64,6 +64,51 @@
     z-index: 1;
   }
 
+  .ticker-bar {
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 18px;
+    background: linear-gradient(90deg, rgba(14, 25, 40, 0.94), rgba(24, 43, 70, 0.94));
+    box-shadow: var(--shadow);
+    min-height: 54px;
+    display: flex;
+    align-items: center;
+  }
+
+  .ticker-track {
+    --ticker-duration: 24s;
+    display: inline-flex;
+    align-items: center;
+    gap: 56px;
+    white-space: nowrap;
+    min-width: max-content;
+    padding-left: 100%;
+    animation: tickerScroll var(--ticker-duration) linear infinite;
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 700;
+    color: #dbeafe;
+    letter-spacing: 0.04em;
+  }
+
+  .ticker-item {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 18px;
+  }
+
+  .ticker-item::after {
+    content: "•";
+    color: rgba(255,255,255,0.42);
+    font-size: 16px;
+  }
+
+  @keyframes tickerScroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
   .topbar,
   .summary,
   .status-row,
@@ -698,6 +743,12 @@
     box-shadow: inset 0 0 0 1px rgba(168, 85, 247, 0.12);
   }
 
+  .queue-column-head.tone-emerald {
+    border-color: rgba(52, 211, 153, 0.42);
+    background: linear-gradient(180deg, rgba(52, 211, 153, 0.24), rgba(13, 76, 61, 0.84));
+    box-shadow: inset 0 0 0 1px rgba(52, 211, 153, 0.1);
+  }
+
   .queue-column-head .pill {
     font-size: 15px;
     font-weight: 800;
@@ -782,6 +833,24 @@
     color: #fff;
     box-shadow: 0 0 0 1px rgba(127, 29, 29, 0.35), 0 0 14px rgba(220, 38, 38, 0.35);
     animation: rushStrobe 0.6s steps(2, end) infinite;
+  }
+
+  body[data-priority-strobe-enabled="false"] .queue-flag.rush {
+    animation: none;
+  }
+
+  body[data-priority-strobe-intensity="subtle"] .queue-flag.rush {
+    animation-duration: 1.05s;
+    box-shadow: 0 0 0 1px rgba(127, 29, 29, 0.28), 0 0 10px rgba(220, 38, 38, 0.24);
+  }
+
+  body[data-priority-strobe-intensity="medium"] .queue-flag.rush {
+    animation-duration: 0.6s;
+  }
+
+  body[data-priority-strobe-intensity="intense"] .queue-flag.rush {
+    animation-duration: 0.32s;
+    box-shadow: 0 0 0 1px rgba(127, 29, 29, 0.45), 0 0 18px rgba(239, 68, 68, 0.55);
   }
 
   .queue-flag.priority {
@@ -1689,6 +1758,10 @@
     .audio-rule-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+
+    .ticker-track {
+      font-size: 16px;
+    }
   }
 
   @media (max-width: 1200px) and (orientation: portrait) {
@@ -1828,6 +1901,16 @@
       gap: 6px;
     }
 
+    .ticker-bar {
+      min-height: 46px;
+      border-radius: 14px;
+    }
+
+    .ticker-track {
+      font-size: 13px;
+      gap: 40px;
+    }
+
     .queue-column {
       gap: 6px;
     }
@@ -1948,6 +2031,8 @@
     .cards { grid-template-columns: 1fr; }
     .schedule-strip { grid-template-columns: 1fr; }
     .queue-columns { grid-template-columns: 1fr; }
+    .ticker-bar { min-height: 42px; }
+    .ticker-track { font-size: 12px; gap: 28px; }
     .settings-drawer {
       width: calc(100vw - 24px);
       top: 12px;
@@ -2299,6 +2384,9 @@
     </div>
   </section>
 
+  <section class="ticker-bar" id="ticker-bar" hidden>
+    <div class="ticker-track" id="ticker-track" aria-live="polite"></div>
+  </section>
   <section class="summary" id="summary"></section>
   <section class="schedule-panel" id="schedule-panel">
     <div class="schedule-panel-head">
@@ -2353,6 +2441,13 @@
               <div class="pill" id="qc-count-pill">0 tickets</div>
             </div>
             <div id="qc-queue-content"></div>
+          </section>
+          <section class="queue-column" id="column6-column">
+            <div class="queue-column-head tone-emerald">
+              <div class="board-title" id="column6-title">Column 6</div>
+              <div class="pill" id="column6-count-pill">0 tickets</div>
+            </div>
+            <div id="column6-queue-content"></div>
           </section>
         </div>
       </aside>
@@ -2411,11 +2506,31 @@
   </div>
   <div class="settings-section span-2">
     <h3>Brand</h3>
-    <div class="settings-section-copy">Controls the title, header logo, and optional side media shown beside the board on wide horizontal displays.</div>
+    <div class="settings-section-copy">Controls the title, ticker, header logo, appointment panel, and optional side media shown beside the board on wide horizontal displays.</div>
     <div class="settings-grid">
       <label class="settings-field align-end">
         <span class="settings-label">Header title</span>
         <input class="settings-input" id="pref-brand-title" />
+      </label>
+      <label class="settings-field full">
+        <span class="settings-label">Top ticker</span>
+        <span class="settings-check">
+          <input class="settings-checkbox" id="pref-brand-ticker-enabled" type="checkbox" />
+          <span class="settings-check-copy">
+            <span class="settings-check-title">Show a scrolling ticker at the top of the board</span>
+            <span class="settings-help">Useful for specials, announcements, reminders, or seasonal promos.</span>
+          </span>
+        </span>
+      </label>
+      <label class="settings-field full">
+        <span class="settings-label">Ticker text</span>
+        <textarea class="settings-textarea" id="pref-brand-ticker-text"></textarea>
+        <span class="settings-help">Enter the message that should scroll across the top of the board.</span>
+      </label>
+      <label class="settings-field">
+        <span class="settings-label">Ticker speed (seconds)</span>
+        <input class="settings-input" id="pref-brand-ticker-speed" type="number" min="8" max="120" step="1" />
+        <span class="settings-help">Lower values scroll faster. Higher values keep the message on screen longer.</span>
       </label>
       <label class="settings-field align-end">
         <span class="settings-label">Logo upload</span>
@@ -2470,115 +2585,6 @@
           </div>
         </div>
       </label>
-    </div>
-  </div>
-  <div class="settings-section span-2">
-    <h3>Ticket Display</h3>
-    <div class="settings-section-copy">Control how the desktop window behaves, which ticket details are shown, and when ticket cards start pulsing.</div>
-    <div class="settings-grid">
-      <label class="settings-field full">
-        <span class="settings-label">Browser option</span>
-        <span class="settings-check">
-          <span class="settings-check-copy">
-            <span class="settings-check-title">Open this board in the system browser</span>
-            <span class="settings-help">Useful if someone wants the local board in a normal browser tab instead of the desktop window.</span>
-          </span>
-          <button class="pill" id="settings-open-browser" type="button">Open in Browser</button>
-        </span>
-      </label>
-      <label class="settings-field full">
-        <span class="settings-label">Desktop window mode</span>
-        <span class="settings-check">
-          <input class="settings-checkbox" id="pref-fullscreen" type="checkbox" />
-          <span class="settings-check-copy">
-            <span class="settings-check-title">Open in fullscreen</span>
-            <span class="settings-help">Applies in the desktop app. Browser preview ignores this.</span>
-          </span>
-        </span>
-      </label>
-      <label class="settings-field">
-        <span class="settings-label">Layout orientation</span>
-        <select class="settings-input settings-select" id="pref-orientation">
-          <option value="auto">Auto</option>
-          <option value="horizontal">Horizontal</option>
-          <option value="vertical">Vertical</option>
-        </select>
-        <span class="settings-help">Force the board to use a wide or portrait layout regardless of the screen shape.</span>
-      </label>
-      <label class="settings-field">
-        <span class="settings-label">Display target</span>
-        <select class="settings-input settings-select" id="pref-display-target">
-          <option value="current">Current display</option>
-          <option value="primary">Primary display</option>
-          <option value="secondary">Secondary display</option>
-        </select>
-        <span class="settings-help">Choose which monitor the desktop window and fullscreen mode should use. Connected displays are detected and listed here.</span>
-      </label>
-      <label class="settings-field">
-        <span class="settings-label">Customer name display</span>
-        <select class="settings-input settings-select" id="pref-customer-name-mode">
-          <option value="first_name_only">First name only</option>
-          <option value="hide">Hide name</option>
-          <option value="full_name">Full name</option>
-        </select>
-        <span class="settings-help">Choose how customer names appear in ticket bubbles.</span>
-      </label>
-      <label class="settings-field full">
-        <span class="settings-label">Ticket bubble content</span>
-        <span class="settings-check">
-          <input class="settings-checkbox" id="pref-show-assigned-tech" type="checkbox" />
-          <span class="settings-check-copy">
-            <span class="settings-check-title">Show assigned tech</span>
-            <span class="settings-help">Hide the assigned tech line in each ticket bubble for a cleaner customer-facing display.</span>
-          </span>
-        </span>
-      </label>
-      <label class="settings-field full">
-        <span class="settings-label">Assigned tech filter</span>
-        <div class="weekday-grid" id="pref-assignee-filter"></div>
-        <span class="settings-help">Select one or more techs to show only their tickets. Leave everything unchecked to show all techs.</span>
-      </label>
-      <div class="settings-field full">
-        <span class="settings-label">Pulse timing</span>
-        <span class="settings-help">How long a ticket can sit before its card starts pulsing red. Each rule supports both days and hours.</span>
-      </div>
-    </div>
-    <div class="timing-grid">
-      <div class="timing-card">
-        <h4 class="editor-title">In Progress</h4>
-        <div class="timing-fields">
-          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-inprogress-days" type="number" min="0" step="1" /></label>
-          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-inprogress-hours" type="number" min="0" step="1" /></label>
-        </div>
-      </div>
-      <div class="timing-card">
-        <h4 class="editor-title">Needs Attention</h4>
-        <div class="timing-fields">
-          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-attention-days" type="number" min="0" step="1" /></label>
-          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-attention-hours" type="number" min="0" step="1" /></label>
-        </div>
-      </div>
-      <div class="timing-card">
-        <h4 class="editor-title">Waiting on Customer</h4>
-        <div class="timing-fields">
-          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-wait-customer-days" type="number" min="0" step="1" /></label>
-          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-wait-customer-hours" type="number" min="0" step="1" /></label>
-        </div>
-      </div>
-      <div class="timing-card">
-        <h4 class="editor-title">Waiting for Parts</h4>
-        <div class="timing-fields">
-          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-wait-parts-days" type="number" min="0" step="1" /></label>
-          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-wait-parts-hours" type="number" min="0" step="1" /></label>
-        </div>
-      </div>
-      <div class="timing-card">
-        <h4 class="editor-title">Quality Control</h4>
-        <div class="timing-fields">
-          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-qc-days" type="number" min="0" step="1" /></label>
-          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-qc-hours" type="number" min="0" step="1" /></label>
-        </div>
-      </div>
     </div>
   </div>
   <div class="settings-section span-2">
@@ -2675,8 +2681,136 @@
     </div>
   </div>
   <div class="settings-section span-2">
+    <h3>Ticket Display</h3>
+    <div class="settings-section-copy">Control how the desktop window behaves, which ticket details are shown, and how strongly true Priority jobs pulse.</div>
+    <div class="settings-grid">
+      <label class="settings-field full">
+        <span class="settings-label">Browser option</span>
+        <span class="settings-check">
+          <span class="settings-check-copy">
+            <span class="settings-check-title">Open this board in the system browser</span>
+            <span class="settings-help">Useful if someone wants the local board in a normal browser tab instead of the desktop window.</span>
+          </span>
+          <button class="pill" id="settings-open-browser" type="button">Open in Browser</button>
+        </span>
+      </label>
+      <label class="settings-field full">
+        <span class="settings-label">Desktop window mode</span>
+        <span class="settings-check">
+          <input class="settings-checkbox" id="pref-fullscreen" type="checkbox" />
+          <span class="settings-check-copy">
+            <span class="settings-check-title">Open in fullscreen</span>
+            <span class="settings-help">Applies in the desktop app. Browser preview ignores this.</span>
+          </span>
+        </span>
+      </label>
+      <label class="settings-field">
+        <span class="settings-label">Layout orientation</span>
+        <select class="settings-input settings-select" id="pref-orientation">
+          <option value="auto">Auto</option>
+          <option value="horizontal">Horizontal</option>
+          <option value="vertical">Vertical</option>
+        </select>
+        <span class="settings-help">Force the board to use a wide or portrait layout regardless of the screen shape.</span>
+      </label>
+      <label class="settings-field">
+        <span class="settings-label">Display target</span>
+        <select class="settings-input settings-select" id="pref-display-target">
+          <option value="current">Current display</option>
+          <option value="primary">Primary display</option>
+          <option value="secondary">Secondary display</option>
+        </select>
+        <span class="settings-help">Choose which monitor the desktop window and fullscreen mode should use. Connected displays are detected and listed here.</span>
+      </label>
+      <label class="settings-field">
+        <span class="settings-label">Customer name display</span>
+        <select class="settings-input settings-select" id="pref-customer-name-mode">
+          <option value="first_name_only">First name only</option>
+          <option value="hide">Hide name</option>
+          <option value="full_name">Full name</option>
+        </select>
+        <span class="settings-help">Choose how customer names appear in ticket bubbles.</span>
+      </label>
+      <label class="settings-field full">
+        <span class="settings-label">Ticket bubble content</span>
+        <span class="settings-check">
+          <input class="settings-checkbox" id="pref-show-assigned-tech" type="checkbox" />
+          <span class="settings-check-copy">
+            <span class="settings-check-title">Show assigned tech</span>
+            <span class="settings-help">Hide the assigned tech line in each ticket bubble for a cleaner customer-facing display.</span>
+          </span>
+        </span>
+      </label>
+      <label class="settings-field full">
+        <span class="settings-label">Assigned tech filter</span>
+        <div class="weekday-grid" id="pref-assignee-filter"></div>
+        <span class="settings-help">Select one or more techs to show only their tickets. Leave everything unchecked to show all techs.</span>
+      </label>
+      <label class="settings-field full">
+        <span class="settings-label">Priority strobe</span>
+        <span class="settings-check">
+          <input class="settings-checkbox" id="pref-priority-strobe-enabled" type="checkbox" />
+          <span class="settings-check-copy">
+            <span class="settings-check-title">Flash true Priority tickets</span>
+            <span class="settings-help">Applies to authenticated Rush Sync tickets only. Fee-based fallback priority stays calmer.</span>
+          </span>
+        </span>
+      </label>
+      <label class="settings-field">
+        <span class="settings-label">Priority strobe intensity</span>
+        <select class="settings-input settings-select" id="pref-priority-strobe-intensity">
+          <option value="subtle">Subtle</option>
+          <option value="medium">Medium</option>
+          <option value="intense">Intense</option>
+        </select>
+        <span class="settings-help">Controls how fast and aggressive the red Priority strobe feels.</span>
+      </label>
+      <div class="settings-field full">
+        <span class="settings-label">Pulse timing</span>
+        <span class="settings-help">How long a ticket can sit before its card starts pulsing red. Each rule supports both days and hours.</span>
+      </div>
+    </div>
+    <div class="timing-grid">
+      <div class="timing-card">
+        <h4 class="editor-title">In Progress</h4>
+        <div class="timing-fields">
+          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-inprogress-days" type="number" min="0" step="1" /></label>
+          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-inprogress-hours" type="number" min="0" step="1" /></label>
+        </div>
+      </div>
+      <div class="timing-card">
+        <h4 class="editor-title">Needs Attention</h4>
+        <div class="timing-fields">
+          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-attention-days" type="number" min="0" step="1" /></label>
+          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-attention-hours" type="number" min="0" step="1" /></label>
+        </div>
+      </div>
+      <div class="timing-card">
+        <h4 class="editor-title">Waiting on Customer</h4>
+        <div class="timing-fields">
+          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-wait-customer-days" type="number" min="0" step="1" /></label>
+          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-wait-customer-hours" type="number" min="0" step="1" /></label>
+        </div>
+      </div>
+      <div class="timing-card">
+        <h4 class="editor-title">Waiting for Parts</h4>
+        <div class="timing-fields">
+          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-wait-parts-days" type="number" min="0" step="1" /></label>
+          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-wait-parts-hours" type="number" min="0" step="1" /></label>
+        </div>
+      </div>
+      <div class="timing-card">
+        <h4 class="editor-title">Quality Control</h4>
+        <div class="timing-fields">
+          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-qc-days" type="number" min="0" step="1" /></label>
+          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-qc-hours" type="number" min="0" step="1" /></label>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="settings-section span-2">
     <h3>Columns</h3>
-    <div class="settings-section-copy">Configure what each queue column is called, whether it is shown, and which RepairDesk statuses feed into it. Status matching is case-insensitive and works on partial text.</div>
+    <div class="settings-section-copy">Configure what each queue column is called, whether it is shown, and which RepairDesk statuses feed into it. Status matching is case-insensitive and works on partial text. Column 6 is optional and off by default.</div>
     <div class="column-editor-grid">
       <div class="column-editor">
         <h4 class="editor-title">Column 1</h4>
@@ -2722,6 +2856,15 @@
         <label class="settings-field"><span class="settings-label">Refurb tickets</span><select class="settings-input settings-select" id="pref-qc-refurbs"><option value="all">Show all tickets</option><option value="hide_refurbs">Show Customer Tickets only</option><option value="only_refurbs">Show Refurb Tickets only</option><option value="rotate_refurbs">Rotate between Customer and Refurb Tickets</option></select></label>
         <label class="settings-field"><span class="settings-label">Rotate timing (seconds)</span><input class="settings-input" id="pref-qc-refurb-seconds" type="number" min="5" step="1" /><span class="settings-help">Used when this column is set to rotate between customer and refurb tickets.</span></label>
         <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-qc-statuses"></textarea><span class="settings-help">Enter one status or partial match per line. Matching is case-insensitive.</span></label>
+      </div>
+      <div class="column-editor">
+        <h4 class="editor-title">Column 6</h4>
+        <label class="settings-field"><span class="settings-label">Header label</span><input class="settings-input" id="pref-column6-label" /></label>
+        <div class="editor-copy">Optional sixth queue column on wider layouts.</div>
+        <label class="settings-field"><span class="settings-check"><input class="settings-checkbox" id="pref-column6-visible" type="checkbox" /><span class="settings-check-copy"><span class="settings-check-title">Show this column</span></span></span></label>
+        <label class="settings-field"><span class="settings-label">Refurb tickets</span><select class="settings-input settings-select" id="pref-column6-refurbs"><option value="all">Show all tickets</option><option value="hide_refurbs">Show Customer Tickets only</option><option value="only_refurbs">Show Refurb Tickets only</option><option value="rotate_refurbs">Rotate between Customer and Refurb Tickets</option></select></label>
+        <label class="settings-field"><span class="settings-label">Rotate timing (seconds)</span><input class="settings-input" id="pref-column6-refurb-seconds" type="number" min="5" step="1" /><span class="settings-help">Used when this column is set to rotate between customer and refurb tickets.</span></label>
+        <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-column6-statuses"></textarea><span class="settings-help">Leave blank to keep this extra column disabled by default, or add one status / partial match per line.</span></label>
       </div>
     </div>
   </div>
@@ -2911,6 +3054,9 @@
         title: 'Current Repair Queue',
         logoDataUrl: '',
         logoSize: 72,
+        tickerEnabled: false,
+        tickerText: '',
+        tickerSpeedSeconds: 24,
         sideMediaEnabled: false,
         sideMediaDataUrl: '',
         sideMediaWidthPercent: 38,
@@ -2922,6 +3068,8 @@
         customerNameMode: 'first_name_only',
         showAssignedTech: true,
         assigneeFilter: [],
+        priorityStrobeEnabled: true,
+        priorityStrobeIntensity: 'medium',
       },
       columns: {
         readyToStart: { label: 'Ready to start', visible: true, refurbMode: 'all', refurbRotateSeconds: 12, statuses: [] },
@@ -2929,6 +3077,7 @@
         needsAttention: { label: 'Needs Attention', visible: true, refurbMode: 'all', refurbRotateSeconds: 12, statuses: [] },
         waiting: { label: 'Waiting', visible: true, refurbMode: 'all', refurbRotateSeconds: 12, statuses: [] },
         qualityControl: { label: 'Quality Control', visible: true, refurbMode: 'all', refurbRotateSeconds: 12, statuses: [] },
+        column6: { label: 'Column 6', visible: false, refurbMode: 'all', refurbRotateSeconds: 12, statuses: [] },
       },
     };
   }
@@ -3422,6 +3571,12 @@
     return Math.max(20, Math.min(70, width));
   }
 
+  function normalizedTickerSpeed(value) {
+    const seconds = Number(value || 0);
+    if (!seconds) return 24;
+    return Math.max(8, Math.min(120, seconds));
+  }
+
   function detectSideMediaType(dataUrl) {
     const value = String(dataUrl || '').trim().toLowerCase();
     if (!value) return 'none';
@@ -3460,6 +3615,25 @@
     } else {
       logoEl.removeAttribute('src');
       logoEl.classList.remove('visible');
+    }
+
+    const tickerEnabled = !!brand.tickerEnabled && !!String(brand.tickerText || '').trim();
+    const tickerBar = qs('ticker-bar');
+    const tickerTrack = qs('ticker-track');
+    tickerBar.hidden = !tickerEnabled;
+    if (tickerEnabled) {
+      const tickerText = String(brand.tickerText || '').trim();
+      tickerTrack.style.setProperty('--ticker-duration', `${normalizedTickerSpeed(brand.tickerSpeedSeconds || 24)}s`);
+      const safeText = escapeHtml(tickerText);
+      tickerTrack.innerHTML = `
+        <span class="ticker-item">${safeText}</span>
+        <span class="ticker-item">${safeText}</span>
+        <span class="ticker-item">${safeText}</span>
+        <span class="ticker-item">${safeText}</span>
+      `;
+    } else {
+      tickerTrack.innerHTML = '';
+      tickerTrack.style.removeProperty('--ticker-duration');
     }
 
     const boardWrap = qs('board-wrap');
@@ -3843,6 +4017,9 @@
     const prefs = preferences || currentPreferences();
     qs('pref-brand-title').value = prefs.brand?.title || 'Current Repair Queue';
     qs('pref-brand-logo-size').value = prefs.brand?.logoSize ?? 72;
+    qs('pref-brand-ticker-enabled').checked = !!prefs.brand?.tickerEnabled;
+    qs('pref-brand-ticker-text').value = prefs.brand?.tickerText || '';
+    qs('pref-brand-ticker-speed').value = prefs.brand?.tickerSpeedSeconds ?? 24;
     setLogoPreview(prefs.brand?.logoDataUrl || '', prefs.brand?.logoDataUrl ? 'Stored logo' : '');
     qs('pref-brand-side-media-enabled').checked = !!prefs.brand?.sideMediaEnabled;
     qs('pref-brand-side-media-width').value = prefs.brand?.sideMediaWidthPercent ?? 38;
@@ -3856,6 +4033,8 @@
     qs('pref-customer-name-mode').value = prefs.display?.customerNameMode || 'first_name_only';
     qs('pref-show-assigned-tech').checked = prefs.display?.showAssignedTech !== false;
     qs('pref-assignee-filter').innerHTML = assigneeFilterMarkup(prefs.display?.assigneeFilter || []);
+    qs('pref-priority-strobe-enabled').checked = prefs.display?.priorityStrobeEnabled !== false;
+    qs('pref-priority-strobe-intensity').value = prefs.display?.priorityStrobeIntensity || 'medium';
     qs('pref-included-weekdays').innerHTML = checkboxGroupMarkup('included-weekdays', prefs.schedule.includedWeekdays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']);
     qs('pref-show-calendar').checked = prefs.schedule.showCalendar !== false;
     qs('pref-rotate-weeks').checked = !!prefs.schedule.rotateWeeks;
@@ -3904,6 +4083,11 @@
     qs('pref-qc-refurb-seconds').value = prefs.columns.qualityControl.refurbRotateSeconds ?? 12;
     qs('pref-qc-statuses').value = (prefs.columns.qualityControl.statuses || []).join('\n');
     qs('pref-qc-visible').checked = prefs.columns.qualityControl.visible !== false;
+    qs('pref-column6-label').value = prefs.columns.column6?.label || 'Column 6';
+    qs('pref-column6-refurbs').value = prefs.columns.column6?.refurbMode || 'all';
+    qs('pref-column6-refurb-seconds').value = prefs.columns.column6?.refurbRotateSeconds ?? 12;
+    qs('pref-column6-statuses').value = (prefs.columns.column6?.statuses || []).join('\n');
+    qs('pref-column6-visible').checked = prefs.columns.column6?.visible === true;
     renderRushSyncStatus(state.data?.rushSync || {});
     updateRushSyncFieldVisibility();
     qs('settings-status').textContent = '';
@@ -3915,6 +4099,9 @@
         title: qs('pref-brand-title').value || 'Current Repair Queue',
         logoDataUrl: state.logoDataUrl || currentPreferences().brand?.logoDataUrl || '',
         logoSize: normalizedLogoSize(qs('pref-brand-logo-size').value || currentPreferences().brand?.logoSize || 72),
+        tickerEnabled: qs('pref-brand-ticker-enabled').checked,
+        tickerText: qs('pref-brand-ticker-text').value || '',
+        tickerSpeedSeconds: normalizedTickerSpeed(qs('pref-brand-ticker-speed').value || currentPreferences().brand?.tickerSpeedSeconds || 24),
         sideMediaEnabled: qs('pref-brand-side-media-enabled').checked,
         sideMediaDataUrl: state.sideMediaDataUrl || currentPreferences().brand?.sideMediaDataUrl || '',
         sideMediaWidthPercent: normalizedSideMediaWidth(qs('pref-brand-side-media-width').value || currentPreferences().brand?.sideMediaWidthPercent || 38),
@@ -3926,6 +4113,8 @@
         customerNameMode: qs('pref-customer-name-mode').value || 'first_name_only',
         showAssignedTech: qs('pref-show-assigned-tech').checked,
         assigneeFilter: selectedAssignees(),
+        priorityStrobeEnabled: qs('pref-priority-strobe-enabled').checked,
+        priorityStrobeIntensity: qs('pref-priority-strobe-intensity').value || 'medium',
       },
       schedule: {
         includedWeekdays: selectedCheckboxDays('included-weekdays'),
@@ -3970,6 +4159,7 @@
         needsAttention: { label: qs('pref-attention-label').value || 'Needs Attention', visible: qs('pref-attention-visible').checked, refurbMode: qs('pref-attention-refurbs').value || 'all', refurbRotateSeconds: Math.max(5, Number(qs('pref-attention-refurb-seconds').value || 12) || 12), statuses: parseLines(qs('pref-attention-statuses').value) },
         waiting: { label: qs('pref-waiting-label').value || 'Waiting', visible: qs('pref-waiting-visible').checked, refurbMode: qs('pref-waiting-refurbs').value || 'all', refurbRotateSeconds: Math.max(5, Number(qs('pref-waiting-refurb-seconds').value || 12) || 12), statuses: parseLines(qs('pref-waiting-statuses').value) },
         qualityControl: { label: qs('pref-qc-label').value || 'Quality Control', visible: qs('pref-qc-visible').checked, refurbMode: qs('pref-qc-refurbs').value || 'all', refurbRotateSeconds: Math.max(5, Number(qs('pref-qc-refurb-seconds').value || 12) || 12), statuses: parseLines(qs('pref-qc-statuses').value) },
+        column6: { label: qs('pref-column6-label').value || 'Column 6', visible: qs('pref-column6-visible').checked, refurbMode: qs('pref-column6-refurbs').value || 'all', refurbRotateSeconds: Math.max(5, Number(qs('pref-column6-refurb-seconds').value || 12) || 12), statuses: parseLines(qs('pref-column6-statuses').value) },
       },
     };
   }
@@ -3995,11 +4185,6 @@
       return;
     }
 
-    if (visibleCount >= 5) {
-      queueColumnsEl.style.removeProperty('grid-template-columns');
-      return;
-    }
-
     if (window.innerWidth <= 1200 && orientation !== 'vertical') {
       queueColumnsEl.style.gridTemplateColumns = `repeat(${Math.min(2, visibleCount)}, minmax(0, 1fr))`;
       return;
@@ -4013,11 +4198,14 @@
     const orientation = prefs.display?.orientation || 'auto';
     document.body.classList.toggle('force-horizontal', orientation === 'horizontal');
     document.body.classList.toggle('force-vertical', orientation === 'vertical');
+    document.body.dataset.priorityStrobeEnabled = prefs.display?.priorityStrobeEnabled === false ? 'false' : 'true';
+    document.body.dataset.priorityStrobeIntensity = prefs.display?.priorityStrobeIntensity || 'medium';
     qs('ready-column').hidden = prefs.columns.readyToStart.visible === false;
     qs('progress-column').hidden = prefs.columns.inProgress.visible === false;
     qs('attention-column').hidden = prefs.columns.needsAttention.visible === false;
     qs('waiting-column').hidden = prefs.columns.waiting.visible === false;
     qs('qc-column').hidden = prefs.columns.qualityControl.visible === false;
+    qs('column6-column').hidden = prefs.columns.column6?.visible !== true;
     applyQueueColumnLayout(prefs);
   }
 
@@ -4028,6 +4216,7 @@
     qs('attention-title').textContent = prefs.columns.needsAttention.label;
     qs('waiting-title').textContent = prefs.columns.waiting.label;
     qs('qc-title').textContent = prefs.columns.qualityControl.label;
+    qs('column6-title').textContent = prefs.columns.column6?.label || 'Column 6';
   }
 
   async function loadApiConfig() {
@@ -4451,6 +4640,29 @@
     `;
   }
 
+  function renderColumn6Queue(data) {
+    const filtered = filterColumnItems(data.column6Queue || [], data.uiPreferences?.columns?.column6?.refurbMode, data.uiPreferences?.columns?.column6?.refurbRotateSeconds);
+    const items = filtered.items;
+    qs('column6-count-pill').textContent = filtered.countLabel;
+    if (!items.length) {
+      qs('column6-queue-content').innerHTML = `
+        <div class="state">
+          <div>
+            <h2 class="empty-title">No column 6 tickets</h2>
+            <div class="empty-sub">Nothing is currently in the extra column.</div>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    qs('column6-queue-content').innerHTML = `
+      <div class="queue-list">
+        ${items.slice(0, 14).map((ticket) => queueCardMarkup(ticket, currentPreferences().columns?.column6?.label || 'Column 6', '')).join('')}
+      </div>
+    `;
+  }
+
   function renderError(message) {
     if (state.refurbRotationTimer) {
       clearInterval(state.refurbRotationTimer);
@@ -4473,6 +4685,8 @@
     qs('waiting-queue-content').innerHTML = '';
     qs('qc-count-pill').textContent = '0 tickets';
     qs('qc-queue-content').innerHTML = '';
+    qs('column6-count-pill').textContent = '0 tickets';
+    qs('column6-queue-content').innerHTML = '';
     qs('schedule-strip').innerHTML = '';
     qs('rush-sync-overlay').classList.remove('open');
     qs('footer-note').textContent = message;
@@ -4497,6 +4711,7 @@
     renderAttentionQueue(state.data);
     renderWaitingQueue(state.data);
     renderQualityControlQueue(state.data);
+    renderColumn6Queue(state.data);
     setupRefurbRotation();
     renderRushSyncStatus(state.data.rushSync || {});
     renderRushSyncPopup(state.data.rushSync || {});

@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.58';
+const APP_VERSION = 'v2.1.59';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -30,6 +30,9 @@ const DEFAULT_UI_PREFERENCES = {
     title: 'Current Repair Queue',
     logoDataUrl: '',
     logoSize: 72,
+    tickerEnabled: false,
+    tickerText: '',
+    tickerSpeedSeconds: 24,
     sideMediaEnabled: false,
     sideMediaDataUrl: '',
     sideMediaWidthPercent: 38,
@@ -42,6 +45,8 @@ const DEFAULT_UI_PREFERENCES = {
     showAssignedTech: true,
     hideRefurbs: false,
     assigneeFilter: [],
+    priorityStrobeEnabled: true,
+    priorityStrobeIntensity: 'medium',
   },
   schedule: {
     includedWeekdays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
@@ -103,6 +108,13 @@ const DEFAULT_UI_PREFERENCES = {
       refurbMode: 'all',
       refurbRotateSeconds: 12,
       statuses: ['Quality Control'],
+    },
+    column6: {
+      label: 'Column 6',
+      visible: false,
+      refurbMode: 'all',
+      refurbRotateSeconds: 12,
+      statuses: [],
     },
   },
 };
@@ -312,6 +324,18 @@ function normalizeUiPreferences(savedPrefs = {}) {
       title: String(savedPrefs?.brand?.title || DEFAULT_UI_PREFERENCES.brand.title).trim() || DEFAULT_UI_PREFERENCES.brand.title,
       logoDataUrl: String(savedPrefs?.brand?.logoDataUrl || '').trim(),
       logoSize: Math.max(36, Math.min(180, Number(savedPrefs?.brand?.logoSize ?? DEFAULT_UI_PREFERENCES.brand.logoSize) || DEFAULT_UI_PREFERENCES.brand.logoSize)),
+      tickerEnabled: savedPrefs?.brand?.tickerEnabled !== undefined
+        ? !!savedPrefs.brand.tickerEnabled
+        : DEFAULT_UI_PREFERENCES.brand.tickerEnabled,
+      tickerText: String(savedPrefs?.brand?.tickerText || '').trim(),
+      tickerSpeedSeconds: Math.max(
+        8,
+        Math.min(
+          120,
+          Number(savedPrefs?.brand?.tickerSpeedSeconds ?? DEFAULT_UI_PREFERENCES.brand.tickerSpeedSeconds)
+            || DEFAULT_UI_PREFERENCES.brand.tickerSpeedSeconds
+        )
+      ),
       sideMediaEnabled: savedPrefs?.brand?.sideMediaEnabled !== undefined
         ? !!savedPrefs.brand.sideMediaEnabled
         : DEFAULT_UI_PREFERENCES.brand.sideMediaEnabled,
@@ -343,6 +367,12 @@ function normalizeUiPreferences(savedPrefs = {}) {
         ? !!savedPrefs.display.hideRefurbs
         : DEFAULT_UI_PREFERENCES.display.hideRefurbs,
       assigneeFilter: normalizeStringArray(savedPrefs?.display?.assigneeFilter, DEFAULT_UI_PREFERENCES.display.assigneeFilter),
+      priorityStrobeEnabled: savedPrefs?.display?.priorityStrobeEnabled !== undefined
+        ? !!savedPrefs.display.priorityStrobeEnabled
+        : DEFAULT_UI_PREFERENCES.display.priorityStrobeEnabled,
+      priorityStrobeIntensity: ['subtle', 'medium', 'intense'].includes(String(savedPrefs?.display?.priorityStrobeIntensity || '').toLowerCase())
+        ? String(savedPrefs.display.priorityStrobeIntensity).toLowerCase()
+        : DEFAULT_UI_PREFERENCES.display.priorityStrobeIntensity,
     },
     schedule: {
       includedWeekdays: normalizeStringArray(savedPrefs?.schedule?.includedWeekdays, DEFAULT_UI_PREFERENCES.schedule.includedWeekdays),
@@ -389,6 +419,7 @@ function normalizeUiPreferences(savedPrefs = {}) {
       needsAttention: normalizeColumnConfig(savedPrefs?.columns?.needsAttention, DEFAULT_UI_PREFERENCES.columns.needsAttention),
       waiting: normalizeColumnConfig(savedPrefs?.columns?.waiting, DEFAULT_UI_PREFERENCES.columns.waiting),
       qualityControl: normalizeColumnConfig(savedPrefs?.columns?.qualityControl, DEFAULT_UI_PREFERENCES.columns.qualityControl),
+      column6: normalizeColumnConfig(savedPrefs?.columns?.column6, DEFAULT_UI_PREFERENCES.columns.column6),
     },
   };
 }
@@ -1354,6 +1385,7 @@ function normalizeTicketCounterPayload(
     preferences.columns.needsAttention.label,
     preferences.columns.waiting.label,
     preferences.columns.qualityControl.label,
+    preferences.columns.column6.label,
   ];
   const rawTickets = Array.isArray(ticketsData?.pagination?.data) ? ticketsData.pagination.data : [];
   const rawCounts = Array.isArray(ticketsData?.total_res) ? ticketsData.total_res : [];
@@ -1705,6 +1737,41 @@ function normalizeTicketCounterPayload(
       return Number(a.orderId || 0) - Number(b.orderId || 0);
     });
 
+  const column6Queue = allTickets
+    .filter((ticket) => matchesConfiguredStatus(ticket.status, preferences.columns.column6.statuses))
+    .map((ticket) => {
+      const createdAt = Number(ticket.createdAt || 0) || null;
+      const lastTouchedAt = Number(ticket.updatedAt || ticket.createdAt || 0) || null;
+      return {
+        orderId: ticket.orderId,
+        status: ticket.status,
+        statusColor: ticket.statusColor,
+        customerName: ticket.customerName,
+        assigneeName: ticket.assigneeName,
+        devices: ticket.devices,
+        issues: ticket.issues,
+        dueOn: ticket.dueOn,
+        dueAt: ticket.dueAt,
+        updatedAt: ticket.updatedAt,
+        hasPriorityFee: ticket.hasPriorityFee,
+        isRushJob: !!ticket.isRushJob,
+        isPriorityTicket: !!ticket.isPriorityTicket,
+        isRefurb: !!ticket.isRefurb,
+        waitingHours: lastTouchedAt
+          ? Math.max(0, Math.floor((Date.now() - (lastTouchedAt * 1000)) / (1000 * 60 * 60)))
+          : null,
+        waitingDays: createdAt
+          ? Math.max(0, Math.floor((Date.now() - (createdAt * 1000)) / (1000 * 60 * 60 * 24)))
+          : null,
+      };
+    })
+    .sort((a, b) => {
+      if ((a.updatedAt || 0) !== (b.updatedAt || 0)) {
+        return (a.updatedAt || 0) - (b.updatedAt || 0);
+      }
+      return Number(a.orderId || 0) - Number(b.orderId || 0);
+    });
+
   const now = new Date();
   const day = now.getDay();
   const diffToMonday = day === 0 ? -6 : 1 - day;
@@ -1747,6 +1814,7 @@ function normalizeTicketCounterPayload(
     [preferences.columns.needsAttention.label]: needsAttentionQueue.length,
     [preferences.columns.waiting.label]: waitingQueue.length,
     [preferences.columns.qualityControl.label]: qualityControlQueue.length,
+    [preferences.columns.column6.label]: column6Queue.length,
   };
 
   const columnTicketIds = new Set([
@@ -1755,6 +1823,7 @@ function normalizeTicketCounterPayload(
     ...needsAttentionQueue.map((ticket) => ticket.orderId),
     ...waitingQueue.map((ticket) => ticket.orderId),
     ...qualityControlQueue.map((ticket) => ticket.orderId),
+    ...column6Queue.map((ticket) => ticket.orderId),
     ...allTickets.filter((ticket) => isCalendarAppointmentTicket(ticket, preferences)).map((ticket) => ticket.orderId),
   ]);
   const tickets = allTickets.filter((ticket) => !columnTicketIds.has(ticket.orderId));
@@ -1793,6 +1862,7 @@ function normalizeTicketCounterPayload(
     inProgressQueue,
     waitingQueue,
     qualityControlQueue,
+    column6Queue,
     scheduledCalendar,
     nextScheduledCalendar,
     rushSync: rushSyncStatus,
