@@ -777,15 +777,32 @@
   }
 
   .queue-flag.rush {
-    background: rgba(255, 92, 92, 0.18);
-    border-color: rgba(255, 92, 92, 0.4);
-    color: #ffb3b3;
+    background: #dc2626;
+    border-color: #fecaca;
+    color: #fff;
+    box-shadow: 0 0 0 1px rgba(127, 29, 29, 0.35), 0 0 14px rgba(220, 38, 38, 0.35);
+    animation: rushStrobe 0.6s steps(2, end) infinite;
   }
 
   .queue-flag.priority {
     background: rgba(255, 210, 122, 0.18);
     border-color: rgba(255, 210, 122, 0.38);
     color: #ffd98b;
+  }
+
+  @keyframes rushStrobe {
+    0%, 49% {
+      background: #dc2626;
+      border-color: #fecaca;
+      color: #fff;
+      box-shadow: 0 0 0 1px rgba(127, 29, 29, 0.35), 0 0 14px rgba(220, 38, 38, 0.35);
+    }
+    50%, 100% {
+      background: #7f1d1d;
+      border-color: #fee2e2;
+      color: #fff;
+      box-shadow: 0 0 0 1px rgba(127, 29, 29, 0.45), 0 0 22px rgba(239, 68, 68, 0.6);
+    }
   }
 
   .queue-name {
@@ -4295,7 +4312,7 @@
   function queueCardMarkup(ticket, fallbackStatus, staleClass) {
     const showAssignedTech = currentPreferences().display?.showAssignedTech !== false;
     const priorityBadge = ticket.isRushJob
-      ? '<span class="queue-flag rush">Rush</span>'
+      ? '<span class="queue-flag rush">Priority</span>'
       : (ticket.isPriorityTicket ? '<span class="queue-flag priority">Priority</span>' : '');
     return `
       <article class="queue-item${staleClass ? ' ' + staleClass : ''}">
