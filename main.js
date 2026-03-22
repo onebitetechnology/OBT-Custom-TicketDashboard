@@ -3,6 +3,8 @@ const path = require('path');
 const fs = require('fs');
 const net = require('net');
 const http = require('http');
+const https = require('https');
+const os = require('os');
 const { spawn } = require('child_process');
 
 let autoUpdater = null;
@@ -28,10 +30,14 @@ let updateStatus = {
   message: 'Update checks are idle.',
   version: null,
   releaseNotes: '',
+  updateChannel: 'latest',
+  receiveBetaUpdates: false,
   skipped: false,
   skippedVersion: '',
 };
 const BACKGROUND_UPDATE_CHECK_MS = 60 * 60 * 1000;
+const GITHUB_RELEASE_NOTES_BASE_URL = 'https://api.github.com/repos/onebitetechnology/OBT-Custom-TicketDashboard/releases/tags/';
+const releaseNotesFetchCache = new Map();
 
 function getUnsupportedMacUpdateStatus() {
   return {
@@ -67,6 +73,90 @@ function normalizeReleaseNotes(info) {
   return String(raw || '').trim();
 }
 
+function fetchGitHubReleaseNotes(version) {
+  const normalizedVersion = String(version || '').trim().replace(/^v/i, '');
+  if (!normalizedVersion) return Promise.resolve('');
+  if (releaseNotesFetchCache.has(normalizedVersion)) {
+    return releaseNotesFetchCache.get(normalizedVersion);
+  }
+
+  const requestUrl = `${GITHUB_RELEASE_NOTES_BASE_URL}v${encodeURIComponent(normalizedVersion)}`;
+  const requestPromise = new Promise((resolve) => {
+    const request = https.get(requestUrl, {
+      headers: {
+        'User-Agent': 'One-Bite-Ticket-Display-Updater',
+        'Accept': 'application/vnd.github+json',
+      },
+    }, (response) => {
+      let body = '';
+      response.setEncoding('utf8');
+      response.on('data', (chunk) => {
+        body += chunk;
+      });
+      response.on('end', () => {
+        if (response.statusCode !== 200) {
+          resolve('');
+          return;
+        }
+        try {
+          const parsed = JSON.parse(body);
+          resolve(String(parsed?.body || '').trim());
+        } catch (_) {
+          resolve('');
+        }
+      });
+    });
+
+    request.on('error', () => resolve(''));
+    request.setTimeout(8000, () => {
+      request.destroy();
+      resolve('');
+    });
+  });
+
+  releaseNotesFetchCache.set(normalizedVersion, requestPromise);
+  return requestPromise;
+}
+
+async function hydrateReleaseNotesIfMissing(version) {
+  const normalizedVersion = String(version || '').trim().replace(/^v/i, '');
+  if (!normalizedVersion) return;
+  if (String(updateStatus.releaseNotes || '').trim()) return;
+  const notes = await fetchGitHubReleaseNotes(normalizedVersion);
+  if (!notes) return;
+  if (String(updateStatus.version || '').trim().replace(/^v/i, '') !== normalizedVersion) return;
+  setUpdateStatus({
+    ...updateStatus,
+    releaseNotes: notes,
+  });
+}
+
+function readUpdateChannelPreferencesFromConfig() {
+  try {
+    ensureDataDir();
+    if (!fs.existsSync(getConfigPath())) {
+      return { updateChannel: 'latest', receiveBetaUpdates: false };
+    }
+    const parsed = JSON.parse(fs.readFileSync(getConfigPath(), 'utf8'));
+    const receiveBetaUpdates = !!parsed?.uiPreferences?.updates?.receiveBetaUpdates;
+    return {
+      updateChannel: receiveBetaUpdates ? 'beta' : 'latest',
+      receiveBetaUpdates,
+    };
+  } catch (_) {
+    return { updateChannel: 'latest', receiveBetaUpdates: false };
+  }
+}
+
+function applyConfiguredUpdateChannel() {
+  const { updateChannel, receiveBetaUpdates } = readUpdateChannelPreferencesFromConfig();
+  if (autoUpdater) {
+    autoUpdater.channel = updateChannel;
+    autoUpdater.allowPrerelease = receiveBetaUpdates;
+  }
+  return { updateChannel, receiveBetaUpdates };
+}
+
 function areAutoUpdatesSupported() {
   if (!autoUpdater || !app.isPackaged) return false;
   if (process.platform === 'darwin') return false;
@@ -93,6 +183,19 @@ function getUpdatePrefsPath() {
 
 function getServerEntry() {
   return path.join(getBundledAppDir(), 'server.js');
+}
+
+function formatTimestampForFile(date = new Date()) {
+  const pad = (value) => String(value).padStart(2, '0');
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+    '-',
+    pad(date.getHours()),
+    pad(date.getMinutes()),
+    pad(date.getSeconds()),
+  ].join('');
 }
 
 function ensureDataDir() {
@@ -134,8 +237,11 @@ function setSkippedUpdateVersion(version = '') {
 function setUpdateStatus(nextStatus) {
   const skippedVersion = getSkippedUpdateVersion();
   const version = String(nextStatus?.version || '').trim();
+  const { updateChannel, receiveBetaUpdates } = readUpdateChannelPreferencesFromConfig();
   updateStatus = {
     ...nextStatus,
+    updateChannel,
+    receiveBetaUpdates,
     skippedVersion,
     skipped: !!version && skippedVersion === version,
   };
@@ -155,6 +261,90 @@ function seedDataFiles() {
     if (!fs.existsSync(sourcePath) || fs.existsSync(targetPath)) continue;
     fs.copyFileSync(sourcePath, targetPath);
   }
+}
+
+function summarizeConfigForSupport() {
+  try {
+    ensureDataDir();
+    if (!fs.existsSync(getConfigPath())) {
+      return {
+        hasConfigFile: false,
+        hasApiKey: false,
+        hasTicketCounterDisplayUrl: false,
+        rushSyncEnabled: false,
+        hasRushSyncCookie: false,
+        receiveBetaUpdates: false,
+      };
+    }
+
+    const parsed = JSON.parse(fs.readFileSync(getConfigPath(), 'utf8'));
+    return {
+      hasConfigFile: true,
+      hasApiKey: !!String(parsed?.apiKey || '').trim(),
+      hasTicketCounterDisplayUrl: !!String(parsed?.ticketCounterDisplayUrl || '').trim(),
+      rushSyncEnabled: !!parsed?.rushSync?.enabled,
+      hasRushSyncCookie: !!String(parsed?.rushSync?.cookie || '').trim(),
+      receiveBetaUpdates: !!parsed?.uiPreferences?.updates?.receiveBetaUpdates,
+    };
+  } catch (_) {
+    return {
+      hasConfigFile: true,
+      hasApiKey: false,
+      hasTicketCounterDisplayUrl: false,
+      rushSyncEnabled: false,
+      hasRushSyncCookie: false,
+      receiveBetaUpdates: false,
+      configReadError: true,
+    };
+  }
+}
+
+function createSupportBundle() {
+  ensureDataDir();
+  const supportDir = path.join(getDataDir(), 'support');
+  fs.mkdirSync(supportDir, { recursive: true });
+
+  const configSummary = summarizeConfigForSupport();
+  const { updateChannel, receiveBetaUpdates } = readUpdateChannelPreferencesFromConfig();
+  const timestamp = new Date();
+  const bundlePath = path.join(supportDir, `support-bundle-${formatTimestampForFile(timestamp)}.json`);
+  const payload = {
+    capturedAt: timestamp.toISOString(),
+    app: {
+      version: app.getVersion(),
+      packaged: app.isPackaged,
+      appPath: getBundledAppDir(),
+      userDataPath: getDataDir(),
+      localBoardUrl: serverPort ? `http://127.0.0.1:${serverPort}` : '',
+    },
+    system: {
+      platform: process.platform,
+      arch: process.arch,
+      osRelease: os.release(),
+      hostname: os.hostname(),
+      versions: {
+        electron: process.versions.electron,
+        chrome: process.versions.chrome,
+        node: process.versions.node,
+      },
+    },
+    updates: {
+      channel: updateChannel,
+      receiveBetaUpdates,
+      status: {
+        supported: !!updateStatus.supported,
+        available: !!updateStatus.available,
+        downloaded: !!updateStatus.downloaded,
+        checking: !!updateStatus.checking,
+        version: String(updateStatus.version || '').trim(),
+        message: String(updateStatus.message || '').trim(),
+      },
+    },
+    configSummary,
+  };
+
+  fs.writeFileSync(bundlePath, JSON.stringify(payload, null, 2), 'utf8');
+  return { bundlePath, payload };
 }
 
 function loadWindowPreferences() {
@@ -366,6 +556,7 @@ function setupAutoUpdates() {
     return;
   }
 
+  applyConfiguredUpdateChannel();
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
 
@@ -373,7 +564,11 @@ function setupAutoUpdates() {
     setUpdateStatus({ supported: true, available: false, checking: true, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: 'Checking for updates...', version: null, releaseNotes: '' });
   });
   autoUpdater.on('update-available', (info) => {
-    setUpdateStatus({ supported: true, available: true, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: 'Update available. Downloading...', version: info?.version || null, releaseNotes: normalizeReleaseNotes(info) });
+    const releaseNotes = normalizeReleaseNotes(info);
+    setUpdateStatus({ supported: true, available: true, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: 'Update available. Downloading...', version: info?.version || null, releaseNotes });
+    if (!releaseNotes) {
+      hydrateReleaseNotesIfMissing(info?.version).catch(() => {});
+    }
   });
   autoUpdater.on('update-not-available', () => {
     setUpdateStatus({ supported: true, available: false, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: 'App is up to date.', version: null, releaseNotes: '' });
@@ -392,7 +587,11 @@ function setupAutoUpdates() {
     });
   });
   autoUpdater.on('update-downloaded', (info) => {
-    setUpdateStatus({ supported: true, available: true, checking: false, downloaded: true, progressPercent: 100, bytesPerSecond: 0, transferredBytes: updateStatus.totalBytes || 0, totalBytes: updateStatus.totalBytes || 0, message: 'Update downloaded. Close the app to install it, or use Install Update Now.', version: info?.version || null, releaseNotes: normalizeReleaseNotes(info) || updateStatus.releaseNotes || '' });
+    const releaseNotes = normalizeReleaseNotes(info) || updateStatus.releaseNotes || '';
+    setUpdateStatus({ supported: true, available: true, checking: false, downloaded: true, progressPercent: 100, bytesPerSecond: 0, transferredBytes: updateStatus.totalBytes || 0, totalBytes: updateStatus.totalBytes || 0, message: 'Update downloaded. Close the app to install it, or use Install Update Now.', version: info?.version || null, releaseNotes });
+    if (!releaseNotes) {
+      hydrateReleaseNotesIfMissing(info?.version).catch(() => {});
+    }
   });
   autoUpdater.on('error', (error) => {
     setUpdateStatus({ supported: true, available: false, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: error?.message || 'Update check failed.', version: null, releaseNotes: '' });
@@ -404,6 +603,7 @@ function setupAutoUpdates() {
 
   if (updateCheckTimer) clearInterval(updateCheckTimer);
   updateCheckTimer = setInterval(() => {
+    applyConfiguredUpdateChannel();
     autoUpdater.checkForUpdates().catch((error) => {
       setUpdateStatus({ supported: true, available: false, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: error?.message || 'Scheduled update check failed.', version: null, releaseNotes: '' });
     });
@@ -437,11 +637,33 @@ ipcMain.handle('app:list-displays', () => {
   }));
 });
 ipcMain.handle('app:open-feature-request', async () => {
-  const subject = encodeURIComponent('OBT Custom Ticket Dashboard Feature Request');
-  const body = encodeURIComponent('Hi Jeff,\n\nI would like to request the following feature:\n\n');
+  const { bundlePath, payload } = createSupportBundle();
+  const subject = encodeURIComponent('OBT Ticket Display Feature Request / Bug Report');
+  const body = encodeURIComponent([
+    'Hi Jeff,',
+    '',
+    'Request type: [Feature Request / Bug Report]',
+    '',
+    'Summary:',
+    '',
+    'What I expected:',
+    '',
+    'What happened instead:',
+    '',
+    'Steps to reproduce:',
+    '',
+    'Diagnostics:',
+    `- App version: ${payload.app.version}`,
+    `- Platform: ${payload.system.platform} (${payload.system.arch})`,
+    `- Update channel: ${payload.updates.channel}${payload.updates.receiveBetaUpdates ? ' (beta enabled)' : ''}`,
+    `- Local board URL: ${payload.app.localBoardUrl || 'Not running yet'}`,
+    `- Support bundle path: ${bundlePath}`,
+    '',
+    'If this is a bug report, please attach the support bundle file from the path above to this email if your mail app allows attachments.',
+  ].join('\n'));
   const url = `mailto:jeff@onebitetechnology.ca?subject=${subject}&body=${body}`;
   await shell.openExternal(url);
-  return { ok: true, url };
+  return { ok: true, url, bundlePath };
 });
 ipcMain.handle('app:clear-local-data', async () => {
   const userDataPath = app.getPath('userData');
@@ -466,7 +688,15 @@ ipcMain.handle('updates:check', async () => {
     }
     return updateStatus;
   }
+  applyConfiguredUpdateChannel();
   await autoUpdater.checkForUpdates();
+  return updateStatus;
+});
+ipcMain.handle('updates:refresh-config', async () => {
+  if (areAutoUpdatesSupported()) {
+    applyConfiguredUpdateChannel();
+  }
+  setUpdateStatus({ ...updateStatus });
   return updateStatus;
 });
 ipcMain.handle('updates:skip', async (_, version) => {

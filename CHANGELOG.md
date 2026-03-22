@@ -2,6 +2,21 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.65
+
+- Upgraded the settings-side support email action into `Feature Request / Report Bug` and prefilled the email with app version, platform, update channel, and reproduction prompts.
+- Added automatic support bundle generation before opening the email app, so the board now creates a diagnostics file the user can attach for bug reports.
+
+## v2.1.64
+
+- Added a `Receive beta updates` setting so each shop can opt into beta releases or stay on stable-only updates.
+- Wired the desktop updater to switch between stable and beta channels based on that saved preference before each update check.
+- Updated the release workflow to publish channel metadata for both stable and beta releases, so future prerelease tags can flow to beta testers correctly.
+
+## v2.1.63
+
+- Added a direct GitHub release-notes fallback for update popups, so changelog text still appears even if `electron-updater` returns an empty `releaseNotes` field for a version.
+
 ## v2.1.62
 
 - Restyled the settings drawer to better match the cleaner PC AutoSpec card layout, including stronger card contrast and clearer field readability.

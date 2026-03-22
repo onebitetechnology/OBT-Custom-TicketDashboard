@@ -3036,7 +3036,20 @@
           <div class="update-meta-label">Latest Version:</div>
           <div class="update-meta-value" id="update-latest-version">Not checked yet</div>
         </div>
+        <div class="update-meta-row">
+          <div class="update-meta-label">Update Channel:</div>
+          <div class="update-meta-value" id="update-channel-label">Stable only</div>
+        </div>
       </div>
+      <label class="settings-field">
+        <span class="settings-check">
+          <input class="settings-checkbox" id="pref-receive-beta-updates" type="checkbox" />
+          <span class="settings-check-copy">
+            <span class="settings-check-title">Receive beta updates</span>
+            <span class="settings-help">Beta builds may include early fixes and features before the final release. Leave this off for stable-only updates.</span>
+          </span>
+        </span>
+      </label>
       <div class="update-copy" id="update-status-copy" data-tone="neutral">Update checks are idle.</div>
       <div class="update-progress" id="update-progress" hidden>
         <div class="update-progress-bar" id="update-progress-bar"></div>
@@ -3054,7 +3067,7 @@
         <div class="maintenance-tools-label">Maintenance Tools</div>
         <div class="settings-actions">
           <button class="pill secondary" id="settings-clear-data" type="button">Remove Personal Data</button>
-          <button class="pill secondary" id="settings-feature-request" type="button">Feature Request</button>
+          <button class="pill secondary" id="settings-feature-request" type="button">Feature Request / Report Bug</button>
           <button class="pill secondary" id="settings-restart" type="button">Restart Server</button>
         </div>
       </div>
@@ -3228,6 +3241,9 @@
         assigneeFilter: [],
         priorityStrobeEnabled: true,
         priorityStrobeIntensity: 'medium',
+      },
+      updates: {
+        receiveBetaUpdates: false,
       },
       columns: {
         readyToStart: { label: 'Ready to start', visible: true, refurbMode: 'all', refurbRotateSeconds: 12, statuses: [] },
@@ -3506,11 +3522,14 @@
   function renderUpdateStatus(status = {}) {
     state.latestUpdateStatus = status || {};
     const latestVersionEl = qs('update-latest-version');
+    const channelEl = qs('update-channel-label');
     const statusCopyEl = qs('update-status-copy');
     const latestVersion = String(status.version || '').trim();
+    const channel = String(status.updateChannel || '').trim().toLowerCase() === 'beta' ? 'Beta + Stable' : 'Stable only';
     latestVersionEl.textContent = status.checking
       ? 'Checking...'
       : (latestVersion || (status.supported === false ? 'Manual install only' : 'Not checked yet'));
+    channelEl.textContent = channel;
     statusCopyEl.textContent = status.message || 'Update checks are idle.';
     statusCopyEl.dataset.tone = status.supported === false
       ? 'warn'
@@ -4228,6 +4247,7 @@
     qs('pref-assignee-filter').innerHTML = assigneeFilterMarkup(prefs.display?.assigneeFilter || []);
     qs('pref-priority-strobe-enabled').checked = prefs.display?.priorityStrobeEnabled !== false;
     qs('pref-priority-strobe-intensity').value = prefs.display?.priorityStrobeIntensity || 'medium';
+    qs('pref-receive-beta-updates').checked = !!prefs.updates?.receiveBetaUpdates;
     qs('pref-included-weekdays').innerHTML = checkboxGroupMarkup('included-weekdays', prefs.schedule.includedWeekdays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']);
     qs('pref-show-calendar').checked = prefs.schedule.showCalendar !== false;
     qs('pref-rotate-weeks').checked = !!prefs.schedule.rotateWeeks;
@@ -4308,6 +4328,9 @@
         assigneeFilter: selectedAssignees(),
         priorityStrobeEnabled: qs('pref-priority-strobe-enabled').checked,
         priorityStrobeIntensity: qs('pref-priority-strobe-intensity').value || 'medium',
+      },
+      updates: {
+        receiveBetaUpdates: qs('pref-receive-beta-updates').checked,
       },
       schedule: {
         includedWeekdays: selectedCheckboxDays('included-weekdays'),
@@ -4962,6 +4985,10 @@
       if (!response.ok) {
         throw new Error(payload.error || 'Could not save settings');
       }
+      if (window.desktopApp?.refreshUpdateConfig) {
+        const refreshedStatus = await window.desktopApp.refreshUpdateConfig();
+        renderUpdateStatus(refreshedStatus || {});
+      }
       state.settingsLoaded = false;
       qs('settings-status').textContent = 'Saved. Refreshing display...';
       const nextDisplay = payload.preferences.display || nextPreferences.display || {};
@@ -5085,15 +5112,17 @@
   async function openFeatureRequest() {
     if (window.desktopApp?.openFeatureRequest) {
       try {
-        await window.desktopApp.openFeatureRequest();
-        qs('settings-status').textContent = 'Opened your email app for a feature request.';
+        const result = await window.desktopApp.openFeatureRequest();
+        qs('settings-status').textContent = result?.bundlePath
+          ? `Opened your email app and created a support bundle at ${result.bundlePath}`
+          : 'Opened your email app for a feature request or bug report.';
         return;
       } catch (error) {
-        qs('settings-status').textContent = error?.message || 'Could not open feature request email.';
+        qs('settings-status').textContent = error?.message || 'Could not open feature request / bug report email.';
         return;
       }
     }
-    window.location.href = 'mailto:jeff@onebitetechnology.ca?subject=OBT%20Custom%20Ticket%20Dashboard%20Feature%20Request';
+    window.location.href = 'mailto:jeff@onebitetechnology.ca?subject=OBT%20Ticket%20Display%20Feature%20Request%20%2F%20Bug%20Report';
   }
 
   async function clearLocalData() {
