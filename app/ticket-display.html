@@ -1563,13 +1563,38 @@
     margin-top: 10px;
   }
 
-  .update-panel {
+  .update-card {
     display: grid;
     gap: 8px;
-    padding: 10px 12px;
-    border-radius: 10px;
+    padding: 14px 16px;
+    border-radius: 12px;
     border: 1px solid rgba(255,255,255,0.1);
     background: rgba(255,255,255,0.04);
+  }
+
+  .update-meta {
+    display: grid;
+    gap: 8px;
+  }
+
+  .update-meta-row {
+    display: grid;
+    grid-template-columns: 120px minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+  }
+
+  .update-meta-label {
+    font-size: 12px;
+    color: var(--soft);
+    font-family: var(--mono);
+  }
+
+  .update-meta-value {
+    min-width: 0;
+    font-size: 12px;
+    color: var(--text);
+    font-family: var(--mono);
   }
 
   .update-row {
@@ -1586,6 +1611,18 @@
     font-family: var(--mono);
   }
 
+  .update-copy[data-tone="good"] {
+    color: #86efac;
+  }
+
+  .update-copy[data-tone="warn"] {
+    color: #fcd34d;
+  }
+
+  .update-copy[data-tone="danger"] {
+    color: #fca5a5;
+  }
+
   .update-progress {
     width: 100%;
     height: 10px;
@@ -1598,6 +1635,7 @@
   .update-progress-bar {
     height: 100%;
     width: 0%;
+    border-radius: inherit;
     background: linear-gradient(90deg, #6ee7c8, #4fd1ff);
     transition: width 180ms ease;
   }
@@ -1624,6 +1662,28 @@
     line-height: 1.45;
     color: var(--text);
     white-space: pre-wrap;
+  }
+
+  .update-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .maintenance-tools {
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .maintenance-tools-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--soft);
   }
 
   .page-dots {
@@ -2869,37 +2929,40 @@
     </div>
   </div>
   <div class="settings-section span-2">
-    <h3>Maintenance</h3>
-    <div class="settings-section-copy">Use this when you need the local server process to restart and reload server-side changes.</div>
-    <div class="settings-grid">
-      <label class="settings-field">
-        <span class="settings-label">Current version</span>
-        <div class="settings-input" id="settings-app-version" aria-readonly="true">__APP_VERSION__</div>
-        <span class="settings-help">Track this version when testing packaged builds or comparing changelog entries.</span>
-      </label>
-      <div class="settings-field full">
-        <span class="settings-label">Update status</span>
-        <div class="update-panel">
-          <div class="update-row">
-            <div class="update-copy" id="update-status-copy">Update checks are idle.</div>
-            <button class="pill" id="settings-install-update" type="button" hidden>Install Update Now</button>
-          </div>
-          <div class="update-progress" id="update-progress" hidden>
-            <div class="update-progress-bar" id="update-progress-bar"></div>
-          </div>
-          <div class="settings-help" id="update-progress-detail">After an update is downloaded, closing the app installs it automatically.</div>
-          <div class="update-notes" id="update-notes" hidden>
-            <div class="update-notes-label" id="update-notes-label">What’s New</div>
-            <div class="update-notes-copy" id="update-notes-copy"></div>
-          </div>
+    <h3>App Updates</h3>
+    <div class="settings-section-copy">Keep this board current with the same compact update card style used in the PC AutoSpec app.</div>
+    <div class="update-card">
+      <div class="update-meta">
+        <div class="update-meta-row">
+          <div class="update-meta-label">Current Version:</div>
+          <div class="update-meta-value" id="settings-app-version">__APP_VERSION__</div>
+        </div>
+        <div class="update-meta-row">
+          <div class="update-meta-label">Latest Version:</div>
+          <div class="update-meta-value" id="update-latest-version">Not checked yet</div>
         </div>
       </div>
-    </div>
-    <div class="settings-actions">
-      <button class="pill" id="settings-clear-data" type="button">Remove Personal Data</button>
-      <button class="pill" id="settings-feature-request" type="button">Feature Request</button>
-      <button class="pill" id="settings-check-updates" type="button">Check for Updates</button>
-      <button class="pill" id="settings-restart" type="button">Restart Server</button>
+      <div class="update-copy" id="update-status-copy" data-tone="neutral">Update checks are idle.</div>
+      <div class="update-progress" id="update-progress" hidden>
+        <div class="update-progress-bar" id="update-progress-bar"></div>
+      </div>
+      <div class="settings-help" id="update-progress-detail">After an update is downloaded, closing the app installs it automatically.</div>
+      <div class="update-buttons">
+        <button class="pill" id="settings-check-updates" type="button">Check for Updates</button>
+        <button class="pill" id="settings-install-update" type="button" disabled>Install Update Now</button>
+      </div>
+      <div class="update-notes" id="update-notes" hidden>
+        <div class="update-notes-label" id="update-notes-label">What’s New</div>
+        <div class="update-notes-copy" id="update-notes-copy"></div>
+      </div>
+      <div class="maintenance-tools">
+        <div class="maintenance-tools-label">Maintenance Tools</div>
+        <div class="settings-actions">
+          <button class="pill" id="settings-clear-data" type="button">Remove Personal Data</button>
+          <button class="pill" id="settings-feature-request" type="button">Feature Request</button>
+          <button class="pill" id="settings-restart" type="button">Restart Server</button>
+        </div>
+      </div>
     </div>
   </div>
   </div>
@@ -3347,10 +3410,26 @@
 
   function renderUpdateStatus(status = {}) {
     state.latestUpdateStatus = status || {};
-    qs('update-status-copy').textContent = status.message || 'Update checks are idle.';
+    const latestVersionEl = qs('update-latest-version');
+    const statusCopyEl = qs('update-status-copy');
+    const latestVersion = String(status.version || '').trim();
+    latestVersionEl.textContent = status.checking
+      ? 'Checking...'
+      : (latestVersion || (status.supported === false ? 'Manual install only' : 'Not checked yet'));
+    statusCopyEl.textContent = status.message || 'Update checks are idle.';
+    statusCopyEl.dataset.tone = status.supported === false
+      ? 'warn'
+      : status.downloaded
+        ? 'good'
+        : status.available
+          ? 'warn'
+          : (String(status.message || '').toLowerCase().includes('failed') || String(status.message || '').toLowerCase().includes('error'))
+            ? 'danger'
+            : 'neutral';
+
     const installBtn = qs('settings-install-update');
-    installBtn.hidden = !status.downloaded || status.supported === false;
     installBtn.disabled = !status.downloaded || status.supported === false;
+    installBtn.textContent = status.downloaded ? 'Install Update Now' : (status.available ? 'Downloading...' : 'Install Update Now');
 
     const progressWrap = qs('update-progress');
     const progressBar = qs('update-progress-bar');
@@ -3369,11 +3448,16 @@
 
     if (status.supported === false) {
       detail.textContent = 'Manual installs are required on macOS until signed and notarized builds are set up.';
+      latestVersionEl.textContent = latestVersion || 'Manual install only';
     } else if (status.downloaded) {
       detail.textContent = 'The update is downloaded. Close the app to install it automatically, or use Install Update Now.';
     } else if (showProgress) {
       const speed = status.bytesPerSecond ? `${formatBytes(status.bytesPerSecond)}/s` : 'Preparing...';
       detail.textContent = `${formatBytes(status.transferredBytes)} of ${formatBytes(status.totalBytes)} downloaded at ${speed}.`;
+    } else if (status.available) {
+      detail.textContent = 'A new version is available and will download in the background automatically.';
+    } else if (status.message && /up to date/i.test(String(status.message))) {
+      detail.textContent = 'This board is already on the latest available version.';
     } else {
       detail.textContent = 'After an update is downloaded, closing the app installs it automatically.';
     }

@@ -2,12 +2,17 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.60
+
+- Polished the `App Updates` card after the `v2.1.59` release, including cleaner rounded progress fill styling so the download bar sits properly inside its rounded track.
+
 ## v2.1.59
 
 - Added optional Priority strobe controls so shops can turn the red synced-priority flash on or off and choose a subtle, medium, or intense effect.
 - Added an optional top ticker bar in Branding for scrolling specials, promos, reminders, or other shop announcements.
 - Added an optional sixth queue column, disabled by default, so wider board layouts can support one more custom status bucket when needed.
 - Moved the Appointments settings section up under Brand so signage and scheduling controls sit together more naturally.
+- Reworked the settings-side update area into a cleaner `App Updates` card so it matches the compact version/latest/status/progress layout used in the PC AutoSpec app.
 
 ## v2.1.58
 
