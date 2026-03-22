@@ -2,6 +2,12 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.62
+
+- Restyled the settings drawer to better match the cleaner PC AutoSpec card layout, including stronger card contrast and clearer field readability.
+- Reworked section headers to use explicit `Show Details` / `Hide Details` controls that feel much closer to the AutoSpec settings pattern.
+- Updated the `App Updates` card and settings action buttons to use the same stronger primary green and outlined secondary button treatment.
+
 ## v2.1.61
 
 - Switched the main UI font to `Atkinson Hyperlegible Next` to improve readability across the board and settings.
