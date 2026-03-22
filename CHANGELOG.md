@@ -2,6 +2,12 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.61
+
+- Switched the main UI font to `Atkinson Hyperlegible Next` to improve readability across the board and settings.
+- Brightened and clarified the settings drawer with stronger contrast, larger form text, and easier-to-read labels/help text.
+- Refined the `App Updates` card further so it feels closer to the PC AutoSpec settings card while keeping the ticket display app’s background-download update flow.
+
 ## v2.1.60
 
 - Polished the `App Updates` card after the `v2.1.59` release, including cleaner rounded progress fill styling so the download bar sits properly inside its rounded track.
