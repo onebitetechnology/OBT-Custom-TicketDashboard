@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('desktopApp', {
   clearLocalData: () => ipcRenderer.invoke('app:clear-local-data'),
   getUpdateStatus: () => ipcRenderer.invoke('updates:get-status'),
   checkForUpdates: () => ipcRenderer.invoke('updates:check'),
+  refreshUpdateConfig: () => ipcRenderer.invoke('updates:refresh-config'),
   skipUpdateVersion: (version) => ipcRenderer.invoke('updates:skip', version),
   installUpdate: () => ipcRenderer.invoke('updates:install'),
 });

@@ -64,7 +64,7 @@ if rg -n --hidden --glob '!dist/**' --glob '!node_modules/**' 'obtadmin\.repaird
 fi
 
 echo "Checking release metadata upload patterns"
-for required_pattern in 'dist/latest*.yml' 'dist/latest*.yaml' 'dist/*.blockmap'; do
+for required_pattern in 'dist/*.yml' 'dist/*.yaml' 'dist/*.blockmap'; do
   if ! grep -Fq "$required_pattern" "$REPO_DIR/.github/workflows/release.yml"; then
     fail "Release workflow is missing updater metadata artifact pattern: $required_pattern"
   fi

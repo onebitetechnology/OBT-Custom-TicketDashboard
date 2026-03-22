@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.62';
+const APP_VERSION = 'v2.1.65';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -47,6 +47,9 @@ const DEFAULT_UI_PREFERENCES = {
     assigneeFilter: [],
     priorityStrobeEnabled: true,
     priorityStrobeIntensity: 'medium',
+  },
+  updates: {
+    receiveBetaUpdates: false,
   },
   schedule: {
     includedWeekdays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
@@ -373,6 +376,11 @@ function normalizeUiPreferences(savedPrefs = {}) {
       priorityStrobeIntensity: ['subtle', 'medium', 'intense'].includes(String(savedPrefs?.display?.priorityStrobeIntensity || '').toLowerCase())
         ? String(savedPrefs.display.priorityStrobeIntensity).toLowerCase()
         : DEFAULT_UI_PREFERENCES.display.priorityStrobeIntensity,
+    },
+    updates: {
+      receiveBetaUpdates: savedPrefs?.updates?.receiveBetaUpdates !== undefined
+        ? !!savedPrefs.updates.receiveBetaUpdates
+        : DEFAULT_UI_PREFERENCES.updates.receiveBetaUpdates,
     },
     schedule: {
       includedWeekdays: normalizeStringArray(savedPrefs?.schedule?.includedWeekdays, DEFAULT_UI_PREFERENCES.schedule.includedWeekdays),

@@ -28,6 +28,10 @@ fi
 VERSION="$(node -p "require('./package.json').version")"
 TAG="v${VERSION}"
 MESSAGE="${1:-Release ${VERSION}}"
+RELEASE_KIND="stable"
+if [[ "$VERSION" == *-* ]]; then
+  RELEASE_KIND="prerelease"
+fi
 
 if [[ -z "$(git status --porcelain)" ]]; then
   echo "No changes to release."
@@ -41,6 +45,7 @@ fi
 
 echo "Releasing ${TAG}"
 echo "Commit message: ${MESSAGE}"
+echo "Release type: ${RELEASE_KIND}"
 
 echo
 echo "Running preflight checks before release..."
