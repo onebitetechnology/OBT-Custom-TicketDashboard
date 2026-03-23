@@ -27,10 +27,29 @@ fi
 
 VERSION="$(node -p "require('./package.json').version")"
 TAG="v${VERSION}"
+STABLE_RELEASE="false"
+if [[ "${1:-}" == "--stable" ]]; then
+  STABLE_RELEASE="true"
+  shift
+fi
 MESSAGE="${1:-Release ${VERSION}}"
-RELEASE_KIND="stable"
-if [[ "$VERSION" == *-* ]]; then
-  RELEASE_KIND="prerelease"
+RELEASE_KIND="beta"
+if [[ "$VERSION" != *-* ]]; then
+  RELEASE_KIND="stable"
+fi
+
+if [[ "$RELEASE_KIND" == "stable" && "$STABLE_RELEASE" != "true" ]]; then
+  echo "Stable releases now require an explicit --stable flag."
+  echo "For normal test builds, bump to a beta version like 2.1.68-beta.1 and rerun."
+  echo "If you really want a public release, run:"
+  echo "  bash ./release.sh --stable \"${MESSAGE}\""
+  exit 1
+fi
+
+if [[ "$RELEASE_KIND" == "beta" && "$STABLE_RELEASE" == "true" ]]; then
+  echo "This version (${VERSION}) is already a beta/prerelease version."
+  echo "Remove --stable or bump the version to a stable semver first."
+  exit 1
 fi
 
 if [[ -z "$(git status --porcelain)" ]]; then

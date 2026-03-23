@@ -1056,6 +1056,15 @@
 
   .settings-button {
     cursor: pointer;
+    width: 48px;
+    min-width: 48px;
+    height: 48px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    line-height: 1;
   }
 
   .settings-drawer {
@@ -1408,6 +1417,14 @@
     gap: 12px;
   }
 
+  .settings-grid.compact-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-grid.compact-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .brand-subsections {
     display: grid;
     gap: 14px;
@@ -1466,6 +1483,30 @@
     font: inherit;
     font-size: calc(14px * var(--theme-text-scale));
     line-height: 1.35;
+  }
+
+  .settings-input[type="color"] {
+    width: 58px;
+    min-width: 58px;
+    height: 52px;
+    padding: 4px;
+    border-radius: 14px;
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  .settings-input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+  }
+
+  .settings-input[type="color"]::-webkit-color-swatch {
+    border: none;
+    border-radius: 10px;
+  }
+
+  .settings-input[type="color"]::-moz-color-swatch {
+    border: none;
+    border-radius: 10px;
   }
 
   .settings-input:focus,
@@ -1850,6 +1891,23 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--soft);
+  }
+
+  .maintenance-tool-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+  }
+
+  .maintenance-tool {
+    display: grid;
+    gap: 8px;
+    justify-items: start;
+  }
+
+  .maintenance-tool .pill {
+    min-width: 0;
   }
 
   .page-dots {
@@ -2606,7 +2664,7 @@
     <div class="meta">
       <div class="pill" id="clock-pill">--:--</div>
       <div class="pill" id="refresh-countdown-pill">Refresh in --s</div>
-      <button class="pill settings-button" id="settings-open" type="button">Settings</button>
+      <button class="pill settings-button" id="settings-open" type="button" aria-label="Settings" title="Settings">⚙</button>
     </div>
   </section>
 
@@ -2737,7 +2795,7 @@
       <section class="brand-subsection">
         <h4 class="brand-subsection-title">Logo</h4>
         <p class="brand-subsection-copy">Upload the logo shown in the top bar and control how large it appears.</p>
-        <div class="settings-grid">
+        <div class="settings-grid compact-2">
           <label class="settings-field full">
             <span class="settings-label">Current logo</span>
             <div class="settings-logo-preview">
@@ -2764,7 +2822,7 @@
       <section class="brand-subsection">
         <h4 class="brand-subsection-title">Header</h4>
         <p class="brand-subsection-copy">Control the title shown in the top bar. Header colour is applied to the title text.</p>
-        <div class="settings-grid">
+        <div class="settings-grid compact-3">
           <label class="settings-field align-end">
             <span class="settings-label">Header title</span>
             <input class="settings-input" id="pref-brand-title" />
@@ -2784,7 +2842,7 @@
       <section class="brand-subsection">
         <h4 class="brand-subsection-title">Ticker</h4>
         <p class="brand-subsection-copy">Show a scrolling message between the header and appointments area for promos, reminders, or store notices.</p>
-        <div class="settings-grid">
+        <div class="settings-grid compact-3">
           <label class="settings-field full">
             <span class="settings-label">Ticker</span>
             <span class="settings-check">
@@ -2820,7 +2878,7 @@
       <section class="brand-subsection">
         <h4 class="brand-subsection-title">Background</h4>
         <p class="brand-subsection-copy">Choose the base background colours and optionally place a branded image over top at adjustable opacity.</p>
-        <div class="settings-grid">
+        <div class="settings-grid compact-3">
           <label class="settings-field full">
             <span class="settings-label">Current background image</span>
             <div class="settings-media-preview">
@@ -2867,7 +2925,7 @@
       <section class="brand-subsection">
         <h4 class="brand-subsection-title">General</h4>
         <p class="brand-subsection-copy">Tune the overall theme colours and text scale for this shop’s display.</p>
-        <div class="settings-grid">
+        <div class="settings-grid compact-3">
           <label class="settings-field">
             <span class="settings-label">Text scale (%)</span>
             <input class="settings-input" id="pref-brand-text-scale" type="number" min="85" max="130" step="1" />
@@ -2888,7 +2946,7 @@
       <section class="brand-subsection">
         <h4 class="brand-subsection-title">Side Media</h4>
         <p class="brand-subsection-copy">Optional image, GIF, or looping video shown beside the board on wide horizontal displays.</p>
-        <div class="settings-grid">
+        <div class="settings-grid compact-2">
           <label class="settings-field full">
             <span class="settings-label">Current side media</span>
             <div class="settings-media-preview">
@@ -3019,8 +3077,8 @@
       </div>
     </div>
   </div>
-  <div class="settings-section span-2">
-    <h3>Ticket Display</h3>
+  <div class="settings-section span-2" id="ticket-details-section">
+    <h3>Ticket Details</h3>
     <div class="settings-section-copy">Control how the desktop window behaves, which ticket details are shown, and how strongly true Priority jobs pulse.</div>
     <div class="settings-grid">
       <label class="settings-field full">
@@ -3043,7 +3101,7 @@
           </span>
         </span>
       </label>
-      <label class="settings-field">
+      <label class="settings-field align-end">
         <span class="settings-label">Layout orientation</span>
         <select class="settings-input settings-select" id="pref-orientation">
           <option value="auto">Auto</option>
@@ -3052,7 +3110,7 @@
         </select>
         <span class="settings-help">Force the board to use a wide or portrait layout regardless of the screen shape.</span>
       </label>
-      <label class="settings-field">
+      <label class="settings-field align-end">
         <span class="settings-label">Display target</span>
         <select class="settings-input settings-select" id="pref-display-target">
           <option value="current">Current display</option>
@@ -3061,7 +3119,7 @@
         </select>
         <span class="settings-help">Choose which monitor the desktop window and fullscreen mode should use. Connected displays are detected and listed here.</span>
       </label>
-      <label class="settings-field">
+      <label class="settings-field align-end">
         <span class="settings-label">Customer name display</span>
         <select class="settings-input settings-select" id="pref-customer-name-mode">
           <option value="first_name_only">First name only</option>
@@ -3147,7 +3205,7 @@
       </div>
     </div>
   </div>
-  <div class="settings-section span-2">
+  <div class="settings-section span-2" id="columns-section">
     <h3>Columns</h3>
     <div class="settings-section-copy">Configure what each queue column is called, whether it is shown, and which RepairDesk statuses feed into it. Status matching is case-insensitive and works on partial text. Column 6 is optional and off by default.</div>
     <div class="column-editor-grid">
@@ -3249,10 +3307,19 @@
       </div>
       <div class="maintenance-tools">
         <div class="maintenance-tools-label">Maintenance Tools</div>
-        <div class="settings-actions">
-          <button class="pill secondary" id="settings-clear-data" type="button">Remove Personal Data</button>
-          <button class="pill secondary" id="settings-feature-request" type="button">Feature Request / Report Bug</button>
-          <button class="pill secondary" id="settings-restart" type="button">Restart Server</button>
+        <div class="maintenance-tool-grid">
+          <div class="maintenance-tool">
+            <button class="pill secondary" id="settings-feature-request" type="button">Feature Request / Report Bug</button>
+            <div class="settings-help">Opens your email app with version details and a support bundle path for easier reporting.</div>
+          </div>
+          <div class="maintenance-tool">
+            <button class="pill secondary" id="settings-clear-data" type="button">Remove Personal Data</button>
+            <div class="settings-help">Deletes local settings, saved tokens, and caches from this computer, then relaunches clean.</div>
+          </div>
+          <div class="maintenance-tool">
+            <button class="pill secondary" id="settings-restart" type="button">Restart Server</button>
+            <div class="settings-help">Restarts the local board server without reinstalling the app, useful after settings or sync issues.</div>
+          </div>
         </div>
       </div>
     </div>
@@ -3951,6 +4018,14 @@
         updateToggleState();
       });
     });
+  }
+
+  function reorderSettingsSections() {
+    const layout = document.querySelector('.settings-layout');
+    const columnsSection = qs('columns-section');
+    const ticketDetailsSection = qs('ticket-details-section');
+    if (!layout || !columnsSection || !ticketDetailsSection) return;
+    layout.insertBefore(columnsSection, ticketDetailsSection);
   }
 
   function effectiveNow() {
@@ -5623,6 +5698,7 @@
     reader.readAsDataURL(file);
   });
 
+  reorderSettingsSections();
   enhanceSettingsSections();
   qs('page-title').textContent = pageTitle();
   startClock();

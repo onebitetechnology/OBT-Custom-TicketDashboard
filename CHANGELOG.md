@@ -2,11 +2,14 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
-## v2.1.67
+## v2.1.68-beta.1
 
 - Reorganized the Brand settings into clearer sub-sections for Logo, Header, Ticker, Background, General, and Side Media so shops can brand the board more easily.
 - Added Header colour/size and ticker font colour/size controls to the Brand settings.
 - Renamed the `App Updates` section to `Updates & Maintenance`.
+- Polished settings alignment for branding controls, converted theme colour pickers into compact square swatches, and tightened the maintenance action layout.
+- Moved `Columns` above `Ticket Details`, renamed the section from `Ticket Display`, and switched the main board Settings button to a gear icon.
+- Future day-to-day releases now default to beta flow unless `--stable` is passed explicitly to the release script.
 
 ## v2.1.66
 
