@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.66';
+const APP_VERSION = 'v2.1.67';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -30,9 +30,13 @@ const DEFAULT_UI_PREFERENCES = {
     title: 'Current Repair Queue',
     logoDataUrl: '',
     logoSize: 72,
+    headerColor: '#ecf3ff',
+    headerSize: 42,
     tickerEnabled: false,
     tickerText: '',
     tickerSpeedSeconds: 24,
+    tickerTextColor: '#dbeafe',
+    tickerFontSize: 18,
     sideMediaEnabled: false,
     sideMediaDataUrl: '',
     sideMediaWidthPercent: 38,
@@ -345,6 +349,16 @@ function normalizeUiPreferences(savedPrefs = {}) {
       title: String(savedPrefs?.brand?.title || DEFAULT_UI_PREFERENCES.brand.title).trim() || DEFAULT_UI_PREFERENCES.brand.title,
       logoDataUrl: String(savedPrefs?.brand?.logoDataUrl || '').trim(),
       logoSize: Math.max(36, Math.min(180, Number(savedPrefs?.brand?.logoSize ?? DEFAULT_UI_PREFERENCES.brand.logoSize) || DEFAULT_UI_PREFERENCES.brand.logoSize)),
+      headerColor: normalizeHexColor(
+        savedPrefs?.brand?.headerColor,
+        DEFAULT_UI_PREFERENCES.brand.headerColor
+      ),
+      headerSize: normalizePercent(
+        savedPrefs?.brand?.headerSize,
+        DEFAULT_UI_PREFERENCES.brand.headerSize,
+        26,
+        72
+      ),
       tickerEnabled: savedPrefs?.brand?.tickerEnabled !== undefined
         ? !!savedPrefs.brand.tickerEnabled
         : DEFAULT_UI_PREFERENCES.brand.tickerEnabled,
@@ -356,6 +370,16 @@ function normalizeUiPreferences(savedPrefs = {}) {
           Number(savedPrefs?.brand?.tickerSpeedSeconds ?? DEFAULT_UI_PREFERENCES.brand.tickerSpeedSeconds)
             || DEFAULT_UI_PREFERENCES.brand.tickerSpeedSeconds
         )
+      ),
+      tickerTextColor: normalizeHexColor(
+        savedPrefs?.brand?.tickerTextColor,
+        DEFAULT_UI_PREFERENCES.brand.tickerTextColor
+      ),
+      tickerFontSize: normalizePercent(
+        savedPrefs?.brand?.tickerFontSize,
+        DEFAULT_UI_PREFERENCES.brand.tickerFontSize,
+        12,
+        32
       ),
       sideMediaEnabled: savedPrefs?.brand?.sideMediaEnabled !== undefined
         ? !!savedPrefs.brand.sideMediaEnabled
