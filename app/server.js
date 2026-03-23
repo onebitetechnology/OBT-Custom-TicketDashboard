@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.65';
+const APP_VERSION = 'v2.1.66';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -36,6 +36,14 @@ const DEFAULT_UI_PREFERENCES = {
     sideMediaEnabled: false,
     sideMediaDataUrl: '',
     sideMediaWidthPercent: 38,
+    backgroundImageEnabled: false,
+    backgroundImageDataUrl: '',
+    backgroundImageOpacityPercent: 42,
+    backgroundColorStart: '#08111f',
+    backgroundColorEnd: '#0d1a2b',
+    textColor: '#ecf3ff',
+    accentColor: '#6ee7c8',
+    textScalePercent: 100,
   },
   display: {
     fullscreen: false,
@@ -237,6 +245,16 @@ function normalizeStringArray(values, fallback) {
   return cleaned.length ? cleaned : [...fallback];
 }
 
+function normalizeHexColor(value, fallback) {
+  const raw = String(value || '').trim();
+  if (/^#[0-9a-f]{6}$/i.test(raw)) return raw.toLowerCase();
+  return fallback;
+}
+
+function normalizePercent(value, fallback, min, max) {
+  return Math.max(min, Math.min(max, Number(value ?? fallback) || fallback));
+}
+
 function normalizeColumnConfig(savedColumn, fallbackColumn) {
   const refurbMode = ['all', 'hide_refurbs', 'only_refurbs', 'rotate_refurbs'].includes(String(savedColumn?.refurbMode || '').toLowerCase())
     ? String(savedColumn.refurbMode).toLowerCase()
@@ -350,6 +368,38 @@ function normalizeUiPreferences(savedPrefs = {}) {
           Number(savedPrefs?.brand?.sideMediaWidthPercent ?? DEFAULT_UI_PREFERENCES.brand.sideMediaWidthPercent)
             || DEFAULT_UI_PREFERENCES.brand.sideMediaWidthPercent
         )
+      ),
+      backgroundImageEnabled: savedPrefs?.brand?.backgroundImageEnabled !== undefined
+        ? !!savedPrefs.brand.backgroundImageEnabled
+        : DEFAULT_UI_PREFERENCES.brand.backgroundImageEnabled,
+      backgroundImageDataUrl: String(savedPrefs?.brand?.backgroundImageDataUrl || '').trim(),
+      backgroundImageOpacityPercent: normalizePercent(
+        savedPrefs?.brand?.backgroundImageOpacityPercent,
+        DEFAULT_UI_PREFERENCES.brand.backgroundImageOpacityPercent,
+        0,
+        100
+      ),
+      backgroundColorStart: normalizeHexColor(
+        savedPrefs?.brand?.backgroundColorStart,
+        DEFAULT_UI_PREFERENCES.brand.backgroundColorStart
+      ),
+      backgroundColorEnd: normalizeHexColor(
+        savedPrefs?.brand?.backgroundColorEnd,
+        DEFAULT_UI_PREFERENCES.brand.backgroundColorEnd
+      ),
+      textColor: normalizeHexColor(
+        savedPrefs?.brand?.textColor,
+        DEFAULT_UI_PREFERENCES.brand.textColor
+      ),
+      accentColor: normalizeHexColor(
+        savedPrefs?.brand?.accentColor,
+        DEFAULT_UI_PREFERENCES.brand.accentColor
+      ),
+      textScalePercent: normalizePercent(
+        savedPrefs?.brand?.textScalePercent,
+        DEFAULT_UI_PREFERENCES.brand.textScalePercent,
+        85,
+        130
       ),
     },
     display: {

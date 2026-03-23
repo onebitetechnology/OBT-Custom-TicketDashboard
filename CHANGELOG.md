@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.66
+
+- Added brandable theme controls in the Brand section, including optional custom background image upload, background colors, text color, accent color, and text scale.
+- Added live preview support for the custom background image so each shop can theme the board without forcing that look on everyone else.
+
 ## v2.1.65
 
 - Upgraded the settings-side support email action into `Feature Request / Report Bug` and prefilled the email with app version, platform, update channel, and reproduction prompts.
