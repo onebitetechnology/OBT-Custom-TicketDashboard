@@ -11,6 +11,9 @@
   :root {
     --bg: #08111f;
     --bg2: #0d1a2b;
+    --theme-bg-image: none;
+    --theme-bg-image-opacity: 0;
+    --theme-text-scale: 1;
     --surface: rgba(11, 22, 38, 0.82);
     --surface-strong: rgba(17, 30, 49, 0.96);
     --line: rgba(180, 209, 255, 0.12);
@@ -35,11 +38,24 @@
   body {
     font-family: var(--sans);
     color: var(--text);
+    font-size: calc(16px * var(--theme-text-scale));
     background:
       radial-gradient(circle at top left, rgba(110, 231, 200, 0.18), transparent 28%),
       radial-gradient(circle at top right, rgba(124, 184, 255, 0.16), transparent 24%),
       linear-gradient(145deg, var(--bg), var(--bg2));
     overflow: hidden;
+  }
+
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image: var(--theme-bg-image);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    opacity: var(--theme-bg-image-opacity);
+    pointer-events: none;
   }
 
   body::before {
@@ -224,7 +240,7 @@
   }
 
   .headline .pill {
-    font-size: 16px;
+    font-size: calc(16px * var(--theme-text-scale));
     font-weight: 700;
     padding: 12px 16px;
   }
@@ -1256,7 +1272,7 @@
 
   .settings-title {
     margin: 0;
-    font-size: 32px;
+    font-size: calc(32px * var(--theme-text-scale));
     font-weight: 800;
     letter-spacing: 0.01em;
   }
@@ -1310,7 +1326,7 @@
   }
 
   .settings-section-name {
-    font-size: 18px;
+    font-size: calc(18px * var(--theme-text-scale));
     font-weight: 800;
     letter-spacing: 0.01em;
     text-transform: none;
@@ -1401,7 +1417,7 @@
   }
 
   .settings-label {
-    font-size: 14px;
+    font-size: calc(14px * var(--theme-text-scale));
     color: #ecf5ff;
     font-family: var(--sans);
     font-weight: 700;
@@ -1416,7 +1432,7 @@
     color: var(--text);
     padding: 12px 14px;
     font: inherit;
-    font-size: 14px;
+    font-size: calc(14px * var(--theme-text-scale));
     line-height: 1.35;
   }
 
@@ -1443,7 +1459,7 @@
   }
 
   .settings-help {
-    font-size: 13px;
+    font-size: calc(13px * var(--theme-text-scale));
     color: #c7d8ee;
     font-family: var(--sans);
     line-height: 1.5;
@@ -1458,6 +1474,29 @@
     border-radius: 10px;
     border: 1px solid rgba(255,255,255,0.12);
     background: rgba(255,255,255,0.04);
+  }
+
+  .settings-theme-preview {
+    width: 100%;
+    max-width: 280px;
+    aspect-ratio: 16 / 9;
+    border-radius: 12px;
+    overflow: hidden;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    flex: 0 0 auto;
+  }
+
+  .settings-theme-preview-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: none;
+    background: rgba(255,255,255,0.05);
+  }
+
+  .settings-theme-preview-image.visible {
+    display: block;
   }
 
   .settings-media-preview {
@@ -1626,7 +1665,7 @@
   }
 
   .settings-check-title {
-    font-size: 14px;
+    font-size: calc(14px * var(--theme-text-scale));
     font-weight: 700;
     color: var(--text);
   }
@@ -1671,7 +1710,7 @@
   }
 
   .update-meta-label {
-    font-size: 13px;
+    font-size: calc(13px * var(--theme-text-scale));
     color: #f3f8ff;
     font-family: var(--sans);
     font-weight: 700;
@@ -1679,7 +1718,7 @@
 
   .update-meta-value {
     min-width: 0;
-    font-size: 14px;
+    font-size: calc(14px * var(--theme-text-scale));
     color: #ffffff;
     font-family: var(--mono);
     font-weight: 600;
@@ -1694,7 +1733,7 @@
   }
 
   .update-copy {
-    font-size: 14px;
+    font-size: calc(14px * var(--theme-text-scale));
     color: #f5fbff;
     font-family: var(--sans);
     line-height: 1.45;
@@ -2740,6 +2779,59 @@
           </div>
         </div>
       </label>
+      <label class="settings-field full">
+        <span class="settings-label">Custom background image</span>
+        <span class="settings-check">
+          <input class="settings-checkbox" id="pref-brand-background-image-enabled" type="checkbox" />
+          <span class="settings-check-copy">
+            <span class="settings-check-title">Show a custom background image behind the board</span>
+            <span class="settings-help">Useful for branded textures like your blue circuit-board pattern. Leave it off to keep the default built-in background.</span>
+          </span>
+        </span>
+      </label>
+      <label class="settings-field align-end">
+        <span class="settings-label">Background image upload</span>
+        <input class="settings-input" id="pref-brand-background-image" type="file" accept="image/*" />
+        <span class="settings-help">Upload a JPG, PNG, GIF, or WebP image. Wide landscape images tend to work best on TVs.</span>
+      </label>
+      <label class="settings-field">
+        <span class="settings-label">Background image opacity (%)</span>
+        <input class="settings-input" id="pref-brand-background-image-opacity" type="number" min="0" max="100" step="1" />
+        <span class="settings-help">Higher values make the uploaded background image more visible.</span>
+      </label>
+      <label class="settings-field">
+        <span class="settings-label">Background color start</span>
+        <input class="settings-input" id="pref-brand-background-start" type="color" />
+      </label>
+      <label class="settings-field">
+        <span class="settings-label">Background color end</span>
+        <input class="settings-input" id="pref-brand-background-end" type="color" />
+      </label>
+      <label class="settings-field">
+        <span class="settings-label">Primary text color</span>
+        <input class="settings-input" id="pref-brand-text-color" type="color" />
+      </label>
+      <label class="settings-field">
+        <span class="settings-label">Accent color</span>
+        <input class="settings-input" id="pref-brand-accent-color" type="color" />
+      </label>
+      <label class="settings-field">
+        <span class="settings-label">Text scale (%)</span>
+        <input class="settings-input" id="pref-brand-text-scale" type="number" min="85" max="130" step="1" />
+        <span class="settings-help">Use this to nudge the whole board slightly larger or smaller without changing every individual setting.</span>
+      </label>
+      <label class="settings-field full">
+        <span class="settings-label">Current background image</span>
+        <div class="settings-media-preview">
+          <div class="settings-theme-preview">
+            <img class="settings-theme-preview-image" id="pref-brand-background-image-preview" alt="Current background image preview" />
+          </div>
+          <div class="settings-logo-meta">
+            <div class="settings-logo-name" id="pref-brand-background-image-name">No custom background image uploaded</div>
+            <div class="settings-logo-note" id="pref-brand-background-image-note">Upload a background image to preview how the board backdrop will look for this shop.</div>
+          </div>
+        </div>
+      </label>
     </div>
   </div>
   <div class="settings-section span-2">
@@ -3165,6 +3257,7 @@
     welcomeShown: false,
     logoDataUrl: '',
     sideMediaDataUrl: '',
+    themeBackgroundDataUrl: '',
     displays: [],
     updateStatusTimer: null,
     updatePromptTimer: null,
@@ -3231,6 +3324,14 @@
         sideMediaEnabled: false,
         sideMediaDataUrl: '',
         sideMediaWidthPercent: 38,
+        backgroundImageEnabled: false,
+        backgroundImageDataUrl: '',
+        backgroundImageOpacityPercent: 42,
+        backgroundColorStart: '#08111f',
+        backgroundColorEnd: '#0d1a2b',
+        textColor: '#ecf3ff',
+        accentColor: '#6ee7c8',
+        textScalePercent: 100,
       },
       display: {
         fullscreen: false,
@@ -3789,6 +3890,23 @@
     return Math.max(8, Math.min(120, seconds));
   }
 
+  function normalizedThemeImageOpacity(value) {
+    const percent = Number(value || 0);
+    if (Number.isNaN(percent)) return 42;
+    return Math.max(0, Math.min(100, percent));
+  }
+
+  function normalizedThemeTextScale(value) {
+    const percent = Number(value || 0);
+    if (!percent) return 100;
+    return Math.max(85, Math.min(130, percent));
+  }
+
+  function normalizedThemeColor(value, fallback) {
+    const raw = String(value || '').trim();
+    return /^#[0-9a-f]{6}$/i.test(raw) ? raw.toLowerCase() : fallback;
+  }
+
   function detectSideMediaType(dataUrl) {
     const value = String(dataUrl || '').trim().toLowerCase();
     if (!value) return 'none';
@@ -3811,8 +3929,24 @@
     previewEl.style.height = `${size}px`;
   }
 
+  function applyThemePreferences(preferences) {
+    const brand = preferences?.brand || currentPreferences().brand || {};
+    const rootStyle = document.documentElement.style;
+    rootStyle.setProperty('--bg', normalizedThemeColor(brand.backgroundColorStart, '#08111f'));
+    rootStyle.setProperty('--bg2', normalizedThemeColor(brand.backgroundColorEnd, '#0d1a2b'));
+    rootStyle.setProperty('--text', normalizedThemeColor(brand.textColor, '#ecf3ff'));
+    rootStyle.setProperty('--accent', normalizedThemeColor(brand.accentColor, '#6ee7c8'));
+    rootStyle.setProperty('--theme-text-scale', String(normalizedThemeTextScale(brand.textScalePercent || 100) / 100));
+
+    const backgroundImage = String(brand.backgroundImageDataUrl || '').trim();
+    const imageEnabled = !!brand.backgroundImageEnabled && !!backgroundImage;
+    rootStyle.setProperty('--theme-bg-image', imageEnabled ? `url("${backgroundImage}")` : 'none');
+    rootStyle.setProperty('--theme-bg-image-opacity', imageEnabled ? String(normalizedThemeImageOpacity(brand.backgroundImageOpacityPercent || 42) / 100) : '0');
+  }
+
   function updateBrand(preferences) {
     const brand = preferences?.brand || currentPreferences().brand || {};
+    applyThemePreferences(preferences);
     qs('page-title').textContent = params().get('title') && params().get('title') !== 'One Bite TV Queue'
       ? params().get('title')
       : (brand.title || 'Current Repair Queue');
@@ -3944,6 +4078,24 @@
     imageEl.classList.add('visible');
     nameEl.textContent = labelText || 'Stored image';
     noteEl.textContent = 'Preview of the media saved for the horizontal side media panel.';
+  }
+
+  function setThemeBackgroundPreview(backgroundDataUrl, labelText = '') {
+    const previewEl = qs('pref-brand-background-image-preview');
+    const nameEl = qs('pref-brand-background-image-name');
+    const noteEl = qs('pref-brand-background-image-note');
+    const image = String(backgroundDataUrl || '').trim();
+    if (image) {
+      previewEl.src = image;
+      previewEl.classList.add('visible');
+      nameEl.textContent = labelText || 'Stored background image';
+      noteEl.textContent = 'Preview of the uploaded board background image for this shop.';
+      return;
+    }
+    previewEl.removeAttribute('src');
+    previewEl.classList.remove('visible');
+    nameEl.textContent = 'No custom background image uploaded';
+    noteEl.textContent = 'Upload a background image to preview how the board backdrop will look for this shop.';
   }
 
   function cardTone(status) {
@@ -4239,6 +4391,17 @@
       prefs.brand?.sideMediaDataUrl || '',
       prefs.brand?.sideMediaDataUrl ? `Stored ${detectSideMediaType(prefs.brand?.sideMediaDataUrl || '')}` : ''
     );
+    qs('pref-brand-background-image-enabled').checked = !!prefs.brand?.backgroundImageEnabled;
+    qs('pref-brand-background-image-opacity').value = prefs.brand?.backgroundImageOpacityPercent ?? 42;
+    qs('pref-brand-background-start').value = prefs.brand?.backgroundColorStart || '#08111f';
+    qs('pref-brand-background-end').value = prefs.brand?.backgroundColorEnd || '#0d1a2b';
+    qs('pref-brand-text-color').value = prefs.brand?.textColor || '#ecf3ff';
+    qs('pref-brand-accent-color').value = prefs.brand?.accentColor || '#6ee7c8';
+    qs('pref-brand-text-scale').value = prefs.brand?.textScalePercent ?? 100;
+    setThemeBackgroundPreview(
+      prefs.brand?.backgroundImageDataUrl || '',
+      prefs.brand?.backgroundImageDataUrl ? 'Stored background image' : ''
+    );
     qs('pref-fullscreen').checked = !!prefs.display?.fullscreen;
     qs('pref-orientation').value = prefs.display?.orientation || 'auto';
     setDisplayTargetOptions(prefs.display?.displayTarget || 'current');
@@ -4318,6 +4481,14 @@
         sideMediaEnabled: qs('pref-brand-side-media-enabled').checked,
         sideMediaDataUrl: state.sideMediaDataUrl || currentPreferences().brand?.sideMediaDataUrl || '',
         sideMediaWidthPercent: normalizedSideMediaWidth(qs('pref-brand-side-media-width').value || currentPreferences().brand?.sideMediaWidthPercent || 38),
+        backgroundImageEnabled: qs('pref-brand-background-image-enabled').checked,
+        backgroundImageDataUrl: state.themeBackgroundDataUrl || currentPreferences().brand?.backgroundImageDataUrl || '',
+        backgroundImageOpacityPercent: normalizedThemeImageOpacity(qs('pref-brand-background-image-opacity').value || currentPreferences().brand?.backgroundImageOpacityPercent || 42),
+        backgroundColorStart: normalizedThemeColor(qs('pref-brand-background-start').value, currentPreferences().brand?.backgroundColorStart || '#08111f'),
+        backgroundColorEnd: normalizedThemeColor(qs('pref-brand-background-end').value, currentPreferences().brand?.backgroundColorEnd || '#0d1a2b'),
+        textColor: normalizedThemeColor(qs('pref-brand-text-color').value, currentPreferences().brand?.textColor || '#ecf3ff'),
+        accentColor: normalizedThemeColor(qs('pref-brand-accent-color').value, currentPreferences().brand?.accentColor || '#6ee7c8'),
+        textScalePercent: normalizedThemeTextScale(qs('pref-brand-text-scale').value || currentPreferences().brand?.textScalePercent || 100),
       },
       display: {
         fullscreen: qs('pref-fullscreen').checked,
@@ -4556,6 +4727,17 @@
     });
   }
 
+  function readSelectedThemeBackground() {
+    const file = qs('pref-brand-background-image').files && qs('pref-brand-background-image').files[0];
+    if (!file) return Promise.resolve(state.themeBackgroundDataUrl || currentPreferences().brand?.backgroundImageDataUrl || '');
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(new Error('Could not read background image file'));
+      reader.readAsDataURL(file);
+    });
+  }
+
   function totalPages() {
     if (!state.data || !state.data.tickets.length) return 1;
     return Math.max(1, Math.ceil(state.data.tickets.length / cardsPerPage()));
@@ -4659,6 +4841,7 @@
     document.body.scrollTop = 0;
     state.logoDataUrl = currentPreferences().brand?.logoDataUrl || '';
     state.sideMediaDataUrl = currentPreferences().brand?.sideMediaDataUrl || '';
+    state.themeBackgroundDataUrl = currentPreferences().brand?.backgroundImageDataUrl || '';
     fillSettingsForm(currentPreferences());
     updateAlertRuleVisibility();
     loadApiConfig().catch(() => {
@@ -4974,6 +5157,7 @@
       const previousDisplay = currentPreferences().display || { fullscreen: false, orientation: 'auto', displayTarget: 'current' };
       state.logoDataUrl = await readSelectedLogo();
       state.sideMediaDataUrl = await readSelectedSideMedia();
+      state.themeBackgroundDataUrl = await readSelectedThemeBackground();
       const nextPreferences = collectSettingsForm();
       await saveApiConfig();
       const response = await fetch('/api/preferences', {
@@ -5298,6 +5482,23 @@
     reader.onerror = () => {
       const existing = currentPreferences().brand?.sideMediaDataUrl || '';
       setSideMediaPreview(existing, existing ? `Stored ${detectSideMediaType(existing)}` : '');
+    };
+    reader.readAsDataURL(file);
+  });
+  qs('pref-brand-background-image').addEventListener('change', () => {
+    const file = qs('pref-brand-background-image').files && qs('pref-brand-background-image').files[0];
+    if (!file) {
+      const existing = currentPreferences().brand?.backgroundImageDataUrl || '';
+      setThemeBackgroundPreview(existing, existing ? 'Stored background image' : '');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setThemeBackgroundPreview(String(reader.result || ''), file.name);
+    };
+    reader.onerror = () => {
+      const existing = currentPreferences().brand?.backgroundImageDataUrl || '';
+      setThemeBackgroundPreview(existing, existing ? 'Stored background image' : '');
     };
     reader.readAsDataURL(file);
   });
