@@ -14,6 +14,10 @@
     --theme-bg-image: none;
     --theme-bg-image-opacity: 0;
     --theme-text-scale: 1;
+    --brand-title-color: #ecf3ff;
+    --brand-title-size: clamp(28px, 3vw, 42px);
+    --ticker-text-color: #dbeafe;
+    --ticker-font-size: 18px;
     --surface: rgba(11, 22, 38, 0.82);
     --surface-strong: rgba(17, 30, 49, 0.96);
     --line: rgba(180, 209, 255, 0.12);
@@ -101,9 +105,9 @@
     padding-left: 100%;
     animation: tickerScroll var(--ticker-duration) linear infinite;
     font-family: var(--mono);
-    font-size: 18px;
+    font-size: var(--ticker-font-size);
     font-weight: 700;
-    color: #dbeafe;
+    color: var(--ticker-text-color);
     letter-spacing: 0.04em;
   }
 
@@ -173,9 +177,10 @@
   }
 
   .title {
-    font-size: clamp(28px, 3vw, 42px);
+    font-size: var(--brand-title-size);
     line-height: 1;
     margin: 0;
+    color: var(--brand-title-color);
   }
 
   .meta {
@@ -1401,6 +1406,33 @@
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
+  }
+
+  .brand-subsections {
+    display: grid;
+    gap: 14px;
+  }
+
+  .brand-subsection {
+    border: 1px solid rgba(203, 224, 255, 0.14);
+    border-radius: 18px;
+    padding: 16px;
+    background: rgba(7, 16, 28, 0.5);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+  }
+
+  .brand-subsection-title {
+    margin: 0 0 4px;
+    font-size: calc(17px * var(--theme-text-scale));
+    font-weight: 800;
+    color: #f3f8ff;
+  }
+
+  .brand-subsection-copy {
+    margin: 0 0 14px;
+    font-size: calc(13px * var(--theme-text-scale));
+    line-height: 1.5;
+    color: #c5d6eb;
   }
 
   .settings-field {
@@ -2700,138 +2732,198 @@
   </div>
   <div class="settings-section span-2">
     <h3>Brand</h3>
-    <div class="settings-section-copy">Controls the title, ticker, header logo, appointment panel, and optional side media shown beside the board on wide horizontal displays.</div>
-    <div class="settings-grid">
-      <label class="settings-field align-end">
-        <span class="settings-label">Header title</span>
-        <input class="settings-input" id="pref-brand-title" />
-      </label>
-      <label class="settings-field full">
-        <span class="settings-label">Top ticker</span>
-        <span class="settings-check">
-          <input class="settings-checkbox" id="pref-brand-ticker-enabled" type="checkbox" />
-          <span class="settings-check-copy">
-            <span class="settings-check-title">Show a scrolling ticker at the top of the board</span>
-            <span class="settings-help">Useful for specials, announcements, reminders, or seasonal promos.</span>
-          </span>
-        </span>
-      </label>
-      <label class="settings-field full">
-        <span class="settings-label">Ticker text</span>
-        <textarea class="settings-textarea" id="pref-brand-ticker-text"></textarea>
-        <span class="settings-help">Enter the message that should scroll across the top of the board.</span>
-      </label>
-      <label class="settings-field">
-        <span class="settings-label">Ticker speed (seconds)</span>
-        <input class="settings-input" id="pref-brand-ticker-speed" type="number" min="8" max="120" step="1" />
-        <span class="settings-help">Lower values scroll faster. Higher values keep the message on screen longer.</span>
-      </label>
-      <label class="settings-field align-end">
-        <span class="settings-label">Logo upload</span>
-        <input class="settings-input" id="pref-brand-logo" type="file" accept="image/*" />
-        <span class="settings-help">Upload a PNG/JPG/SVG logo. Suggested size: 256x256 or larger with a transparent background.</span>
-      </label>
-      <label class="settings-field">
-        <span class="settings-label">Logo size</span>
-        <input class="settings-input" id="pref-brand-logo-size" type="number" min="36" max="180" step="1" />
-        <span class="settings-help">Controls how large the logo appears in the board header.</span>
-      </label>
-      <label class="settings-field full">
-        <span class="settings-label">Horizontal side media</span>
-        <span class="settings-check">
-          <input class="settings-checkbox" id="pref-brand-side-media-enabled" type="checkbox" />
-          <span class="settings-check-copy">
-            <span class="settings-check-title">Show uploaded media beside the board on horizontal layouts</span>
-            <span class="settings-help">Useful for signage, promos, or branded explainer panels. Vertical layouts ignore it automatically.</span>
-          </span>
-        </span>
-      </label>
-      <label class="settings-field align-end">
-        <span class="settings-label">Side media upload</span>
-        <input class="settings-input" id="pref-brand-side-media" type="file" accept="image/*,video/*" />
-        <span class="settings-help">Upload a PNG, JPG, GIF, MP4, or WebM file. Short, optimized videos will work best.</span>
-      </label>
-      <label class="settings-field">
-        <span class="settings-label">Side media width (%)</span>
-        <input class="settings-input" id="pref-brand-side-media-width" type="number" min="20" max="70" step="1" />
-        <span class="settings-help">Controls how much of the board row is given to the side media panel.</span>
-      </label>
-      <label class="settings-field full">
-        <span class="settings-label">Current logo</span>
-        <div class="settings-logo-preview">
-          <img class="settings-logo-thumb" id="pref-brand-logo-preview" alt="Current logo preview" />
-          <div class="settings-logo-meta">
-            <div class="settings-logo-name" id="pref-brand-logo-name">No logo uploaded</div>
-            <div class="settings-logo-note" id="pref-brand-logo-note">Upload a logo to preview how it will appear in the board header.</div>
-          </div>
+    <div class="settings-section-copy">Group the board visuals by logo, header, ticker, background, and general theme so each shop can brand the display more easily.</div>
+    <div class="brand-subsections">
+      <section class="brand-subsection">
+        <h4 class="brand-subsection-title">Logo</h4>
+        <p class="brand-subsection-copy">Upload the logo shown in the top bar and control how large it appears.</p>
+        <div class="settings-grid">
+          <label class="settings-field full">
+            <span class="settings-label">Current logo</span>
+            <div class="settings-logo-preview">
+              <img class="settings-logo-thumb" id="pref-brand-logo-preview" alt="Current logo preview" />
+              <div class="settings-logo-meta">
+                <div class="settings-logo-name" id="pref-brand-logo-name">No logo uploaded</div>
+                <div class="settings-logo-note" id="pref-brand-logo-note">Upload a logo to preview how it will appear in the board header.</div>
+              </div>
+            </div>
+          </label>
+          <label class="settings-field align-end">
+            <span class="settings-label">Logo upload</span>
+            <input class="settings-input" id="pref-brand-logo" type="file" accept="image/*" />
+            <span class="settings-help">Upload a PNG, JPG, or SVG logo. Transparent backgrounds tend to look best.</span>
+          </label>
+          <label class="settings-field">
+            <span class="settings-label">Logo size</span>
+            <input class="settings-input" id="pref-brand-logo-size" type="number" min="36" max="180" step="1" />
+            <span class="settings-help">Controls how large the logo appears in the board header.</span>
+          </label>
         </div>
-      </label>
-      <label class="settings-field full">
-        <span class="settings-label">Current side media</span>
-        <div class="settings-media-preview">
-          <div class="settings-media-stage">
-            <img class="settings-media-thumb" id="pref-brand-side-media-preview-image" alt="Current side media preview" />
-            <video class="settings-media-video" id="pref-brand-side-media-preview-video" muted loop autoplay playsinline></video>
-          </div>
-          <div class="settings-logo-meta">
-            <div class="settings-logo-name" id="pref-brand-side-media-name">No side media uploaded</div>
-            <div class="settings-logo-note" id="pref-brand-side-media-note">Upload an image, GIF, or muted looping video to show beside the board on horizontal layouts.</div>
-          </div>
+      </section>
+
+      <section class="brand-subsection">
+        <h4 class="brand-subsection-title">Header</h4>
+        <p class="brand-subsection-copy">Control the title shown in the top bar. Header colour is applied to the title text.</p>
+        <div class="settings-grid">
+          <label class="settings-field align-end">
+            <span class="settings-label">Header title</span>
+            <input class="settings-input" id="pref-brand-title" />
+          </label>
+          <label class="settings-field">
+            <span class="settings-label">Header colour</span>
+            <input class="settings-input" id="pref-brand-header-color" type="color" />
+          </label>
+          <label class="settings-field">
+            <span class="settings-label">Header size</span>
+            <input class="settings-input" id="pref-brand-header-size" type="number" min="26" max="72" step="1" />
+            <span class="settings-help">Sets the title size in pixels for the top bar.</span>
+          </label>
         </div>
-      </label>
-      <label class="settings-field full">
-        <span class="settings-label">Custom background image</span>
-        <span class="settings-check">
-          <input class="settings-checkbox" id="pref-brand-background-image-enabled" type="checkbox" />
-          <span class="settings-check-copy">
-            <span class="settings-check-title">Show a custom background image behind the board</span>
-            <span class="settings-help">Useful for branded textures like your blue circuit-board pattern. Leave it off to keep the default built-in background.</span>
-          </span>
-        </span>
-      </label>
-      <label class="settings-field align-end">
-        <span class="settings-label">Background image upload</span>
-        <input class="settings-input" id="pref-brand-background-image" type="file" accept="image/*" />
-        <span class="settings-help">Upload a JPG, PNG, GIF, or WebP image. Wide landscape images tend to work best on TVs.</span>
-      </label>
-      <label class="settings-field">
-        <span class="settings-label">Background image opacity (%)</span>
-        <input class="settings-input" id="pref-brand-background-image-opacity" type="number" min="0" max="100" step="1" />
-        <span class="settings-help">Higher values make the uploaded background image more visible.</span>
-      </label>
-      <label class="settings-field">
-        <span class="settings-label">Background color start</span>
-        <input class="settings-input" id="pref-brand-background-start" type="color" />
-      </label>
-      <label class="settings-field">
-        <span class="settings-label">Background color end</span>
-        <input class="settings-input" id="pref-brand-background-end" type="color" />
-      </label>
-      <label class="settings-field">
-        <span class="settings-label">Primary text color</span>
-        <input class="settings-input" id="pref-brand-text-color" type="color" />
-      </label>
-      <label class="settings-field">
-        <span class="settings-label">Accent color</span>
-        <input class="settings-input" id="pref-brand-accent-color" type="color" />
-      </label>
-      <label class="settings-field">
-        <span class="settings-label">Text scale (%)</span>
-        <input class="settings-input" id="pref-brand-text-scale" type="number" min="85" max="130" step="1" />
-        <span class="settings-help">Use this to nudge the whole board slightly larger or smaller without changing every individual setting.</span>
-      </label>
-      <label class="settings-field full">
-        <span class="settings-label">Current background image</span>
-        <div class="settings-media-preview">
-          <div class="settings-theme-preview">
-            <img class="settings-theme-preview-image" id="pref-brand-background-image-preview" alt="Current background image preview" />
-          </div>
-          <div class="settings-logo-meta">
-            <div class="settings-logo-name" id="pref-brand-background-image-name">No custom background image uploaded</div>
-            <div class="settings-logo-note" id="pref-brand-background-image-note">Upload a background image to preview how the board backdrop will look for this shop.</div>
-          </div>
+      </section>
+
+      <section class="brand-subsection">
+        <h4 class="brand-subsection-title">Ticker</h4>
+        <p class="brand-subsection-copy">Show a scrolling message between the header and appointments area for promos, reminders, or store notices.</p>
+        <div class="settings-grid">
+          <label class="settings-field full">
+            <span class="settings-label">Ticker</span>
+            <span class="settings-check">
+              <input class="settings-checkbox" id="pref-brand-ticker-enabled" type="checkbox" />
+              <span class="settings-check-copy">
+                <span class="settings-check-title">Enable ticker</span>
+                <span class="settings-help">Turn the scrolling ticker on or off for this installation.</span>
+              </span>
+            </span>
+          </label>
+          <label class="settings-field full">
+            <span class="settings-label">Ticker text</span>
+            <textarea class="settings-textarea" id="pref-brand-ticker-text"></textarea>
+            <span class="settings-help">Enter the message that should scroll across the top of the board.</span>
+          </label>
+          <label class="settings-field">
+            <span class="settings-label">Ticker speed (seconds)</span>
+            <input class="settings-input" id="pref-brand-ticker-speed" type="number" min="8" max="120" step="1" />
+            <span class="settings-help">Lower values scroll faster. Higher values keep the message on screen longer.</span>
+          </label>
+          <label class="settings-field">
+            <span class="settings-label">Ticker font colour</span>
+            <input class="settings-input" id="pref-brand-ticker-text-color" type="color" />
+          </label>
+          <label class="settings-field">
+            <span class="settings-label">Ticker font size</span>
+            <input class="settings-input" id="pref-brand-ticker-font-size" type="number" min="12" max="32" step="1" />
+            <span class="settings-help">Sets the scrolling ticker text size in pixels.</span>
+          </label>
         </div>
-      </label>
+      </section>
+
+      <section class="brand-subsection">
+        <h4 class="brand-subsection-title">Background</h4>
+        <p class="brand-subsection-copy">Choose the base background colours and optionally place a branded image over top at adjustable opacity.</p>
+        <div class="settings-grid">
+          <label class="settings-field full">
+            <span class="settings-label">Current background image</span>
+            <div class="settings-media-preview">
+              <div class="settings-theme-preview">
+                <img class="settings-theme-preview-image" id="pref-brand-background-image-preview" alt="Current background image preview" />
+              </div>
+              <div class="settings-logo-meta">
+                <div class="settings-logo-name" id="pref-brand-background-image-name">No custom background image uploaded</div>
+                <div class="settings-logo-note" id="pref-brand-background-image-note">Upload a background image to preview how the board backdrop will look for this shop.</div>
+              </div>
+            </div>
+          </label>
+          <label class="settings-field full">
+            <span class="settings-label">Background image</span>
+            <span class="settings-check">
+              <input class="settings-checkbox" id="pref-brand-background-image-enabled" type="checkbox" />
+              <span class="settings-check-copy">
+                <span class="settings-check-title">Enable custom background image</span>
+                <span class="settings-help">Leave this off to use the built-in background only.</span>
+              </span>
+            </span>
+          </label>
+          <label class="settings-field align-end">
+            <span class="settings-label">Background image upload</span>
+            <input class="settings-input" id="pref-brand-background-image" type="file" accept="image/*" />
+            <span class="settings-help">Upload a JPG, PNG, GIF, or WebP image. Wide landscape images tend to work best on TVs.</span>
+          </label>
+          <label class="settings-field">
+            <span class="settings-label">Background image opacity (%)</span>
+            <input class="settings-input" id="pref-brand-background-image-opacity" type="number" min="0" max="100" step="1" />
+            <span class="settings-help">Higher values make the uploaded background image more visible.</span>
+          </label>
+          <label class="settings-field">
+            <span class="settings-label">Background colour</span>
+            <input class="settings-input" id="pref-brand-background-start" type="color" />
+          </label>
+          <label class="settings-field">
+            <span class="settings-label">Background fade colour</span>
+            <input class="settings-input" id="pref-brand-background-end" type="color" />
+          </label>
+        </div>
+      </section>
+
+      <section class="brand-subsection">
+        <h4 class="brand-subsection-title">General</h4>
+        <p class="brand-subsection-copy">Tune the overall theme colours and text scale for this shop’s display.</p>
+        <div class="settings-grid">
+          <label class="settings-field">
+            <span class="settings-label">Text scale (%)</span>
+            <input class="settings-input" id="pref-brand-text-scale" type="number" min="85" max="130" step="1" />
+            <span class="settings-help">Use this to nudge the whole board slightly larger or smaller without changing every individual setting.</span>
+          </label>
+          <label class="settings-field">
+            <span class="settings-label">Primary colour</span>
+            <input class="settings-input" id="pref-brand-text-color" type="color" />
+            <span class="settings-help">Used for the main board text colour.</span>
+          </label>
+          <label class="settings-field">
+            <span class="settings-label">Accent colour</span>
+            <input class="settings-input" id="pref-brand-accent-color" type="color" />
+          </label>
+        </div>
+      </section>
+
+      <section class="brand-subsection">
+        <h4 class="brand-subsection-title">Side Media</h4>
+        <p class="brand-subsection-copy">Optional image, GIF, or looping video shown beside the board on wide horizontal displays.</p>
+        <div class="settings-grid">
+          <label class="settings-field full">
+            <span class="settings-label">Current side media</span>
+            <div class="settings-media-preview">
+              <div class="settings-media-stage">
+                <img class="settings-media-thumb" id="pref-brand-side-media-preview-image" alt="Current side media preview" />
+                <video class="settings-media-video" id="pref-brand-side-media-preview-video" muted loop autoplay playsinline></video>
+              </div>
+              <div class="settings-logo-meta">
+                <div class="settings-logo-name" id="pref-brand-side-media-name">No side media uploaded</div>
+                <div class="settings-logo-note" id="pref-brand-side-media-note">Upload an image, GIF, or muted looping video to show beside the board on horizontal layouts.</div>
+              </div>
+            </div>
+          </label>
+          <label class="settings-field full">
+            <span class="settings-label">Horizontal side media</span>
+            <span class="settings-check">
+              <input class="settings-checkbox" id="pref-brand-side-media-enabled" type="checkbox" />
+              <span class="settings-check-copy">
+                <span class="settings-check-title">Enable side media on horizontal layouts</span>
+                <span class="settings-help">Vertical layouts ignore it automatically.</span>
+              </span>
+            </span>
+          </label>
+          <label class="settings-field align-end">
+            <span class="settings-label">Side media upload</span>
+            <input class="settings-input" id="pref-brand-side-media" type="file" accept="image/*,video/*" />
+            <span class="settings-help">Upload a PNG, JPG, GIF, MP4, or WebM file. Short, optimized videos will work best.</span>
+          </label>
+          <label class="settings-field">
+            <span class="settings-label">Side media width (%)</span>
+            <input class="settings-input" id="pref-brand-side-media-width" type="number" min="20" max="70" step="1" />
+            <span class="settings-help">Controls how much of the board row is given to the side media panel.</span>
+          </label>
+        </div>
+      </section>
     </div>
   </div>
   <div class="settings-section span-2">
@@ -3116,7 +3208,7 @@
     </div>
   </div>
   <div class="settings-section span-2">
-    <h3>App Updates</h3>
+    <h3>Updates &amp; Maintenance</h3>
     <div class="settings-section-copy">Keep this board current with the same compact update card style used in the PC AutoSpec app.</div>
     <div class="update-card">
       <div class="update-meta">
@@ -3318,9 +3410,13 @@
         title: 'Current Repair Queue',
         logoDataUrl: '',
         logoSize: 72,
+        headerColor: '#ecf3ff',
+        headerSize: 42,
         tickerEnabled: false,
         tickerText: '',
         tickerSpeedSeconds: 24,
+        tickerTextColor: '#dbeafe',
+        tickerFontSize: 18,
         sideMediaEnabled: false,
         sideMediaDataUrl: '',
         sideMediaWidthPercent: 38,
@@ -3878,6 +3974,12 @@
     return Math.max(36, Math.min(180, size));
   }
 
+  function normalizedHeaderSize(value) {
+    const size = Number(value || 0);
+    if (!size) return 42;
+    return Math.max(26, Math.min(72, size));
+  }
+
   function normalizedSideMediaWidth(value) {
     const width = Number(value || 0);
     if (!width) return 38;
@@ -3888,6 +3990,12 @@
     const seconds = Number(value || 0);
     if (!seconds) return 24;
     return Math.max(8, Math.min(120, seconds));
+  }
+
+  function normalizedTickerFontSize(value) {
+    const size = Number(value || 0);
+    if (!size) return 18;
+    return Math.max(12, Math.min(32, size));
   }
 
   function normalizedThemeImageOpacity(value) {
@@ -3937,6 +4045,10 @@
     rootStyle.setProperty('--text', normalizedThemeColor(brand.textColor, '#ecf3ff'));
     rootStyle.setProperty('--accent', normalizedThemeColor(brand.accentColor, '#6ee7c8'));
     rootStyle.setProperty('--theme-text-scale', String(normalizedThemeTextScale(brand.textScalePercent || 100) / 100));
+    rootStyle.setProperty('--brand-title-color', normalizedThemeColor(brand.headerColor, '#ecf3ff'));
+    rootStyle.setProperty('--brand-title-size', `${normalizedHeaderSize(brand.headerSize || 42)}px`);
+    rootStyle.setProperty('--ticker-text-color', normalizedThemeColor(brand.tickerTextColor, '#dbeafe'));
+    rootStyle.setProperty('--ticker-font-size', `${normalizedTickerFontSize(brand.tickerFontSize || 18)}px`);
 
     const backgroundImage = String(brand.backgroundImageDataUrl || '').trim();
     const imageEnabled = !!brand.backgroundImageEnabled && !!backgroundImage;
@@ -4381,9 +4493,13 @@
     const prefs = preferences || currentPreferences();
     qs('pref-brand-title').value = prefs.brand?.title || 'Current Repair Queue';
     qs('pref-brand-logo-size').value = prefs.brand?.logoSize ?? 72;
+    qs('pref-brand-header-color').value = prefs.brand?.headerColor || '#ecf3ff';
+    qs('pref-brand-header-size').value = prefs.brand?.headerSize ?? 42;
     qs('pref-brand-ticker-enabled').checked = !!prefs.brand?.tickerEnabled;
     qs('pref-brand-ticker-text').value = prefs.brand?.tickerText || '';
     qs('pref-brand-ticker-speed').value = prefs.brand?.tickerSpeedSeconds ?? 24;
+    qs('pref-brand-ticker-text-color').value = prefs.brand?.tickerTextColor || '#dbeafe';
+    qs('pref-brand-ticker-font-size').value = prefs.brand?.tickerFontSize ?? 18;
     setLogoPreview(prefs.brand?.logoDataUrl || '', prefs.brand?.logoDataUrl ? 'Stored logo' : '');
     qs('pref-brand-side-media-enabled').checked = !!prefs.brand?.sideMediaEnabled;
     qs('pref-brand-side-media-width').value = prefs.brand?.sideMediaWidthPercent ?? 38;
@@ -4475,9 +4591,13 @@
         title: qs('pref-brand-title').value || 'Current Repair Queue',
         logoDataUrl: state.logoDataUrl || currentPreferences().brand?.logoDataUrl || '',
         logoSize: normalizedLogoSize(qs('pref-brand-logo-size').value || currentPreferences().brand?.logoSize || 72),
+        headerColor: normalizedThemeColor(qs('pref-brand-header-color').value, currentPreferences().brand?.headerColor || '#ecf3ff'),
+        headerSize: normalizedHeaderSize(qs('pref-brand-header-size').value || currentPreferences().brand?.headerSize || 42),
         tickerEnabled: qs('pref-brand-ticker-enabled').checked,
         tickerText: qs('pref-brand-ticker-text').value || '',
         tickerSpeedSeconds: normalizedTickerSpeed(qs('pref-brand-ticker-speed').value || currentPreferences().brand?.tickerSpeedSeconds || 24),
+        tickerTextColor: normalizedThemeColor(qs('pref-brand-ticker-text-color').value, currentPreferences().brand?.tickerTextColor || '#dbeafe'),
+        tickerFontSize: normalizedTickerFontSize(qs('pref-brand-ticker-font-size').value || currentPreferences().brand?.tickerFontSize || 18),
         sideMediaEnabled: qs('pref-brand-side-media-enabled').checked,
         sideMediaDataUrl: state.sideMediaDataUrl || currentPreferences().brand?.sideMediaDataUrl || '',
         sideMediaWidthPercent: normalizedSideMediaWidth(qs('pref-brand-side-media-width').value || currentPreferences().brand?.sideMediaWidthPercent || 38),
