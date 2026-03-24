@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.4
+
+- Moved queue column ticket totals back to the right of the header title and increased the size/weight of both the title and count pill for better readability.
+
 ## v2.1.68-beta.3
 
 - Restored the `Settings` label beside the gear icon in the main board header so it stays consistent with the other apps.
