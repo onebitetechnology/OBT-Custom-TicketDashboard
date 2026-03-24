@@ -37,6 +37,25 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run dist:mac
 
+      - name: Add updater compatibility metadata
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [[ "$VERSION" != *-* ]]; then
+            exit 0
+          fi
+
+          CHANNEL_SUFFIX="${VERSION#*-}"
+          CHANNEL_NAME="${CHANNEL_SUFFIX%%.*}"
+
+          if [[ -f "dist/${CHANNEL_NAME}.yml" && ! -f "dist/latest.yml" ]]; then
+            cp "dist/${CHANNEL_NAME}.yml" "dist/latest.yml"
+          fi
+
+          if [[ -f "dist/${CHANNEL_NAME}-mac.yml" && ! -f "dist/latest-mac.yml" ]]; then
+            cp "dist/${CHANNEL_NAME}-mac.yml" "dist/latest-mac.yml"
+          fi
+
       - name: Extract release notes
         shell: bash
         run: |
@@ -83,6 +102,21 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run dist:win
+
+      - name: Add updater compatibility metadata
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [[ "$VERSION" != *-* ]]; then
+            exit 0
+          fi
+
+          CHANNEL_SUFFIX="${VERSION#*-}"
+          CHANNEL_NAME="${CHANNEL_SUFFIX%%.*}"
+
+          if [[ -f "dist/${CHANNEL_NAME}.yml" && ! -f "dist/latest.yml" ]]; then
+            cp "dist/${CHANNEL_NAME}.yml" "dist/latest.yml"
+          fi
 
       - name: Extract release notes
         shell: bash
