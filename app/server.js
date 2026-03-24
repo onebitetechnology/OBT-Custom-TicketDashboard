@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.68-beta.12';
+const APP_VERSION = 'v2.1.68-beta.13';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -1636,9 +1636,15 @@ function normalizeTicketCounterPayload(
 
   for (const entry of groupedByOrder.values()) {
     const qualityControlStatus = entry.rowStatuses.find((status) => matchesConfiguredStatus(status, preferences.columns.qualityControl.statuses));
+    const waitingStatus = entry.rowStatuses.find((status) => matchesConfiguredStatus(status, preferences.columns.waiting.statuses));
     if (qualityControlStatus) {
       entry.status = qualityControlStatus;
       entry.statusColor = statusColors[qualityControlStatus] || entry.statusColor;
+      continue;
+    }
+    if (waitingStatus) {
+      entry.status = waitingStatus;
+      entry.statusColor = statusColors[waitingStatus] || entry.statusColor;
     }
   }
 
