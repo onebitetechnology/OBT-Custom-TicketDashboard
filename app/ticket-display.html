@@ -3456,7 +3456,9 @@
     nextRefreshAt: 0,
     clockTimer: null,
     calendarRotationTimer: null,
+    calendarTransitionTimer: null,
     calendarRotationConfigKey: '',
+    calendarRotationRunId: 0,
     refurbRotationTimer: null,
     calendarWeekOffset: 0,
     settingsLoaded: false,
@@ -5058,14 +5060,25 @@
     });
   }
 
+  function clearCalendarRotationTimers() {
+    if (state.calendarRotationTimer) {
+      clearTimeout(state.calendarRotationTimer);
+      state.calendarRotationTimer = null;
+    }
+    if (state.calendarTransitionTimer) {
+      clearTimeout(state.calendarTransitionTimer);
+      state.calendarTransitionTimer = null;
+    }
+  }
+
   function setupCalendarRotation() {
     const schedulePrefs = state.data?.uiPreferences?.schedule || {};
     const nextConfigKey = calendarRotationConfigKey(schedulePrefs);
     const rotateWeeks = !!schedulePrefs.rotateWeeks;
 
     if (!rotateWeeks) {
-      if (state.calendarRotationTimer) clearTimeout(state.calendarRotationTimer);
-      state.calendarRotationTimer = null;
+      clearCalendarRotationTimers();
+      state.calendarRotationRunId += 1;
       state.calendarRotationConfigKey = nextConfigKey;
       state.calendarWeekOffset = 0;
       return;
@@ -5075,8 +5088,9 @@
     state.calendarRotationConfigKey = nextConfigKey;
     if (!configChanged && state.calendarRotationTimer) return;
 
-    if (state.calendarRotationTimer) clearTimeout(state.calendarRotationTimer);
-    state.calendarRotationTimer = null;
+    clearCalendarRotationTimers();
+    state.calendarRotationRunId += 1;
+    const runId = state.calendarRotationRunId;
     if (configChanged) {
       state.calendarWeekOffset = 0;
       renderSchedule(state.data);
@@ -5087,12 +5101,15 @@
         ? Math.max(5, Number(schedulePrefs.currentWeekDurationSeconds || 20) || 20)
         : Math.max(5, Number(schedulePrefs.nextWeekDurationSeconds || 5) || 5);
       state.calendarRotationTimer = setTimeout(() => {
+        if (runId !== state.calendarRotationRunId) return;
         const strip = qs('schedule-strip');
         strip.classList.add('fading');
-        setTimeout(() => {
+        state.calendarTransitionTimer = setTimeout(() => {
+          if (runId !== state.calendarRotationRunId) return;
           state.calendarWeekOffset = state.calendarWeekOffset === 0 ? 1 : 0;
           renderSchedule(state.data);
           strip.classList.remove('fading');
+          state.calendarTransitionTimer = null;
           scheduleNextRotation();
         }, 240);
       }, intervalSeconds * 1000);
@@ -5341,10 +5358,8 @@
   }
 
   function renderError(message) {
-    if (state.calendarRotationTimer) {
-      clearTimeout(state.calendarRotationTimer);
-      state.calendarRotationTimer = null;
-    }
+    clearCalendarRotationTimers();
+    state.calendarRotationRunId += 1;
     state.calendarRotationConfigKey = '';
     state.calendarWeekOffset = 0;
     if (state.refurbRotationTimer) {
