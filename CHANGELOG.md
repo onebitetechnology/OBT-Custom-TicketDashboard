@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.13
+
+- Fixed merged multi-row tickets so any row in `Waiting on Customer` or `Waiting for Parts` now keeps the ticket in the Waiting column instead of disappearing behind another service-row status. Quality Control still takes precedence when both are present.
+
 ## v2.1.68-beta.12
 
 - Fixed beta release publishing to add compatibility updater metadata files like `latest.yml` for prerelease tags, so beta installs no longer fail update checks with missing-release-metadata 404s.
