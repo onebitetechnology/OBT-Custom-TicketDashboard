@@ -785,6 +785,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
     gap: 10px;
     border: 1px solid var(--line);
     border-radius: 14px;
@@ -838,6 +839,7 @@
     border-color: rgba(255,255,255,0.22);
     justify-self: auto;
     flex: 0 0 auto;
+    margin-left: auto;
   }
 
   .queue-list {
@@ -2511,6 +2513,11 @@
     min-height: 64px;
   }
 
+  body.force-vertical .queue-column-head {
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+
   body.force-vertical .board-title,
   body.force-horizontal .board-title {
     font-size: 16px;
@@ -2522,6 +2529,10 @@
   body.force-horizontal .queue-column-head .pill {
     font-size: 12px;
     padding: 7px 10px;
+  }
+
+  body.force-vertical .queue-column-head .pill {
+    margin-left: 0;
   }
 
   body.force-vertical .queue-list,
