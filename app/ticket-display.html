@@ -1056,14 +1056,18 @@
 
   .settings-button {
     cursor: pointer;
-    width: 48px;
-    min-width: 48px;
-    height: 48px;
-    padding: 0;
+    min-height: 48px;
+    padding: 10px 16px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 22px;
+    gap: 10px;
+    font-size: 14px;
+    line-height: 1;
+  }
+
+  .settings-button-icon {
+    font-size: 18px;
     line-height: 1;
   }
 
@@ -2664,7 +2668,7 @@
     <div class="meta">
       <div class="pill" id="clock-pill">--:--</div>
       <div class="pill" id="refresh-countdown-pill">Refresh in --s</div>
-      <button class="pill settings-button" id="settings-open" type="button" aria-label="Settings" title="Settings">⚙</button>
+      <button class="pill settings-button" id="settings-open" type="button" aria-label="Settings" title="Settings"><span class="settings-button-icon" aria-hidden="true">⚙</span><span>Settings</span></button>
     </div>
   </section>
 
@@ -2986,7 +2990,7 @@
   </div>
   <div class="settings-section span-2">
     <h3>Appointments</h3>
-    <div class="settings-section-copy">Which weekdays appear in the calendar, which ones are blocked, and how appointment alerts behave.</div>
+    <div class="settings-section-copy">Which weekdays appear in the calendar, which ones are blocked, which specific dates are temporarily unavailable, and how appointment alerts behave.</div>
     <div class="settings-grid">
       <label class="settings-field full">
         <span class="settings-label">Calendar visibility</span>
@@ -3027,6 +3031,11 @@
         <span class="settings-label">Blocked weekdays</span>
         <div class="weekday-grid" id="pref-blocked-weekdays"></div>
         <span class="settings-help">Blocked days stay visible in the calendar but show as off limits.</span>
+      </label>
+      <label class="settings-field full">
+        <span class="settings-label">Temporary appointment blocks</span>
+        <textarea class="settings-textarea" id="pref-temporary-blocked-dates" placeholder="March 24&#10;March 25&#10;2026-03-30"></textarea>
+        <span class="settings-help">Enter one specific blocked date per line. Formats like <code>March 24</code>, <code>Mar 24</code>, <code>3/24</code>, or <code>2026-03-24</code> all work. Month/day entries are treated as this year.</span>
       </label>
       <label class="settings-field full">
         <span class="settings-label">Calendar day styling</span>
@@ -3451,6 +3460,7 @@
       schedule: {
         includedWeekdays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
         blockedWeekdays: ['Monday'],
+        temporaryBlockedDates: [],
         showCalendar: true,
         rotateWeeks: false,
         currentWeekDurationSeconds: 20,
@@ -4608,6 +4618,7 @@
     qs('pref-current-week-duration-seconds').value = prefs.schedule.currentWeekDurationSeconds ?? 20;
     qs('pref-next-week-duration-seconds').value = prefs.schedule.nextWeekDurationSeconds ?? 5;
     qs('pref-blocked-weekdays').innerHTML = checkboxGroupMarkup('blocked-weekdays', prefs.schedule.blockedWeekdays || []);
+    qs('pref-temporary-blocked-dates').value = (prefs.schedule.temporaryBlockedDates || []).join('\n');
     qs('pref-dim-past-days').checked = prefs.schedule.dimPastDays !== false;
     qs('pref-default-lead').value = prefs.schedule.defaultLeadMinutes ?? 45;
     qs('pref-onsite-lead').value = prefs.schedule.onsiteLeadMinutes ?? 60;
@@ -4705,6 +4716,10 @@
         currentWeekDurationSeconds: Math.max(5, Number(qs('pref-current-week-duration-seconds').value || 20) || 20),
         nextWeekDurationSeconds: Math.max(5, Number(qs('pref-next-week-duration-seconds').value || 5) || 5),
         blockedWeekdays: selectedCheckboxDays('blocked-weekdays'),
+        temporaryBlockedDates: qs('pref-temporary-blocked-dates').value
+          .split(/\r?\n/)
+          .map((value) => String(value || '').trim())
+          .filter(Boolean),
         dimPastDays: qs('pref-dim-past-days').checked,
         defaultLeadMinutes: Number(qs('pref-default-lead').value || 0),
         onsiteLeadMinutes: Number(qs('pref-onsite-lead').value || 0),
@@ -4972,7 +4987,7 @@
           <div class="schedule-label">${escapeHtml(formatScheduleDayLabel(day.label, day.iso))}</div>
           <div class="schedule-count${day.blocked ? ' blocked' : ''}">${day.blocked ? 'Off limits' : escapeHtml(day.appointments.length) + ' appt'}</div>
         </div>
-        ${day.blocked ? '<div class="schedule-note">No booking window on this day</div>' : ''}
+        ${day.blocked ? `<div class="schedule-note">${escapeHtml(day.blockedReason || 'No booking window on this day')}</div>` : ''}
         <div class="schedule-items">
           ${day.appointments.length ? day.appointments.slice(0, 4).map((appt) => {
             const urgency = appointmentUrgencyMeta(appt.dueAt || appt.dueOn, appt.device || '');
@@ -4986,7 +5001,7 @@
               <div class="schedule-device">${escapeHtml(appt.device || 'Tech Support')}</div>
             </div>
           `;
-          }).join('') : `<div class="schedule-empty">${day.blocked ? 'Blocked for appointments' : 'No appointments'}</div>`}
+          }).join('') : `<div class="schedule-empty">${day.blocked ? escapeHtml(day.blockedReason || 'Blocked for appointments') : 'No appointments'}</div>`}
         </div>
       </article>
     `).join('');

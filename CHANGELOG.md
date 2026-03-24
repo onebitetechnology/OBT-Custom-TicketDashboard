@@ -2,6 +2,14 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.3
+
+- Restored the `Settings` label beside the gear icon in the main board header so it stays consistent with the other apps.
+
+## v2.1.68-beta.2
+
+- Reissued the current beta so the latest settings polish and temporary appointment block changes can be installed cleanly.
+
 ## v2.1.68-beta.1
 
 - Reorganized the Brand settings into clearer sub-sections for Logo, Header, Ticker, Background, General, and Side Media so shops can brand the board more easily.
@@ -10,6 +18,7 @@ All notable changes to One Bite Ticket Display Desktop should be recorded in thi
 - Polished settings alignment for branding controls, converted theme colour pickers into compact square swatches, and tightened the maintenance action layout.
 - Moved `Columns` above `Ticket Details`, renamed the section from `Ticket Display`, and switched the main board Settings button to a gear icon.
 - Future day-to-day releases now default to beta flow unless `--stable` is passed explicitly to the release script.
+- Added temporary appointment date blocks so shops can mark one-off unavailable dates like `March 24` or `March 25` without changing the normal weekday blocks.
 
 ## v2.1.66
 
