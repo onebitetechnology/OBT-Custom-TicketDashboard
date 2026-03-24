@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.10
+
+- Made the queue header ticket totals responsive so they stay on the right when there is room and stack below the title again on tighter vertical layouts.
+
 ## v2.1.68-beta.9
 
 - Hardened the calendar week-rotation logic so stale in-flight fade callbacks can no longer flip the view back to the wrong week mid-cycle.
