@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.5
+
+- Reissued the current beta with the larger side-by-side queue header title and ticket count changes so the updater sees a new version.
+
 ## v2.1.68-beta.4
 
 - Moved queue column ticket totals back to the right of the header title and increased the size/weight of both the title and count pill for better readability.
