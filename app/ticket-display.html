@@ -782,14 +782,14 @@
   }
 
   .queue-column-head {
-    display: grid;
-    grid-template-columns: 1fr;
-    align-content: start;
-    gap: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
     border: 1px solid var(--line);
     border-radius: 14px;
     padding: 14px 16px;
-    min-height: 94px;
+    min-height: 78px;
     background: rgba(255,255,255,0.08);
   }
 
@@ -836,7 +836,8 @@
     color: #fff;
     background: rgba(255,255,255,0.16);
     border-color: rgba(255,255,255,0.22);
-    justify-self: start;
+    justify-self: auto;
+    flex: 0 0 auto;
   }
 
   .queue-list {

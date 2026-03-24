@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.8
+
+- Fixed the queue column header layout rule that was still forcing ticket totals underneath the header title instead of beside it.
+
 ## v2.1.68-beta.7
 
 - Fixed beta release packaging to generate update metadata for all channels, so beta installs no longer fail looking for missing `latest.yml` assets during update checks.
