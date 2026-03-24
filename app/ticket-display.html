@@ -1087,6 +1087,26 @@
     line-height: 1;
   }
 
+  #clock-pill,
+  #refresh-countdown-pill,
+  .settings-button {
+    min-height: 48px;
+    align-items: center;
+    display: inline-flex;
+    justify-content: center;
+    border-color: rgba(214, 231, 255, 0.22);
+    background: rgba(255, 255, 255, 0.09);
+    color: #eff7ff;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+
+  #clock-pill,
+  #refresh-countdown-pill {
+    font-size: 14px;
+    font-weight: 700;
+    padding: 10px 16px;
+  }
+
   .settings-drawer {
     position: fixed;
     top: 12px;
@@ -3435,6 +3455,7 @@
     nextRefreshAt: 0,
     clockTimer: null,
     calendarRotationTimer: null,
+    calendarRotationConfigKey: '',
     refurbRotationTimer: null,
     calendarWeekOffset: 0,
     settingsLoaded: false,
@@ -5024,13 +5045,43 @@
     maybePlayAppointmentAlert(data);
   }
 
+  function calendarRotationConfigKey(schedulePrefs = {}) {
+    return JSON.stringify({
+      rotateWeeks: !!schedulePrefs.rotateWeeks,
+      currentWeekDurationSeconds: Math.max(5, Number(schedulePrefs.currentWeekDurationSeconds || 20) || 20),
+      nextWeekDurationSeconds: Math.max(5, Number(schedulePrefs.nextWeekDurationSeconds || 5) || 5),
+      showCalendar: schedulePrefs.showCalendar !== false,
+      includedWeekdays: Array.isArray(schedulePrefs.includedWeekdays) ? schedulePrefs.includedWeekdays : [],
+      blockedWeekdays: Array.isArray(schedulePrefs.blockedWeekdays) ? schedulePrefs.blockedWeekdays : [],
+      temporaryBlockedDates: Array.isArray(schedulePrefs.temporaryBlockedDates) ? schedulePrefs.temporaryBlockedDates : [],
+    });
+  }
+
   function setupCalendarRotation() {
+    const schedulePrefs = state.data?.uiPreferences?.schedule || {};
+    const nextConfigKey = calendarRotationConfigKey(schedulePrefs);
+    const rotateWeeks = !!schedulePrefs.rotateWeeks;
+
+    if (!rotateWeeks) {
+      if (state.calendarRotationTimer) clearTimeout(state.calendarRotationTimer);
+      state.calendarRotationTimer = null;
+      state.calendarRotationConfigKey = nextConfigKey;
+      state.calendarWeekOffset = 0;
+      return;
+    }
+
+    const configChanged = state.calendarRotationConfigKey !== nextConfigKey;
+    state.calendarRotationConfigKey = nextConfigKey;
+    if (!configChanged && state.calendarRotationTimer) return;
+
     if (state.calendarRotationTimer) clearTimeout(state.calendarRotationTimer);
     state.calendarRotationTimer = null;
-    state.calendarWeekOffset = 0;
-    if (!state.data?.uiPreferences?.schedule?.rotateWeeks) return;
+    if (configChanged) {
+      state.calendarWeekOffset = 0;
+      renderSchedule(state.data);
+    }
+
     const scheduleNextRotation = () => {
-      const schedulePrefs = state.data?.uiPreferences?.schedule || {};
       const intervalSeconds = state.calendarWeekOffset === 0
         ? Math.max(5, Number(schedulePrefs.currentWeekDurationSeconds || 20) || 20)
         : Math.max(5, Number(schedulePrefs.nextWeekDurationSeconds || 5) || 5);
@@ -5289,6 +5340,12 @@
   }
 
   function renderError(message) {
+    if (state.calendarRotationTimer) {
+      clearTimeout(state.calendarRotationTimer);
+      state.calendarRotationTimer = null;
+    }
+    state.calendarRotationConfigKey = '';
+    state.calendarWeekOffset = 0;
     if (state.refurbRotationTimer) {
       clearInterval(state.refurbRotationTimer);
       state.refurbRotationTimer = null;
@@ -5366,7 +5423,6 @@
         throw new Error(payload.error || 'Request failed');
       }
       state.data = payload;
-      state.calendarWeekOffset = 0;
       renderAll();
       setupPaging();
       setupRefresh();

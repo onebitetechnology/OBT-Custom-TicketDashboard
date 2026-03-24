@@ -2,6 +2,15 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.7
+
+- Fixed beta release packaging to generate update metadata for all channels, so beta installs no longer fail looking for missing `latest.yml` assets during update checks.
+
+## v2.1.68-beta.6
+
+- Matched the top-right `Settings`, clock, and refresh controls more closely in size and made their backgrounds a bit more visible.
+- Fixed the week-rotation timer so `this week` and `next week` durations no longer get cut short by normal board refreshes.
+
 ## v2.1.68-beta.5
 
 - Reissued the current beta with the larger side-by-side queue header title and ticket count changes so the updater sees a new version.
