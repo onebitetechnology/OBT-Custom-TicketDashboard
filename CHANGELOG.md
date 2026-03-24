@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.11
+
+- Centered the stacked queue header ticket totals on vertical layouts so the count pill sits neatly under the title.
+
 ## v2.1.68-beta.10
 
 - Made the queue header ticket totals responsive so they stay on the right when there is room and stack below the title again on tighter vertical layouts.
