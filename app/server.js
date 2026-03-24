@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.68-beta.1';
+const APP_VERSION = 'v2.1.68-beta.3';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -66,6 +66,7 @@ const DEFAULT_UI_PREFERENCES = {
   schedule: {
     includedWeekdays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
     blockedWeekdays: ['Monday'],
+    temporaryBlockedDates: [],
     showCalendar: true,
     rotateWeeks: false,
     currentWeekDurationSeconds: 20,
@@ -459,6 +460,7 @@ function normalizeUiPreferences(savedPrefs = {}) {
     schedule: {
       includedWeekdays: normalizeStringArray(savedPrefs?.schedule?.includedWeekdays, DEFAULT_UI_PREFERENCES.schedule.includedWeekdays),
       blockedWeekdays: normalizeStringArray(savedPrefs?.schedule?.blockedWeekdays, DEFAULT_UI_PREFERENCES.schedule.blockedWeekdays),
+      temporaryBlockedDates: normalizeStringArray(savedPrefs?.schedule?.temporaryBlockedDates, DEFAULT_UI_PREFERENCES.schedule.temporaryBlockedDates),
       showCalendar: savedPrefs?.schedule?.showCalendar !== undefined ? !!savedPrefs.schedule.showCalendar : DEFAULT_UI_PREFERENCES.schedule.showCalendar,
       rotateWeeks: savedPrefs?.schedule?.rotateWeeks !== undefined ? !!savedPrefs.schedule.rotateWeeks : DEFAULT_UI_PREFERENCES.schedule.rotateWeeks,
       currentWeekDurationSeconds: Math.max(
@@ -1110,6 +1112,65 @@ function localDateKeyFromTimestamp(value) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+const MONTH_INDEX_BY_NAME = {
+  january: 0, jan: 0,
+  february: 1, feb: 1,
+  march: 2, mar: 2,
+  april: 3, apr: 3,
+  may: 4,
+  june: 5, jun: 5,
+  july: 6, jul: 6,
+  august: 7, aug: 7,
+  september: 8, sep: 8, sept: 8,
+  october: 9, oct: 9,
+  november: 10, nov: 10,
+  december: 11, dec: 11,
+};
+
+function normalizedBlockYear(rawYear, fallbackYear) {
+  if (!rawYear) return fallbackYear;
+  const numeric = Number(rawYear);
+  if (!Number.isFinite(numeric)) return fallbackYear;
+  if (numeric < 100) return 2000 + numeric;
+  return numeric;
+}
+
+function temporaryBlockMatchesDate(rawEntry, date) {
+  const entry = String(rawEntry || '').trim().toLowerCase();
+  if (!entry) return false;
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const day = date.getDate();
+  const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  if (entry === iso) return true;
+
+  let match = entry.match(/^([a-z]+)\s+(\d{1,2})(?:,?\s+(\d{2,4}))?$/i);
+  if (match) {
+    const parsedMonth = MONTH_INDEX_BY_NAME[String(match[1] || '').toLowerCase()];
+    const parsedDay = Number(match[2]);
+    const parsedYear = normalizedBlockYear(match[3], year);
+    if (parsedMonth !== undefined && parsedDay === day && parsedYear === year && parsedMonth === month) {
+      return true;
+    }
+  }
+
+  match = entry.match(/^(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?$/);
+  if (match) {
+    const parsedMonth = Number(match[1]) - 1;
+    const parsedDay = Number(match[2]);
+    const parsedYear = normalizedBlockYear(match[3], year);
+    if (parsedMonth === month && parsedDay === day && parsedYear === year) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function matchingTemporaryBlockLabel(date, blockedDates = []) {
+  return blockedDates.find((entry) => temporaryBlockMatchesDate(entry, date)) || '';
 }
 
 function emptyTicketMeta() {
@@ -1869,10 +1930,12 @@ function normalizeTicketCounterPayload(
       const date = new Date(monday);
       date.setDate(monday.getDate() + weekdayIndex + (weekOffset * 7));
       const iso = date.toISOString().slice(0, 10);
+      const temporaryBlockedLabel = matchingTemporaryBlockLabel(date, preferences.schedule.temporaryBlockedDates);
       return {
         label,
         iso,
-        blocked: preferences.schedule.blockedWeekdays.includes(label),
+        blocked: preferences.schedule.blockedWeekdays.includes(label) || !!temporaryBlockedLabel,
+        blockedReason: temporaryBlockedLabel ? `Temporarily blocked (${temporaryBlockedLabel})` : '',
         appointments: allTickets
           .filter((ticket) => isCalendarAppointmentTicket(ticket, preferences))
           .filter((ticket) => localDateKeyFromTimestamp(ticket.dueAt) === iso)
