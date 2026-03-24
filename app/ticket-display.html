@@ -602,8 +602,8 @@
   }
 
   .board-title {
-    font-size: 22px;
-    font-weight: 900;
+    font-size: 26px;
+    font-weight: 950;
     color: var(--text);
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -611,6 +611,22 @@
     white-space: normal;
     overflow-wrap: anywhere;
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .queue-column-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .queue-column-head .pill {
+    flex: 0 0 auto;
+    font-size: 16px;
+    font-weight: 800;
+    padding: 10px 14px;
   }
 
   .cards {
@@ -2211,14 +2227,14 @@
     }
 
     .board-title {
-      font-size: 15px;
+      font-size: 17px;
       letter-spacing: 0.08em;
       line-height: 1.15;
     }
 
     .queue-column-head .pill {
-      font-size: 11px;
-      padding: 5px 8px;
+      font-size: 12px;
+      padding: 7px 10px;
     }
 
     .audio-rule-grid {
@@ -2476,15 +2492,15 @@
 
   body.force-vertical .board-title,
   body.force-horizontal .board-title {
-    font-size: 13px;
+    font-size: 16px;
     letter-spacing: 0.08em;
     line-height: 1.15;
   }
 
   body.force-vertical .queue-column-head .pill,
   body.force-horizontal .queue-column-head .pill {
-    font-size: 10px;
-    padding: 5px 8px;
+    font-size: 12px;
+    padding: 7px 10px;
   }
 
   body.force-vertical .queue-list,
