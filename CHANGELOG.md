@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.15
+
+- Moved the fullscreen, orientation, and display-target controls into the `Brand` section under a clearer `Window & Display` subsection.
+- Made the major settings subsections collapsible so the settings drawer is easier to navigate as more features are added.
+
 ## v2.1.68-beta.13
 
 - Fixed merged multi-row tickets so any row in `Waiting on Customer` or `Waiting for Parts` now keeps the ticket in the Waiting column instead of disappearing behind another service-row status. Quality Control still takes precedence when both are present.

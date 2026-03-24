@@ -1495,6 +1495,48 @@
     color: #c5d6eb;
   }
 
+  .subsection-head {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .subsection-head-copy {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .subsection-toggle-label {
+    min-width: 132px;
+    min-height: 40px;
+    padding: 8px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+  }
+
+  .subsection-body {
+    display: grid;
+    gap: 14px;
+    padding-top: 14px;
+  }
+
+  .collapsible-subsection.collapsed .subsection-body {
+    display: none;
+  }
+
+  .collapsible-subsection.collapsed .settings-section-caret {
+    transform: rotate(-90deg);
+  }
+
   .settings-field {
     display: grid;
     gap: 6px;
@@ -2845,7 +2887,7 @@
     <h3>Brand</h3>
     <div class="settings-section-copy">Group the board visuals by logo, header, ticker, background, and general theme so each shop can brand the display more easily.</div>
     <div class="brand-subsections">
-      <section class="brand-subsection">
+      <section class="brand-subsection collapsible-subsection">
         <h4 class="brand-subsection-title">Logo</h4>
         <p class="brand-subsection-copy">Upload the logo shown in the top bar and control how large it appears.</p>
         <div class="settings-grid compact-2">
@@ -2872,7 +2914,7 @@
         </div>
       </section>
 
-      <section class="brand-subsection">
+      <section class="brand-subsection collapsible-subsection">
         <h4 class="brand-subsection-title">Header</h4>
         <p class="brand-subsection-copy">Control the title shown in the top bar. Header colour is applied to the title text.</p>
         <div class="settings-grid compact-3">
@@ -2892,7 +2934,52 @@
         </div>
       </section>
 
-      <section class="brand-subsection">
+      <section class="brand-subsection collapsible-subsection">
+        <h4 class="brand-subsection-title">Window & Display</h4>
+        <p class="brand-subsection-copy">Choose fullscreen mode, the board orientation, and which screen the desktop app should use.</p>
+        <div class="settings-grid compact-2">
+          <label class="settings-field full">
+            <span class="settings-label">Browser option</span>
+            <span class="settings-check">
+              <span class="settings-check-copy">
+                <span class="settings-check-title">Open this board in the system browser</span>
+                <span class="settings-help">Useful if someone wants the local board in a normal browser tab instead of the desktop window.</span>
+              </span>
+              <button class="pill secondary" id="settings-open-browser" type="button">Open in Browser</button>
+            </span>
+          </label>
+          <label class="settings-field full">
+            <span class="settings-label">Desktop window mode</span>
+            <span class="settings-check">
+              <input class="settings-checkbox" id="pref-fullscreen" type="checkbox" />
+              <span class="settings-check-copy">
+                <span class="settings-check-title">Open in fullscreen</span>
+                <span class="settings-help">Applies in the desktop app. Browser preview ignores this.</span>
+              </span>
+            </span>
+          </label>
+          <label class="settings-field align-end">
+            <span class="settings-label">Layout orientation</span>
+            <select class="settings-input settings-select" id="pref-orientation">
+              <option value="auto">Auto</option>
+              <option value="horizontal">Horizontal</option>
+              <option value="vertical">Vertical</option>
+            </select>
+            <span class="settings-help">Force the board to use a wide or portrait layout regardless of the screen shape.</span>
+          </label>
+          <label class="settings-field align-end">
+            <span class="settings-label">Display target</span>
+            <select class="settings-input settings-select" id="pref-display-target">
+              <option value="current">Current display</option>
+              <option value="primary">Primary display</option>
+              <option value="secondary">Secondary display</option>
+            </select>
+            <span class="settings-help">Choose which monitor the desktop window and fullscreen mode should use. Connected displays are detected and listed here.</span>
+          </label>
+        </div>
+      </section>
+
+      <section class="brand-subsection collapsible-subsection">
         <h4 class="brand-subsection-title">Ticker</h4>
         <p class="brand-subsection-copy">Show a scrolling message between the header and appointments area for promos, reminders, or store notices.</p>
         <div class="settings-grid compact-3">
@@ -2928,7 +3015,7 @@
         </div>
       </section>
 
-      <section class="brand-subsection">
+      <section class="brand-subsection collapsible-subsection">
         <h4 class="brand-subsection-title">Background</h4>
         <p class="brand-subsection-copy">Choose the base background colours and optionally place a branded image over top at adjustable opacity.</p>
         <div class="settings-grid compact-3">
@@ -2975,7 +3062,7 @@
         </div>
       </section>
 
-      <section class="brand-subsection">
+      <section class="brand-subsection collapsible-subsection">
         <h4 class="brand-subsection-title">General</h4>
         <p class="brand-subsection-copy">Tune the overall theme colours and text scale for this shop’s display.</p>
         <div class="settings-grid compact-3">
@@ -2996,7 +3083,7 @@
         </div>
       </section>
 
-      <section class="brand-subsection">
+      <section class="brand-subsection collapsible-subsection">
         <h4 class="brand-subsection-title">Side Media</h4>
         <p class="brand-subsection-copy">Optional image, GIF, or looping video shown beside the board on wide horizontal displays.</p>
         <div class="settings-grid compact-2">
@@ -3138,92 +3225,60 @@
   <div class="settings-section span-2" id="ticket-details-section">
     <h3>Ticket Details</h3>
     <div class="settings-section-copy">Control how the desktop window behaves, which ticket details are shown, and how strongly true Priority jobs pulse.</div>
-    <div class="settings-grid">
-      <label class="settings-field full">
-        <span class="settings-label">Browser option</span>
-        <span class="settings-check">
-          <span class="settings-check-copy">
-            <span class="settings-check-title">Open this board in the system browser</span>
-            <span class="settings-help">Useful if someone wants the local board in a normal browser tab instead of the desktop window.</span>
-          </span>
-          <button class="pill secondary" id="settings-open-browser" type="button">Open in Browser</button>
-        </span>
-      </label>
-      <label class="settings-field full">
-        <span class="settings-label">Desktop window mode</span>
-        <span class="settings-check">
-          <input class="settings-checkbox" id="pref-fullscreen" type="checkbox" />
-          <span class="settings-check-copy">
-            <span class="settings-check-title">Open in fullscreen</span>
-            <span class="settings-help">Applies in the desktop app. Browser preview ignores this.</span>
-          </span>
-        </span>
-      </label>
-      <label class="settings-field align-end">
-        <span class="settings-label">Layout orientation</span>
-        <select class="settings-input settings-select" id="pref-orientation">
-          <option value="auto">Auto</option>
-          <option value="horizontal">Horizontal</option>
-          <option value="vertical">Vertical</option>
-        </select>
-        <span class="settings-help">Force the board to use a wide or portrait layout regardless of the screen shape.</span>
-      </label>
-      <label class="settings-field align-end">
-        <span class="settings-label">Display target</span>
-        <select class="settings-input settings-select" id="pref-display-target">
-          <option value="current">Current display</option>
-          <option value="primary">Primary display</option>
-          <option value="secondary">Secondary display</option>
-        </select>
-        <span class="settings-help">Choose which monitor the desktop window and fullscreen mode should use. Connected displays are detected and listed here.</span>
-      </label>
-      <label class="settings-field align-end">
-        <span class="settings-label">Customer name display</span>
-        <select class="settings-input settings-select" id="pref-customer-name-mode">
-          <option value="first_name_only">First name only</option>
-          <option value="hide">Hide name</option>
-          <option value="full_name">Full name</option>
-        </select>
-        <span class="settings-help">Choose how customer names appear in ticket bubbles.</span>
-      </label>
-      <label class="settings-field full">
-        <span class="settings-label">Ticket bubble content</span>
-        <span class="settings-check">
-          <input class="settings-checkbox" id="pref-show-assigned-tech" type="checkbox" />
-          <span class="settings-check-copy">
-            <span class="settings-check-title">Show assigned tech</span>
-            <span class="settings-help">Hide the assigned tech line in each ticket bubble for a cleaner customer-facing display.</span>
-          </span>
-        </span>
-      </label>
-      <label class="settings-field full">
-        <span class="settings-label">Assigned tech filter</span>
-        <div class="weekday-grid" id="pref-assignee-filter"></div>
-        <span class="settings-help">Select one or more techs to show only their tickets. Leave everything unchecked to show all techs.</span>
-      </label>
-      <label class="settings-field full">
-        <span class="settings-label">Priority strobe</span>
-        <span class="settings-check">
-          <input class="settings-checkbox" id="pref-priority-strobe-enabled" type="checkbox" />
-          <span class="settings-check-copy">
-            <span class="settings-check-title">Flash true Priority tickets</span>
-            <span class="settings-help">Applies to authenticated Rush Sync tickets only. Fee-based fallback priority stays calmer.</span>
-          </span>
-        </span>
-      </label>
-      <label class="settings-field">
-        <span class="settings-label">Priority strobe intensity</span>
-        <select class="settings-input settings-select" id="pref-priority-strobe-intensity">
-          <option value="subtle">Subtle</option>
-          <option value="medium">Medium</option>
-          <option value="intense">Intense</option>
-        </select>
-        <span class="settings-help">Controls how fast and aggressive the red Priority strobe feels.</span>
-      </label>
-      <div class="settings-field full">
-        <span class="settings-label">Pulse timing</span>
-        <span class="settings-help">How long a ticket can sit before its card starts pulsing red. Each rule supports both days and hours.</span>
-      </div>
+    <div class="brand-subsections">
+      <section class="brand-subsection collapsible-subsection">
+        <h4 class="brand-subsection-title">Ticket Content & Priority</h4>
+        <p class="brand-subsection-copy">Control how customer details appear inside ticket bubbles and how strongly true Priority jobs pulse on the board.</p>
+        <div class="settings-grid">
+          <label class="settings-field align-end">
+            <span class="settings-label">Customer name display</span>
+            <select class="settings-input settings-select" id="pref-customer-name-mode">
+              <option value="first_name_only">First name only</option>
+              <option value="hide">Hide name</option>
+              <option value="full_name">Full name</option>
+            </select>
+            <span class="settings-help">Choose how customer names appear in ticket bubbles.</span>
+          </label>
+          <label class="settings-field full">
+            <span class="settings-label">Ticket bubble content</span>
+            <span class="settings-check">
+              <input class="settings-checkbox" id="pref-show-assigned-tech" type="checkbox" />
+              <span class="settings-check-copy">
+                <span class="settings-check-title">Show assigned tech</span>
+                <span class="settings-help">Hide the assigned tech line in each ticket bubble for a cleaner customer-facing display.</span>
+              </span>
+            </span>
+          </label>
+          <label class="settings-field full">
+            <span class="settings-label">Assigned tech filter</span>
+            <div class="weekday-grid" id="pref-assignee-filter"></div>
+            <span class="settings-help">Select one or more techs to show only their tickets. Leave everything unchecked to show all techs.</span>
+          </label>
+          <label class="settings-field full">
+            <span class="settings-label">Priority strobe</span>
+            <span class="settings-check">
+              <input class="settings-checkbox" id="pref-priority-strobe-enabled" type="checkbox" />
+              <span class="settings-check-copy">
+                <span class="settings-check-title">Flash true Priority tickets</span>
+                <span class="settings-help">Applies to authenticated Rush Sync tickets only. Fee-based fallback priority stays calmer.</span>
+              </span>
+            </span>
+          </label>
+          <label class="settings-field">
+            <span class="settings-label">Priority strobe intensity</span>
+            <select class="settings-input settings-select" id="pref-priority-strobe-intensity">
+              <option value="subtle">Subtle</option>
+              <option value="medium">Medium</option>
+              <option value="intense">Intense</option>
+            </select>
+            <span class="settings-help">Controls how fast and aggressive the red Priority strobe feels.</span>
+          </label>
+          <div class="settings-field full">
+            <span class="settings-label">Pulse timing</span>
+            <span class="settings-help">How long a ticket can sit before its card starts pulsing red. Each rule supports both days and hours.</span>
+          </div>
+        </div>
+      </section>
     </div>
     <div class="timing-grid">
       <div class="timing-card">
@@ -4088,6 +4143,60 @@
     const ticketDetailsSection = qs('ticket-details-section');
     if (!layout || !columnsSection || !ticketDetailsSection) return;
     layout.insertBefore(columnsSection, ticketDetailsSection);
+  }
+
+  function enhanceCollapsibleSubsections() {
+    document.querySelectorAll('.collapsible-subsection').forEach((section) => {
+      if (section.dataset.enhanced === 'true') return;
+      const heading = section.querySelector(':scope > h4');
+      if (!heading) return;
+      const copy = section.querySelector(':scope > .brand-subsection-copy');
+      const body = document.createElement('div');
+      body.className = 'subsection-body';
+
+      let cursor = copy ? copy.nextSibling : heading.nextSibling;
+      while (cursor) {
+        const next = cursor.nextSibling;
+        body.appendChild(cursor);
+        cursor = next;
+      }
+
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'subsection-head';
+      toggle.innerHTML = `
+        <span class="subsection-head-copy">
+          <span class="brand-subsection-title">${escapeHtml(heading.textContent || '')}</span>
+          ${copy ? `<span class="brand-subsection-copy">${escapeHtml(copy.textContent || '')}</span>` : ''}
+        </span>
+        <span class="settings-section-toggle-label subsection-toggle-label">
+          <span class="settings-section-toggle-text">Show Details</span>
+          <span class="settings-section-caret">▾</span>
+        </span>
+      `;
+
+      heading.remove();
+      if (copy) copy.remove();
+      section.prepend(body);
+      section.prepend(toggle);
+      section.dataset.enhanced = 'true';
+      section.classList.add('collapsed');
+      toggle.setAttribute('aria-expanded', 'false');
+
+      const updateToggleState = () => {
+        const expanded = !section.classList.contains('collapsed');
+        const textEl = toggle.querySelector('.settings-section-toggle-text');
+        if (textEl) textEl.textContent = expanded ? 'Hide Details' : 'Show Details';
+        toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      };
+
+      updateToggleState();
+
+      toggle.addEventListener('click', () => {
+        section.classList.toggle('collapsed');
+        updateToggleState();
+      });
+    });
   }
 
   function effectiveNow() {
@@ -5815,6 +5924,7 @@
 
   reorderSettingsSections();
   enhanceSettingsSections();
+  enhanceCollapsibleSubsections();
   qs('page-title').textContent = pageTitle();
   startClock();
   startUpdatePromptPolling();
