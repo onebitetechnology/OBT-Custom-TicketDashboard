@@ -70,6 +70,11 @@ for required_pattern in 'dist/*.yml' 'dist/*.yaml' 'dist/*.blockmap'; do
   fi
 done
 
+echo "Checking beta updater compatibility step"
+if ! grep -Fq 'Add updater compatibility metadata' "$REPO_DIR/.github/workflows/release.yml"; then
+  fail "Release workflow is missing the updater compatibility metadata step for beta builds."
+fi
+
 if [[ "$WITH_PACKAGING" -eq 1 ]]; then
   echo "Running packaging smoke tests"
   run_check "Windows package build" npm run dist:win

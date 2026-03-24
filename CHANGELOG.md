@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.12
+
+- Fixed beta release publishing to add compatibility updater metadata files like `latest.yml` for prerelease tags, so beta installs no longer fail update checks with missing-release-metadata 404s.
+
 ## v2.1.68-beta.11
 
 - Centered the stacked queue header ticket totals on vertical layouts so the count pill sits neatly under the title.
