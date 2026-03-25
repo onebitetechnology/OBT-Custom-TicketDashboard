@@ -33,9 +33,7 @@ jobs:
           fi
 
       - name: Build macOS release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run dist:mac
+        run: npx electron-builder --mac dmg zip --publish never
 
       - name: Add updater compatibility metadata
         shell: bash
@@ -97,9 +95,7 @@ jobs:
         run: npm ci
 
       - name: Build Windows release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run dist:win
+        run: npx electron-builder --win nsis --publish never
 
       - name: Add updater compatibility metadata
         shell: bash
