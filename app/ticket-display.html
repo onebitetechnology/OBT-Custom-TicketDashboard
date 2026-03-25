@@ -190,11 +190,11 @@
 
   .meta {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+    gap: 8px;
     justify-content: end;
     align-items: stretch;
-    width: min(100%, 500px);
+    width: min(100%, 400px);
     flex: 1 1 360px;
     min-width: 0;
   }
@@ -1088,26 +1088,26 @@
 
   .settings-button {
     cursor: pointer;
-    min-height: 48px;
-    padding: 10px 16px;
+    min-height: 40px;
+    padding: 8px 12px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    font-size: 14px;
+    gap: 8px;
+    font-size: 12px;
     line-height: 1;
     white-space: nowrap;
   }
 
   .settings-button-icon {
-    font-size: 18px;
+    font-size: 15px;
     line-height: 1;
   }
 
   #clock-pill,
   #refresh-countdown-pill,
   .settings-button {
-    min-height: 48px;
+    min-height: 40px;
     align-items: center;
     display: inline-flex;
     justify-content: center;
@@ -1119,9 +1119,9 @@
 
   #clock-pill,
   #refresh-countdown-pill {
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 700;
-    padding: 10px 16px;
+    padding: 8px 12px;
   }
 
   .settings-drawer {
@@ -2251,7 +2251,7 @@
     .meta {
       gap: 6px;
       width: 100%;
-      grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
     }
 
     .pill {
@@ -2548,7 +2548,7 @@
     width: 100%;
     max-width: none;
     flex: 1 1 100%;
-    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
   }
 
   body.force-vertical .pill {
@@ -5640,7 +5640,7 @@
     qs('open-tickets-pill').textContent = 'Open Tickets 0';
     qs('oldest-regular-pill').textContent = 'Oldest Regular Ticket --';
     qs('oldest-priority-pill').textContent = 'Oldest Priority Ticket None';
-    qs('refresh-countdown-pill').textContent = 'Refresh in --s';
+    qs('refresh-countdown-pill').textContent = 'Refresh --s';
     qs('ready-count-pill').textContent = '0 tickets';
     qs('ready-queue-content').innerHTML = '';
     qs('progress-count-pill').textContent = '0 tickets';
@@ -5919,7 +5919,7 @@
     const tick = () => {
       const remainingMs = Math.max(0, state.nextRefreshAt - Date.now());
       const remainingSeconds = Math.ceil(remainingMs / 1000);
-      qs('refresh-countdown-pill').textContent = 'Refresh in ' + remainingSeconds + 's';
+      qs('refresh-countdown-pill').textContent = 'Refresh ' + remainingSeconds + 's';
     };
     tick();
     state.refreshCountdownTimer = setInterval(tick, 1000);
