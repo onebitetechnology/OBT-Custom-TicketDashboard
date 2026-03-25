@@ -80,6 +80,13 @@ if ! grep -Fq 'publish-release:' "$REPO_DIR/.github/workflows/release.yml"; then
   fail "Release workflow is missing the final publish-release job."
 fi
 
+echo "Checking updater metadata verification steps"
+for verification_step in 'Verify Windows updater metadata' 'Verify macOS updater metadata' 'Verify release assets before publish'; do
+  if ! grep -Fq "$verification_step" "$REPO_DIR/.github/workflows/release.yml"; then
+    fail "Release workflow is missing updater verification step: $verification_step"
+  fi
+done
+
 if [[ "$WITH_PACKAGING" -eq 1 ]]; then
   echo "Running packaging smoke tests"
   run_check "Windows package build" npm run dist:win

@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.68-beta.19';
+const APP_VERSION = 'v2.1.68-beta.21';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -887,6 +887,58 @@ function rdTicketCounter(apiBase, endpoint, params = {}) {
     Authorization: 'Bear :)',
     'User-Agent': 'OneBiteTech-TicketCounter/1.0',
   });
+}
+
+async function fetchAllTicketCounterPages(apiBase, endpoint, params = {}, maxPages = 20) {
+  const combinedRows = [];
+  let firstPagePayload = null;
+  let previousSignature = '';
+
+  for (let page = 0; page < maxPages; page += 1) {
+    const response = await rdTicketCounter(apiBase, endpoint, { ...params, page, pagesize: 100 });
+    const raw = parseJsonSafe(response.body);
+    if (!raw || response.status !== 200 || Number(raw.status) !== 1) {
+      throw new Error(`RepairDesk ticket counter ${endpoint} request failed`);
+    }
+
+    if (!firstPagePayload) {
+      firstPagePayload = raw;
+    }
+
+    const pageRows = Array.isArray(raw?.data?.pagination?.data) ? raw.data.pagination.data : [];
+    const pageSignature = JSON.stringify(pageRows.map((ticket) => [
+      String(ticket?.order_id || '').trim(),
+      String(ticket?.status || '').trim(),
+      String(ticket?.due_on || '').trim(),
+      String(ticket?.device_issue || '').trim(),
+      String(ticket?.device || '').trim(),
+    ]));
+
+    if (page > 0 && pageSignature && pageSignature === previousSignature) {
+      break;
+    }
+    previousSignature = pageSignature;
+    combinedRows.push(...pageRows);
+
+    if (!raw?.data?.pagination?.next_page_exist || !pageRows.length) {
+      break;
+    }
+  }
+
+  if (!firstPagePayload) {
+    throw new Error(`RepairDesk ticket counter ${endpoint} request failed`);
+  }
+
+  return {
+    ...firstPagePayload,
+    data: {
+      ...(firstPagePayload.data || {}),
+      pagination: {
+        ...(firstPagePayload.data?.pagination || {}),
+        data: combinedRows,
+      },
+    },
+  };
 }
 
 async function fetchPaginated(endpoint, params, extractItems, maxPages = 10) {
@@ -3364,11 +3416,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      const ticketsResp = await rdTicketCounter(apiBase, 'tcd/tickets_by_date', { token });
-      const ticketsRaw = parseJsonSafe(ticketsResp.body);
-      if (ticketsResp.status !== 200 || !ticketsRaw || Number(ticketsRaw.status) !== 1) {
-        throw new Error('RepairDesk ticket counter ticket request failed');
-      }
+      const ticketsRaw = await fetchAllTicketCounterPages(apiBase, 'tcd/tickets_by_date', { token });
 
       const rawTickets = Array.isArray(ticketsRaw?.data?.pagination?.data) ? ticketsRaw.data.pagination.data : [];
       const matchingRows = rawTickets.filter((ticket) => String(ticket?.order_id || '').trim() === orderId);
@@ -3443,11 +3491,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      const ticketsResp = await rdTicketCounter(apiBase, 'tcd/tickets_by_date', { token });
-      const ticketsRaw = parseJsonSafe(ticketsResp.body);
-      if (ticketsResp.status !== 200 || !ticketsRaw || Number(ticketsRaw.status) !== 1) {
-        throw new Error('RepairDesk ticket counter ticket request failed');
-      }
+      const ticketsRaw = await fetchAllTicketCounterPages(apiBase, 'tcd/tickets_by_date', { token });
 
       const rawTickets = Array.isArray(ticketsRaw?.data?.pagination?.data) ? ticketsRaw.data.pagination.data : [];
       const matchingRows = rawTickets.filter((ticket) => (
@@ -3581,18 +3625,14 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      const [configResp, ticketsResp, rushSyncResult] = await Promise.all([
+      const [configResp, ticketsRaw, rushSyncResult] = await Promise.all([
         rdTicketCounter(savedConnection.apiBase, 'tcd/tcd_configuration', { token: savedConnection.token }),
-        rdTicketCounter(savedConnection.apiBase, 'tcd/tickets_by_date', { token: savedConnection.token }),
+        fetchAllTicketCounterPages(savedConnection.apiBase, 'tcd/tickets_by_date', { token: savedConnection.token }),
         fetchRushSyncMap(),
       ]);
       const configRaw = parseJsonSafe(configResp.body);
-      const ticketsRaw = parseJsonSafe(ticketsResp.body);
       if (configResp.status !== 200 || !configRaw || Number(configRaw.status) !== 1) {
         throw new Error('RepairDesk ticket counter configuration request failed');
-      }
-      if (ticketsResp.status !== 200 || !ticketsRaw || Number(ticketsRaw.status) !== 1) {
-        throw new Error('RepairDesk ticket counter ticket request failed');
       }
 
       const rawTickets = Array.isArray(ticketsRaw?.data?.pagination?.data) ? ticketsRaw.data.pagination.data : [];
@@ -3693,18 +3733,14 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      const [configResp, ticketsResp, rushSyncResult] = await Promise.all([
+      const [configResp, ticketsRaw, rushSyncResult] = await Promise.all([
         rdTicketCounter(apiBase, 'tcd/tcd_configuration', { token }),
-        rdTicketCounter(apiBase, 'tcd/tickets_by_date', { token }),
+        fetchAllTicketCounterPages(apiBase, 'tcd/tickets_by_date', { token }),
         fetchRushSyncMap(),
       ]);
       const configRaw = parseJsonSafe(configResp.body);
-      const ticketsRaw = parseJsonSafe(ticketsResp.body);
       if (configResp.status !== 200 || !configRaw || Number(configRaw.status) !== 1) {
         throw new Error('RepairDesk ticket counter configuration request failed');
-      }
-      if (ticketsResp.status !== 200 || !ticketsRaw || Number(ticketsRaw.status) !== 1) {
-        throw new Error('RepairDesk ticket counter ticket request failed');
       }
       const rawTickets = Array.isArray(ticketsRaw?.data?.pagination?.data) ? ticketsRaw.data.pagination.data : [];
       const queueMetaOrderIds = Array.from(new Set(rawTickets

@@ -72,6 +72,15 @@ jobs:
             dist/latest-mac.yml
             dist/*.blockmap
 
+      - name: Verify macOS updater metadata
+        shell: bash
+        run: |
+          if [[ ! -f "dist/latest-mac.yml" ]]; then
+            echo "Missing macOS updater metadata after compatibility step."
+            ls -la dist || true
+            exit 1
+          fi
+
   build-windows:
     runs-on: windows-latest
     steps:
@@ -127,6 +136,15 @@ jobs:
             dist/*.yml
             dist/*.blockmap
 
+      - name: Verify Windows updater metadata
+        shell: bash
+        run: |
+          if [[ ! -f "dist/latest.yml" ]]; then
+            echo "Missing Windows updater metadata after compatibility step."
+            ls -la dist || true
+            exit 1
+          fi
+
   publish-release:
     runs-on: ubuntu-latest
     needs:
@@ -161,6 +179,20 @@ jobs:
             echo "Release ${VERSION}" > release-notes.md
             echo "" >> release-notes.md
             echo "- No changelog text was captured for this release." >> release-notes.md
+          fi
+
+      - name: Verify release assets before publish
+        shell: bash
+        run: |
+          if [[ ! -f "dist/latest.yml" ]]; then
+            echo "Missing dist/latest.yml in publish job."
+            ls -la dist || true
+            exit 1
+          fi
+          if [[ ! -f "dist/latest-mac.yml" ]]; then
+            echo "Missing dist/latest-mac.yml in publish job."
+            ls -la dist || true
+            exit 1
           fi
 
       - name: Publish release with GitHub CLI

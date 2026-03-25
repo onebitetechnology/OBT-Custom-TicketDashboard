@@ -2,6 +2,15 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.21
+
+- Replaced the giant raw updater stack trace in the app with calmer, user-friendly update error messages.
+- Hardened the release workflow so beta builds fail before publish if `latest.yml` or `latest-mac.yml` are missing, instead of shipping a broken updater release.
+
+## v2.1.68-beta.20
+
+- Fixed the RepairDesk Ticket Counter fetch to aggregate paginated ticket pages instead of reading only the first page, which should bring older Waiting tickets back onto the board.
+
 ## v2.1.68-beta.19
 
 - Hardened beta updater metadata publishing so Windows releases create a `latest.yml` compatibility file from any valid generated update metadata, instead of depending on one exact prerelease filename.

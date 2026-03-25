@@ -73,6 +73,40 @@ function normalizeReleaseNotes(info) {
   return String(raw || '').trim();
 }
 
+function formatUpdateErrorMessage(error, context = 'manual') {
+  const raw = String(error?.message || error || '').trim();
+  const lower = raw.toLowerCase();
+  const checkedVersion = raw.match(/releases\/download\/v([^/]+)\/latest(?:-mac)?\.yml/i)?.[1] || '';
+  const versionSuffix = checkedVersion ? ` for ${checkedVersion}` : '';
+  const channelLabel = updateStatus.receiveBetaUpdates ? 'beta' : 'stable';
+
+  if (lower.includes('latest.yml') && lower.includes('404')) {
+    return `The ${channelLabel} update${versionSuffix} is missing its Windows updater file on GitHub. Please wait for the release to be republished, or install the newest build manually.`;
+  }
+
+  if (lower.includes('latest-mac.yml') && lower.includes('404')) {
+    return `The ${channelLabel} update${versionSuffix} is missing its macOS updater file on GitHub. Please wait for the release to be republished, or install the newest build manually.`;
+  }
+
+  if (lower.includes('net::err_internet_disconnected') || lower.includes('enotfound') || lower.includes('econnrefused') || lower.includes('network error')) {
+    return 'Update check could not reach GitHub right now. Please check the internet connection and try again.';
+  }
+
+  if (lower.includes('timeout')) {
+    return 'Update check timed out while contacting GitHub. Please try again in a moment.';
+  }
+
+  if (!raw) {
+    return context === 'scheduled'
+      ? 'Scheduled update check failed.'
+      : 'Update check failed.';
+  }
+
+  return context === 'scheduled'
+    ? 'Scheduled update check failed. The app will try again later.'
+    : 'Update check failed. Please try again. If it keeps happening, use Feature Request / Report Bug so we can inspect it.';
+}
+
 function fetchGitHubReleaseNotes(version) {
   const normalizedVersion = String(version || '').trim().replace(/^v/i, '');
   if (!normalizedVersion) return Promise.resolve('');
@@ -594,18 +628,18 @@ function setupAutoUpdates() {
     }
   });
   autoUpdater.on('error', (error) => {
-    setUpdateStatus({ supported: true, available: false, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: error?.message || 'Update check failed.', version: null, releaseNotes: '' });
+    setUpdateStatus({ supported: true, available: false, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: formatUpdateErrorMessage(error, 'event'), version: null, releaseNotes: '' });
   });
 
   autoUpdater.checkForUpdatesAndNotify().catch((error) => {
-    setUpdateStatus({ supported: true, available: false, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: error?.message || 'Update check failed.', version: null, releaseNotes: '' });
+    setUpdateStatus({ supported: true, available: false, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: formatUpdateErrorMessage(error, 'startup'), version: null, releaseNotes: '' });
   });
 
   if (updateCheckTimer) clearInterval(updateCheckTimer);
   updateCheckTimer = setInterval(() => {
     applyConfiguredUpdateChannel();
     autoUpdater.checkForUpdates().catch((error) => {
-      setUpdateStatus({ supported: true, available: false, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: error?.message || 'Scheduled update check failed.', version: null, releaseNotes: '' });
+      setUpdateStatus({ supported: true, available: false, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: formatUpdateErrorMessage(error, 'scheduled'), version: null, releaseNotes: '' });
     });
   }, BACKGROUND_UPDATE_CHECK_MS);
 }
@@ -689,7 +723,11 @@ ipcMain.handle('updates:check', async () => {
     return updateStatus;
   }
   applyConfiguredUpdateChannel();
-  await autoUpdater.checkForUpdates();
+  try {
+    await autoUpdater.checkForUpdates();
+  } catch (error) {
+    setUpdateStatus({ supported: true, available: false, checking: false, downloaded: false, progressPercent: 0, bytesPerSecond: 0, transferredBytes: 0, totalBytes: 0, message: formatUpdateErrorMessage(error, 'manual'), version: null, releaseNotes: '' });
+  }
   return updateStatus;
 });
 ipcMain.handle('updates:refresh-config', async () => {
