@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.23
+
+- Added a Rush Sync listing fallback so the board can still place tickets into configured columns when the RepairDesk Ticket Counter feed omits them.
+- Expanded the queue-membership debug output to show ticket-counter fetch paging, Rush Sync matches, and any fallback rows that were added.
+
 ## v2.1.68-beta.22
 
 - Fixed the GitHub release workflow so the Windows and macOS CI build jobs no longer auto-publish partial releases before the final publish job runs, which should stop beta releases from ending up on GitHub without their updater metadata.
