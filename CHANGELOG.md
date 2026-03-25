@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.29
+
+- Added an automatic compact-display mode that shrinks the header and appointment panel when Windows scaling leaves the board with a much shorter usable viewport, especially on tighter TV installs.
+
 ## v2.1.68-beta.28
 
 - Toned down the top-right header controls so the Settings button, refresh countdown, and clock use smaller utility sizing and a shorter refresh label on tighter displays.
