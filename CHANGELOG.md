@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.28
+
+- Toned down the top-right header controls so the Settings button, refresh countdown, and clock use smaller utility sizing and a shorter refresh label on tighter displays.
+
 ## v2.1.68-beta.27
 
 - Made the top-right header controls responsive so the Settings button, refresh countdown, and clock reflow cleanly instead of jumbling together on tighter showroom and tech-area displays.
