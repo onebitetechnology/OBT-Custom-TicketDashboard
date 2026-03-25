@@ -2,6 +2,17 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.25
+
+- Added an in-app RepairDesk Sync login flow so each board computer can connect the authenticated RepairDesk session without manually pasting browser cookies.
+- Added a RepairDesk Sync status light, a direct Connect/Reconnect button in Settings, and a reconnect popup that prompts the user to log back into RepairDesk when the sync drops.
+- Kept the manual session cookie field as an advanced fallback for machines where the embedded RepairDesk login flow is not available.
+
+## v2.1.68-beta.24
+
+- Improved detected display labels to show native resolution and scaling information, so 1080p TVs no longer look like lower-resolution displays in Settings.
+- Reworked the settings drawer so the content scrolls inside the panel while the Save and Close buttons stay reachable on scaled or lower-height screens.
+
 ## v2.1.68-beta.23
 
 - Added a Rush Sync listing fallback so the board can still place tickets into configured columns when the RepairDesk Ticket Counter feed omits them.
