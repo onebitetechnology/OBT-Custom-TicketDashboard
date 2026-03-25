@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.68-beta.17';
+const APP_VERSION = 'v2.1.68-beta.18';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -2035,6 +2035,53 @@ function normalizeTicketCounterPayload(
   };
 }
 
+function queuePlacementForOrderId(payload, orderId) {
+  const normalizedOrderId = String(orderId || '').trim();
+  if (!normalizedOrderId || !payload || typeof payload !== 'object') return null;
+
+  const queueDefinitions = [
+    ['readyQueue', 'readyToStart'],
+    ['inProgressQueue', 'inProgress'],
+    ['needsAttentionQueue', 'needsAttention'],
+    ['waitingQueue', 'waiting'],
+    ['qualityControlQueue', 'qualityControl'],
+    ['column6Queue', 'column6'],
+    ['tickets', 'uncategorized'],
+  ];
+
+  for (const [key, columnKey] of queueDefinitions) {
+    const match = Array.isArray(payload[key])
+      ? payload[key].find((ticket) => String(ticket?.orderId || '').trim() === normalizedOrderId)
+      : null;
+    if (match) {
+      return {
+        queueKey: key,
+        columnKey,
+        ticket: match,
+      };
+    }
+  }
+
+  for (const [weekKey, weekLabel] of [['scheduledCalendar', 'this_week'], ['nextScheduledCalendar', 'next_week']]) {
+    const week = Array.isArray(payload[weekKey]) ? payload[weekKey] : [];
+    for (const day of week) {
+      const appointment = Array.isArray(day?.appointments)
+        ? day.appointments.find((ticket) => String(ticket?.orderId || '').trim() === normalizedOrderId)
+        : null;
+      if (appointment) {
+        return {
+          queueKey: weekKey,
+          columnKey: weekLabel,
+          dayIso: day.iso,
+          ticket: appointment,
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
 function getInvoiceLineItems(inv, detail = null) {
   const normalizeItems = (items) => items.map((item) => ({
     id: item?.id ?? '',
@@ -3506,6 +3553,119 @@ const server = http.createServer(async (req, res) => {
         rushRowCount: rushRows.length,
         anyRowHasRushJob: rushRows.length > 0,
         matchingRows,
+      }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  if (pathname === '/api/debug/queue-membership') {
+    const rawOrderIds = String(requestUrl.searchParams.get('orderIds') || requestUrl.searchParams.get('orderId') || '').trim();
+    const orderIds = rawOrderIds
+      .split(',')
+      .map((value) => String(value || '').trim())
+      .filter(Boolean);
+    if (!orderIds.length) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'orderIds or orderId is required' }));
+      return;
+    }
+
+    const savedConnection = getTicketCounterConnection();
+    if (!savedConnection.token || !savedConnection.apiBase) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Ticket Counter Display URL is required before using this debug endpoint.' }));
+      return;
+    }
+
+    try {
+      const [configResp, ticketsResp, rushSyncResult] = await Promise.all([
+        rdTicketCounter(savedConnection.apiBase, 'tcd/tcd_configuration', { token: savedConnection.token }),
+        rdTicketCounter(savedConnection.apiBase, 'tcd/tickets_by_date', { token: savedConnection.token }),
+        fetchRushSyncMap(),
+      ]);
+      const configRaw = parseJsonSafe(configResp.body);
+      const ticketsRaw = parseJsonSafe(ticketsResp.body);
+      if (configResp.status !== 200 || !configRaw || Number(configRaw.status) !== 1) {
+        throw new Error('RepairDesk ticket counter configuration request failed');
+      }
+      if (ticketsResp.status !== 200 || !ticketsRaw || Number(ticketsRaw.status) !== 1) {
+        throw new Error('RepairDesk ticket counter ticket request failed');
+      }
+
+      const rawTickets = Array.isArray(ticketsRaw?.data?.pagination?.data) ? ticketsRaw.data.pagination.data : [];
+      const queueMetaOrderIds = Array.from(new Set(rawTickets
+        .filter((ticket) => (
+          ticket?.status === 'Ready to Start' ||
+          ticket?.status === 'Parts Arrived - Ready to Start' ||
+          ticket?.status === 'Pending - New' ||
+          ticket?.status === 'Pending - New (No Notifications)' ||
+          ticket?.status === 'Needs Estimate' ||
+          ticket?.status === 'Need to order Parts' ||
+          ticket?.status === 'In Progress' ||
+          ticket?.status === 'Diagnostics - In Progress' ||
+          ticket?.status === 'Waiting on Customer' ||
+          ticket?.status === 'Waiting for Parts' ||
+          ticket?.status === 'Quality Control' ||
+          !!ticket?.due_on ||
+          ticket?.status === 'Scheduled'
+        ))
+        .map((ticket) => String(ticket?.order_id || '').trim())
+        .filter(Boolean)));
+      const hasApiKey = !!getConfiguredApiKey();
+      const forceFreshMetaOrderIds = new Set(rawTickets
+        .filter((ticket) => !!ticket?.due_on || ticket?.status === 'Scheduled')
+        .map((ticket) => String(ticket?.order_id || '').trim())
+        .filter(Boolean));
+      const queueMetaEntries = await Promise.all(queueMetaOrderIds.map(async (orderId) => {
+        if (!hasApiKey) return [orderId, emptyTicketMeta()];
+        try {
+          return [orderId, await fetchTicketMetaByOrderId(orderId, { forceFresh: forceFreshMetaOrderIds.has(orderId) })];
+        } catch (_) {
+          return [orderId, emptyTicketMeta()];
+        }
+      }));
+      const ticketMetaByOrderId = Object.fromEntries(queueMetaEntries);
+      const payload = normalizeTicketCounterPayload(
+        configRaw,
+        ticketsRaw,
+        ticketMetaByOrderId,
+        sessionConfig.uiPreferences,
+        rushSyncResult.map,
+        rushSyncResult.status
+      );
+
+      const results = orderIds.map((orderId) => {
+        const matchingRows = rawTickets.filter((ticket) => String(ticket?.order_id || '').trim() === orderId);
+        const placement = queuePlacementForOrderId(payload, orderId);
+        return {
+          orderId,
+          foundInRawFeed: matchingRows.length > 0,
+          rawStatuses: Array.from(new Set(matchingRows.map((ticket) => decodeHtml(ticket?.status || '').trim()).filter(Boolean))),
+          rawRows: matchingRows,
+          placement: placement ? {
+            queueKey: placement.queueKey,
+            columnKey: placement.columnKey,
+            dayIso: placement.dayIso || null,
+            ticket: placement.ticket,
+          } : null,
+        };
+      });
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(escJson({
+        version: APP_VERSION,
+        checkedOrderIds: orderIds,
+        waitingColumn: {
+          label: payload.uiPreferences?.columns?.waiting?.label || 'Waiting',
+          visible: payload.uiPreferences?.columns?.waiting?.visible !== false,
+          refurbMode: payload.uiPreferences?.columns?.waiting?.refurbMode || 'all',
+          statuses: payload.uiPreferences?.columns?.waiting?.statuses || [],
+          queueCount: Array.isArray(payload.waitingQueue) ? payload.waitingQueue.length : 0,
+        },
+        results,
       }));
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
