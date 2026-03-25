@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain, screen, shell, session } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, screen, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const net = require('net');
@@ -15,8 +15,6 @@ try {
 }
 
 let mainWindow = null;
-let rushSyncAuthWindow = null;
-let rushSyncConnectPromise = null;
 let serverProcess = null;
 let serverPort = null;
 let updateCheckTimer = null;
@@ -40,7 +38,6 @@ let updateStatus = {
 const BACKGROUND_UPDATE_CHECK_MS = 60 * 60 * 1000;
 const GITHUB_RELEASE_NOTES_BASE_URL = 'https://api.github.com/repos/onebitetechnology/OBT-Custom-TicketDashboard/releases/tags/';
 const releaseNotesFetchCache = new Map();
-const RUSH_SYNC_AUTH_PARTITION = 'persist:repairdesk-rush-sync-auth';
 
 function getUnsupportedMacUpdateStatus() {
   return {
@@ -384,298 +381,6 @@ function createSupportBundle() {
   return { bundlePath, payload };
 }
 
-function readAppConfig() {
-  try {
-    ensureDataDir();
-    if (!fs.existsSync(getConfigPath())) return {};
-    return JSON.parse(fs.readFileSync(getConfigPath(), 'utf8'));
-  } catch (_) {
-    return {};
-  }
-}
-
-function writeAppConfig(config = {}) {
-  ensureDataDir();
-  fs.writeFileSync(getConfigPath(), JSON.stringify(config, null, 2), 'utf8');
-}
-
-function getRushSyncOriginFromConfig() {
-  try {
-    const config = readAppConfig();
-    const rawDisplayUrl = String(config?.ticketCounterDisplayUrl || '').trim();
-    if (!rawDisplayUrl) return '';
-    const parsed = new URL(rawDisplayUrl);
-    return `${parsed.protocol}//${parsed.host}`;
-  } catch (_) {
-    return '';
-  }
-}
-
-function normalizeRushSyncCookie(rawValue = '') {
-  return String(rawValue || '')
-    .replace(/^cookie\s*:\s*/i, '')
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .join('; ')
-    .trim();
-}
-
-function fetchText(fullUrl, headers = {}) {
-  return new Promise((resolve, reject) => {
-    const req = https.get(fullUrl, { headers }, (res) => {
-      let data = '';
-      res.setEncoding('utf8');
-      res.on('data', (chunk) => {
-        data += chunk;
-      });
-      res.on('end', () => {
-        resolve({ status: res.statusCode, body: data });
-      });
-    });
-    req.on('error', reject);
-    req.setTimeout(20000, () => {
-      req.destroy();
-      reject(new Error('Request timed out'));
-    });
-  });
-}
-
-async function validateRushSyncCookie(origin, cookie) {
-  const normalizedCookie = normalizeRushSyncCookie(cookie);
-  if (!origin || !normalizedCookie) {
-    return { ok: false, reason: 'Missing RepairDesk origin or cookie.' };
-  }
-
-  const queryParams = new URLSearchParams({
-    UnsavedTickets: 0,
-    quick_checkin_tickets: 0,
-    hide_close: 0,
-    per_page: 5,
-    page: 1,
-  });
-  const fullUrl = `${origin}/web/api/v1/ticket/listings?${queryParams.toString()}`;
-  const response = await fetchText(fullUrl, {
-    Accept: 'application/json, text/plain, */*',
-    Cookie: normalizedCookie,
-    Referer: `${origin}/index.php?r=ticket/index`,
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36',
-  });
-
-  let parsed = null;
-  try {
-    parsed = JSON.parse(response.body || '{}');
-  } catch (_) {
-    parsed = null;
-  }
-
-  const rows = Array.isArray(parsed?.data)
-    ? parsed.data
-    : (Array.isArray(parsed?.data?.data) ? parsed.data.data : null);
-  const ok = response.status === 200 && Array.isArray(rows);
-  return {
-    ok,
-    rowCount: Array.isArray(rows) ? rows.length : 0,
-    reason: ok ? '' : `RepairDesk sync validation returned ${response.status}.`,
-  };
-}
-
-async function collectRushSyncCookieFromPartition(origin) {
-  const authSession = session.fromPartition(RUSH_SYNC_AUTH_PARTITION);
-  const cookies = await authSession.cookies.get({ url: origin });
-  return normalizeRushSyncCookie(
-    cookies
-      .sort((a, b) => String(a.name).localeCompare(String(b.name)))
-      .map((cookie) => `${cookie.name}=${cookie.value}`)
-      .join('; ')
-  );
-}
-
-async function pushRushSyncConfigToLocalServer(origin, cookie) {
-  if (!serverPort) return false;
-  const payload = JSON.stringify({
-    rushSyncEnabled: true,
-    rushSyncCookie: cookie,
-  });
-
-  return new Promise((resolve) => {
-    const req = http.request({
-      hostname: '127.0.0.1',
-      port: serverPort,
-      path: '/api/config',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload),
-      },
-    }, (res) => {
-      let body = '';
-      res.setEncoding('utf8');
-      res.on('data', (chunk) => { body += chunk; });
-      res.on('end', () => {
-        resolve(res.statusCode >= 200 && res.statusCode < 300);
-      });
-    });
-    req.on('error', () => resolve(false));
-    req.write(payload);
-    req.end();
-  });
-}
-
-async function saveRushSyncCookie(cookie) {
-  const normalizedCookie = normalizeRushSyncCookie(cookie);
-  const config = readAppConfig();
-  const nextConfig = {
-    ...config,
-    rushSync: {
-      ...(config?.rushSync || {}),
-      enabled: true,
-      cookie: normalizedCookie,
-    },
-  };
-  writeAppConfig(nextConfig);
-  await pushRushSyncConfigToLocalServer(getRushSyncOriginFromConfig(), normalizedCookie);
-  return nextConfig;
-}
-
-async function connectRushSyncViaLoginWindow() {
-  if (rushSyncConnectPromise) {
-    return rushSyncConnectPromise;
-  }
-
-  rushSyncConnectPromise = (async () => {
-    const origin = getRushSyncOriginFromConfig();
-    if (!origin) {
-      throw new Error('Ticket Counter Display URL is required before connecting RepairDesk Sync.');
-    }
-
-    try {
-      const existingCookie = await collectRushSyncCookieFromPartition(origin);
-      const validation = await validateRushSyncCookie(origin, existingCookie);
-      if (validation.ok) {
-        await saveRushSyncCookie(existingCookie);
-        return {
-          ok: true,
-          connected: true,
-          origin,
-          rowCount: validation.rowCount,
-          reusedSession: true,
-        };
-      }
-    } catch (_) {
-      // Fall through to the interactive login window when no reusable session exists.
-    }
-
-    const loginUrl = `${origin}/index.php?r=ticket/index`;
-    const authWindow = new BrowserWindow({
-      width: 1280,
-      height: 860,
-      minWidth: 1024,
-      minHeight: 720,
-      parent: mainWindow || undefined,
-      modal: !!mainWindow,
-      autoHideMenuBar: true,
-      title: 'Connect RepairDesk Sync',
-      backgroundColor: '#08111f',
-      webPreferences: {
-        partition: RUSH_SYNC_AUTH_PARTITION,
-        contextIsolation: true,
-        nodeIntegration: false,
-      },
-    });
-
-    rushSyncAuthWindow = authWindow;
-    authWindow.webContents.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36');
-
-    return new Promise((resolve, reject) => {
-      let settled = false;
-      let validating = false;
-
-      const cleanup = () => {
-        authWindow.removeListener('closed', handleClosed);
-        authWindow.webContents.removeListener('did-finish-load', attemptCapture);
-        authWindow.webContents.removeListener('did-navigate', attemptCapture);
-        authWindow.webContents.removeListener('did-navigate-in-page', attemptCapture);
-        authWindow.webContents.removeListener('did-redirect-navigation', attemptCapture);
-        authWindow.webContents.removeListener('did-fail-load', handleFailLoad);
-      };
-
-      const finish = (result, error = null) => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        if (rushSyncAuthWindow === authWindow) {
-          rushSyncAuthWindow = null;
-        }
-        if (!authWindow.isDestroyed()) {
-          authWindow.close();
-        }
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      };
-
-      const attemptCapture = async () => {
-        if (settled || validating) return;
-        validating = true;
-        try {
-          const cookie = await collectRushSyncCookieFromPartition(origin);
-          if (!cookie) return;
-          const validation = await validateRushSyncCookie(origin, cookie);
-          if (!validation.ok) return;
-          await saveRushSyncCookie(cookie);
-          finish({
-            ok: true,
-            connected: true,
-            origin,
-            rowCount: validation.rowCount,
-            reusedSession: false,
-          });
-        } catch (_) {
-          // Stay on the login window until the session becomes valid or the user closes it.
-        } finally {
-          validating = false;
-        }
-      };
-
-      const handleClosed = () => {
-        if (rushSyncAuthWindow === authWindow) {
-          rushSyncAuthWindow = null;
-        }
-        if (settled) return;
-        settled = true;
-        cleanup();
-        resolve({
-          ok: false,
-          connected: false,
-          cancelled: true,
-          origin,
-        });
-      };
-
-      const handleFailLoad = (_event, _code, description) => {
-        finish(null, new Error(description || 'Could not open the RepairDesk login window.'));
-      };
-
-      authWindow.on('closed', handleClosed);
-      authWindow.webContents.on('did-finish-load', attemptCapture);
-      authWindow.webContents.on('did-navigate', attemptCapture);
-      authWindow.webContents.on('did-navigate-in-page', attemptCapture);
-      authWindow.webContents.on('did-redirect-navigation', attemptCapture);
-      authWindow.webContents.on('did-fail-load', handleFailLoad);
-
-      authWindow.loadURL(loginUrl).catch((error) => {
-        finish(null, error);
-      });
-    });
-  })().finally(() => {
-    rushSyncConnectPromise = null;
-  });
-
-  return rushSyncConnectPromise;
-}
 
 function loadWindowPreferences() {
   const defaults = {
@@ -982,7 +687,6 @@ ipcMain.handle('app:list-displays', () => {
     })(),
   }));
 });
-ipcMain.handle('app:connect-rush-sync', async () => connectRushSyncViaLoginWindow());
 ipcMain.handle('app:open-feature-request', async () => {
   const { bundlePath, payload } = createSupportBundle();
   const subject = encodeURIComponent('OBT Ticket Display Feature Request / Bug Report');

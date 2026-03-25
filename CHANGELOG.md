@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.30
+
+- Removed the embedded RepairDesk login path after RepairDesk blocked in-app sign-in, and returned Enhanced RepairDesk Sync to the clearer manual-cookie workflow.
+- Added a saved Display density setting with `Auto`, `Compact`, and `Extra compact` modes so installs like the Front TV can force a tighter layout even when Windows scaling shrinks the usable viewport.
+
 ## v2.1.68-beta.29
 
 - Added an automatic compact-display mode that shrinks the header and appointment panel when Windows scaling leaves the board with a much shorter usable viewport, especially on tighter TV installs.

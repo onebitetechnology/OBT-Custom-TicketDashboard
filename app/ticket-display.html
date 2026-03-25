@@ -2849,6 +2849,111 @@
     min-height: 96px;
   }
 
+  body.extra-compact-display .app {
+    padding: 8px;
+    gap: 6px;
+  }
+
+  body.extra-compact-display .topbar,
+  body.extra-compact-display .status-row,
+  body.extra-compact-display .schedule-strip,
+  body.extra-compact-display .board,
+  body.extra-compact-display .footer,
+  body.extra-compact-display .ready-queue {
+    border-radius: 12px;
+  }
+
+  body.extra-compact-display .topbar {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  body.extra-compact-display .title {
+    font-size: clamp(16px, 2vw, 21px);
+  }
+
+  body.extra-compact-display .headline {
+    gap: 8px;
+  }
+
+  body.extra-compact-display .headline .pill {
+    font-size: 10px;
+    padding: 6px 8px;
+  }
+
+  body.extra-compact-display .schedule-panel {
+    padding: 8px;
+    gap: 6px;
+    border-radius: 14px;
+  }
+
+  body.extra-compact-display .schedule-panel-head {
+    padding: 7px 8px;
+    border-radius: 12px;
+  }
+
+  body.extra-compact-display .schedule-panel-title {
+    font-size: 13px;
+  }
+
+  body.extra-compact-display .schedule-panel-sub {
+    font-size: 9px;
+  }
+
+  body.extra-compact-display .schedule-strip {
+    padding: 8px;
+    gap: 6px;
+  }
+
+  body.extra-compact-display .schedule-day {
+    min-height: 108px;
+    padding: 7px;
+    gap: 5px;
+    border-radius: 10px;
+  }
+
+  body.extra-compact-display .schedule-label {
+    font-size: 10px;
+  }
+
+  body.extra-compact-display .schedule-count {
+    font-size: 8px;
+  }
+
+  body.extra-compact-display .schedule-item {
+    padding: 7px;
+    gap: 4px;
+    border-radius: 8px;
+  }
+
+  body.extra-compact-display .schedule-ticket {
+    font-size: 12px;
+  }
+
+  body.extra-compact-display .schedule-time {
+    font-size: 8px;
+    padding: 3px 5px;
+  }
+
+  body.extra-compact-display .schedule-name {
+    font-size: 12px;
+  }
+
+  body.extra-compact-display .schedule-device,
+  body.extra-compact-display .schedule-empty,
+  body.extra-compact-display .schedule-note {
+    font-size: 9px;
+    line-height: 1.15;
+  }
+
+  body.extra-compact-display .board {
+    padding: 8px;
+  }
+
+  body.extra-compact-display.force-vertical .schedule-day {
+    min-height: 86px;
+  }
+
   .settings-select {
     appearance: none;
     background-image:
@@ -3074,7 +3179,7 @@
         <span class="settings-check">
           <input class="settings-checkbox" id="rush-sync-enabled" type="checkbox" />
           <span class="settings-check-copy">
-            <span class="settings-check-title">Use a logged-in RepairDesk session for true Priority tickets and missing-ticket fallback</span>
+            <span class="settings-check-title">Use a RepairDesk session cookie for true Priority tickets and missing-ticket fallback</span>
             <span class="settings-help">Optional, but recommended. When the normal Ticket Counter feed leaves tickets out, this authenticated sync helps recover them. If it disconnects, the board falls back gracefully.</span>
           </span>
         </span>
@@ -3085,15 +3190,12 @@
           <span class="settings-status-light" id="rush-sync-status-light" data-state="disabled" aria-hidden="true"></span>
           <div class="settings-inline-status" id="rush-sync-status-copy">Enhanced RepairDesk Sync is disabled.</div>
         </div>
-        <div class="settings-button-row">
-          <button class="pill" id="rush-sync-connect" type="button">Connect RepairDesk Sync</button>
-        </div>
-        <span class="settings-help">This opens a RepairDesk login window owned by the app. After you sign in, the board stores the session locally on this computer and uses it for enhanced sync.</span>
+        <span class="settings-help">Paste the current RepairDesk session cookie for this machine below. If the sync drops, the board will prompt you to open Settings and paste a fresh cookie.</span>
       </div>
       <label class="settings-field full" id="rush-sync-cookie-field">
-        <span class="settings-label">Manual session cookie (advanced)</span>
+        <span class="settings-label">RepairDesk session cookie</span>
         <textarea class="settings-textarea" id="rush-sync-cookie"></textarea>
-        <span class="settings-help">Fallback option. Paste the full <code>Cookie:</code> value from a logged-in RepairDesk browser session only if the in-app connect flow is unavailable on this machine.</span>
+        <span class="settings-help">Paste the full <code>Cookie:</code> value from a logged-in RepairDesk browser session for this store. This is sensitive and should only be used on the local board computer.</span>
       </label>
     </div>
   </div>
@@ -3189,6 +3291,15 @@
               <option value="secondary">Secondary display</option>
             </select>
             <span class="settings-help">Choose which monitor the desktop window and fullscreen mode should use. Connected displays are detected and listed here.</span>
+          </label>
+          <label class="settings-field align-end">
+            <span class="settings-label">Display density</span>
+            <select class="settings-input settings-select" id="pref-display-density">
+              <option value="auto">Auto</option>
+              <option value="compact">Compact</option>
+              <option value="extra_compact">Extra compact</option>
+            </select>
+            <span class="settings-help">Use Compact or Extra compact if Windows scaling makes the header and appointments too large on a TV.</span>
           </label>
         </div>
       </section>
@@ -3721,7 +3832,7 @@
     <div class="warning-copy" id="rush-sync-popup-copy">The board has switched back to Ticket Counter data and fee-based Priority detection until RepairDesk Sync reconnects.</div>
     <div class="warning-actions">
       <button class="pill" id="rush-sync-popup-dismiss" type="button">Dismiss</button>
-      <button class="pill" id="rush-sync-popup-reconnect" type="button">Log Back Into RepairDesk</button>
+      <button class="pill" id="rush-sync-popup-reconnect" type="button">Open Sync Settings</button>
     </div>
   </div>
 </div>
@@ -4222,7 +4333,7 @@
 
   function rushSyncStatusText(status = {}) {
     if (!status.enabled) return 'Enhanced RepairDesk Sync is off. The board is using Ticket Counter data and fee-based Priority detection only.';
-    if (!status.configured) return 'Enhanced RepairDesk Sync is on, but this computer still needs a RepairDesk login.';
+    if (!status.configured) return 'Enhanced RepairDesk Sync is on, but this computer still needs a valid RepairDesk session cookie.';
     if (status.connected) {
       const checkedAt = status.lastCheckedAt
         ? ` Last checked ${new Date(status.lastCheckedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`
@@ -4235,16 +4346,12 @@
   function renderRushSyncStatus(status = {}) {
     const statusEl = qs('rush-sync-status-copy');
     const statusLight = qs('rush-sync-status-light');
-    const connectBtn = qs('rush-sync-connect');
     if (!statusEl) return;
     statusEl.textContent = rushSyncStatusText(status);
     if (statusLight) {
       statusLight.dataset.state = !status.enabled
         ? 'disabled'
         : (status.connected ? 'connected' : 'warning');
-    }
-    if (connectBtn) {
-      connectBtn.textContent = status.connected ? 'Reconnect RepairDesk Sync' : 'Connect RepairDesk Sync';
     }
   }
 
@@ -4265,8 +4372,8 @@
       return;
     }
     qs('rush-sync-popup-copy').textContent = status.lastError
-      ? `RepairDesk Sync could not reach RepairDesk: ${status.lastError}\n\nThe board is still running and has fallen back to Ticket Counter data plus fee-based Priority detection until you log back in.`
-      : 'The board has switched back to Ticket Counter data plus fee-based Priority detection until you log back in.';
+      ? `RepairDesk Sync could not reach RepairDesk: ${status.lastError}\n\nThe board is still running and has fallen back to Ticket Counter data plus fee-based Priority detection until you paste a fresh session cookie.`
+      : 'The board has switched back to Ticket Counter data plus fee-based Priority detection until you paste a fresh session cookie.';
     overlay.classList.add('open');
   }
 
@@ -4276,34 +4383,6 @@
     const enabled = qs('rush-sync-enabled').checked;
     if (connectField) connectField.hidden = !enabled;
     if (cookieField) cookieField.hidden = !enabled;
-  }
-
-  async function connectRushSync() {
-    if (!window.desktopApp?.connectRushSync) {
-      qs('settings-status').textContent = 'This desktop build does not support RepairDesk Sync login yet.';
-      return;
-    }
-
-    qs('rush-sync-enabled').checked = true;
-    updateRushSyncFieldVisibility();
-
-    try {
-      qs('settings-status').textContent = 'Saving settings and opening RepairDesk login...';
-      await saveApiConfig();
-      const result = await window.desktopApp.connectRushSync();
-      if (result?.cancelled) {
-        qs('settings-status').textContent = 'RepairDesk login was cancelled.';
-        return;
-      }
-      qs('settings-status').textContent = result?.reusedSession
-        ? 'RepairDesk Sync reused an existing login on this computer.'
-        : 'RepairDesk Sync connected successfully.';
-      state.rushSyncDismissedKey = '';
-      await loadApiConfig();
-      await loadFeed();
-    } catch (error) {
-      qs('settings-status').textContent = error?.message || 'Could not connect RepairDesk Sync.';
-    }
   }
 
   async function refreshUpdateStatusAndPopup() {
@@ -5021,6 +5100,7 @@
     qs('pref-fullscreen').checked = !!prefs.display?.fullscreen;
     qs('pref-orientation').value = prefs.display?.orientation || 'auto';
     setDisplayTargetOptions(prefs.display?.displayTarget || 'current');
+    qs('pref-display-density').value = prefs.display?.densityMode || 'auto';
     qs('pref-customer-name-mode').value = prefs.display?.customerNameMode || 'first_name_only';
     qs('pref-show-assigned-tech').checked = prefs.display?.showAssignedTech !== false;
     qs('pref-assignee-filter').innerHTML = assigneeFilterMarkup(prefs.display?.assigneeFilter || []);
@@ -5115,6 +5195,7 @@
         fullscreen: qs('pref-fullscreen').checked,
         orientation: qs('pref-orientation').value || 'auto',
         displayTarget: qs('pref-display-target').value || 'current',
+        densityMode: qs('pref-display-density').value || 'auto',
         customerNameMode: qs('pref-customer-name-mode').value || 'first_name_only',
         showAssignedTech: qs('pref-show-assigned-tech').checked,
         assigneeFilter: selectedAssignees(),
@@ -5209,8 +5290,12 @@
     const orientation = effectiveOrientation(preferences);
     const height = window.innerHeight;
     const width = window.innerWidth;
-    const compact = height <= 760 || (orientation === 'horizontal' && height <= 860 && width / Math.max(height, 1) >= 1.45);
-    document.body.classList.toggle('compact-display', compact);
+    const densityMode = String(preferences?.display?.densityMode || 'auto').toLowerCase();
+    const autoCompact = height <= 760 || (orientation === 'horizontal' && height <= 860 && width / Math.max(height, 1) >= 1.45);
+    const compact = densityMode === 'compact' || densityMode === 'extra_compact' || (densityMode === 'auto' && autoCompact);
+    const extraCompact = densityMode === 'extra_compact';
+    document.body.classList.toggle('compact-display', compact || extraCompact);
+    document.body.classList.toggle('extra-compact-display', extraCompact);
   }
 
   function applyDisplayPreferences(preferences) {
@@ -6094,12 +6179,11 @@
     state.rushSyncDismissedKey = String(state.data?.rushSync?.alertKey || '');
     qs('rush-sync-overlay').classList.remove('open');
   });
-  qs('rush-sync-popup-reconnect').addEventListener('click', async () => {
+  qs('rush-sync-popup-reconnect').addEventListener('click', () => {
     state.rushSyncDismissedKey = String(state.data?.rushSync?.alertKey || '');
     qs('rush-sync-overlay').classList.remove('open');
-    await connectRushSync();
+    openSettings();
   });
-  qs('rush-sync-connect').addEventListener('click', connectRushSync);
   qs('settings-feature-request').addEventListener('click', openFeatureRequest);
   qs('settings-restart').addEventListener('click', restartServer);
   qs('settings-save').addEventListener('click', savePreferences);

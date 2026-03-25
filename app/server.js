@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.68-beta.29';
+const APP_VERSION = 'v2.1.68-beta.30';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -53,6 +53,7 @@ const DEFAULT_UI_PREFERENCES = {
     fullscreen: false,
     orientation: 'auto',
     displayTarget: 'current',
+    densityMode: 'auto',
     customerNameMode: 'first_name_only',
     showAssignedTech: true,
     hideRefurbs: false,
@@ -435,6 +436,9 @@ function normalizeUiPreferences(savedPrefs = {}) {
         ? String(savedPrefs.display.orientation).toLowerCase()
         : DEFAULT_UI_PREFERENCES.display.orientation,
       displayTarget: String(savedPrefs?.display?.displayTarget || DEFAULT_UI_PREFERENCES.display.displayTarget).trim() || DEFAULT_UI_PREFERENCES.display.displayTarget,
+      densityMode: ['auto', 'compact', 'extra_compact'].includes(String(savedPrefs?.display?.densityMode || '').toLowerCase())
+        ? String(savedPrefs.display.densityMode).toLowerCase()
+        : DEFAULT_UI_PREFERENCES.display.densityMode,
       customerNameMode: ['full_name', 'first_name_only', 'hide'].includes(String(savedPrefs?.display?.customerNameMode || '').toLowerCase())
         ? String(savedPrefs.display.customerNameMode).toLowerCase()
         : DEFAULT_UI_PREFERENCES.display.customerNameMode,
