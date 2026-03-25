@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.68-beta.22';
+const APP_VERSION = 'v2.1.68-beta.23';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -893,6 +893,7 @@ async function fetchAllTicketCounterPages(apiBase, endpoint, params = {}, maxPag
   const combinedRows = [];
   let firstPagePayload = null;
   let previousSignature = '';
+  const pagesFetched = [];
 
   for (let page = 0; page < maxPages; page += 1) {
     const response = await rdTicketCounter(apiBase, endpoint, { ...params, page, pagesize: 100 });
@@ -904,6 +905,7 @@ async function fetchAllTicketCounterPages(apiBase, endpoint, params = {}, maxPag
     if (!firstPagePayload) {
       firstPagePayload = raw;
     }
+    pagesFetched.push(page);
 
     const pageRows = Array.isArray(raw?.data?.pagination?.data) ? raw.data.pagination.data : [];
     const pageSignature = JSON.stringify(pageRows.map((ticket) => [
@@ -931,6 +933,11 @@ async function fetchAllTicketCounterPages(apiBase, endpoint, params = {}, maxPag
 
   return {
     ...firstPagePayload,
+    _fetchDebug: {
+      pagesFetched,
+      totalRows: combinedRows.length,
+      endpoint,
+    },
     data: {
       ...(firstPagePayload.data || {}),
       pagination: {
@@ -1560,6 +1567,97 @@ function findMatchingColumnForStatus(status, columns = {}) {
     }
   }
   return null;
+}
+
+function rushSyncRowStatus(row) {
+  return decodeHtml(row?.status || row?.collective_status || row?.ticket_status || 'Unknown').trim();
+}
+
+function buildTicketCounterFallbackRowFromRushSync(row) {
+  const orderId = String(row?.order_id || '').trim();
+  if (!orderId) return null;
+  return {
+    order_id: orderId,
+    first_name: String(row?.first_name || row?.customer?.first_name || '').trim(),
+    last_name: String(row?.last_name || row?.customer?.last_name || '').trim(),
+    orgonization: String(row?.orgonization || row?.organization || row?.customer?.orgonization || row?.customer?.organization || '').trim(),
+    status: rushSyncRowStatus(row),
+    assignee_name: String(row?.assignee_name || row?.assignee?.fullname || row?.assignee?.name || '').trim(),
+    inv_type: Number(row?.inv_type || 0) || 0,
+    due_on: String(row?.due_on || row?.due_date || row?.due_at || '').trim(),
+    device_issue: String(row?.device_issue || row?.issue || row?.ticket_label || row?.title || '').trim(),
+    device: String(row?.device || row?.device_name || row?.device_model || '').trim(),
+    orderIdToSort: Number(row?.order_id || 0) || 0,
+    rush_job: row?.rush_job,
+    __source: 'rush_sync_fallback',
+  };
+}
+
+function mergeTicketCounterRowsWithRushSyncFallback(ticketsRaw, rushSyncRows = [], uiPreferences = DEFAULT_UI_PREFERENCES) {
+  const rawTickets = Array.isArray(ticketsRaw?.data?.pagination?.data) ? ticketsRaw.data.pagination.data : [];
+  if (!Array.isArray(rushSyncRows) || !rushSyncRows.length) {
+    return {
+      mergedPayload: ticketsRaw,
+      addedRows: [],
+    };
+  }
+
+  const preferences = normalizeUiPreferences(uiPreferences);
+  const configuredStatuses = Object.values(preferences.columns)
+    .flatMap((column) => Array.isArray(column?.statuses) ? column.statuses : [])
+    .map((status) => normalizeStatusMatchValue(status))
+    .filter(Boolean);
+  if (!configuredStatuses.length) {
+    return {
+      mergedPayload: ticketsRaw,
+      addedRows: [],
+    };
+  }
+
+  const existingOrderStatusPairs = new Set(rawTickets.map((ticket) => [
+    String(ticket?.order_id || '').trim(),
+    normalizeStatusMatchValue(ticket?.status || ''),
+  ].join('|')));
+
+  const addedRows = [];
+  for (const row of rushSyncRows) {
+    const fallbackRow = buildTicketCounterFallbackRowFromRushSync(row);
+    if (!fallbackRow) continue;
+    const normalizedStatus = normalizeStatusMatchValue(fallbackRow.status);
+    if (!normalizedStatus) continue;
+    if (!configuredStatuses.some((configuredStatus) => normalizedStatus.includes(configuredStatus))) {
+      continue;
+    }
+    const dedupeKey = `${fallbackRow.order_id}|${normalizedStatus}`;
+    if (existingOrderStatusPairs.has(dedupeKey)) continue;
+    existingOrderStatusPairs.add(dedupeKey);
+    addedRows.push(fallbackRow);
+  }
+
+  if (!addedRows.length) {
+    return {
+      mergedPayload: ticketsRaw,
+      addedRows: [],
+    };
+  }
+
+  return {
+    mergedPayload: {
+      ...ticketsRaw,
+      data: {
+        ...(ticketsRaw?.data || {}),
+        pagination: {
+          ...(ticketsRaw?.data?.pagination || {}),
+          data: [...rawTickets, ...addedRows],
+        },
+      },
+      _fetchDebug: {
+        ...(ticketsRaw?._fetchDebug || {}),
+        rushSyncFallbackRowsAdded: addedRows.length,
+      },
+    },
+    addedRows,
+  };
 }
 
 function normalizeTicketCounterPayload(
@@ -3625,11 +3723,23 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      const [configResp, ticketsRaw, rushSyncResult] = await Promise.all([
+      const [configResp, ticketsRawBase, rushSyncListingResult] = await Promise.all([
         rdTicketCounter(savedConnection.apiBase, 'tcd/tcd_configuration', { token: savedConnection.token }),
         fetchAllTicketCounterPages(savedConnection.apiBase, 'tcd/tickets_by_date', { token: savedConnection.token }),
-        fetchRushSyncMap(),
+        fetchRushSyncListingRows(),
       ]);
+      const rushSyncMap = Object.create(null);
+      for (const row of rushSyncListingResult.rows || []) {
+        const orderId = String(row?.order_id || '').trim();
+        if (orderId && isTruthyRushJob(row?.rush_job)) {
+          rushSyncMap[orderId] = true;
+        }
+      }
+      const { mergedPayload: ticketsRaw, addedRows: rushSyncFallbackRows } = mergeTicketCounterRowsWithRushSyncFallback(
+        ticketsRawBase,
+        rushSyncListingResult.rows,
+        sessionConfig.uiPreferences
+      );
       const configRaw = parseJsonSafe(configResp.body);
       if (configResp.status !== 200 || !configRaw || Number(configRaw.status) !== 1) {
         throw new Error('RepairDesk ticket counter configuration request failed');
@@ -3673,18 +3783,22 @@ const server = http.createServer(async (req, res) => {
         ticketsRaw,
         ticketMetaByOrderId,
         sessionConfig.uiPreferences,
-        rushSyncResult.map,
-        rushSyncResult.status
+        rushSyncMap,
+        rushSyncListingResult.status
       );
 
       const results = orderIds.map((orderId) => {
         const matchingRows = rawTickets.filter((ticket) => String(ticket?.order_id || '').trim() === orderId);
+        const matchingRushSyncRows = (rushSyncListingResult.rows || []).filter((row) => String(row?.order_id || '').trim() === orderId);
         const placement = queuePlacementForOrderId(payload, orderId);
         return {
           orderId,
           foundInRawFeed: matchingRows.length > 0,
           rawStatuses: Array.from(new Set(matchingRows.map((ticket) => decodeHtml(ticket?.status || '').trim()).filter(Boolean))),
           rawRows: matchingRows,
+          foundInRushSyncListing: matchingRushSyncRows.length > 0,
+          rushSyncStatuses: Array.from(new Set(matchingRushSyncRows.map((row) => rushSyncRowStatus(row)).filter(Boolean))),
+          rushSyncRows: matchingRushSyncRows,
           placement: placement ? {
             queueKey: placement.queueKey,
             columnKey: placement.columnKey,
@@ -3698,6 +3812,8 @@ const server = http.createServer(async (req, res) => {
       res.end(escJson({
         version: APP_VERSION,
         checkedOrderIds: orderIds,
+        ticketCounterFetch: ticketsRaw?._fetchDebug || {},
+        rushSyncFallbackRowsAdded: rushSyncFallbackRows.length,
         waitingColumn: {
           label: payload.uiPreferences?.columns?.waiting?.label || 'Waiting',
           visible: payload.uiPreferences?.columns?.waiting?.visible !== false,
@@ -3733,11 +3849,23 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      const [configResp, ticketsRaw, rushSyncResult] = await Promise.all([
+      const [configResp, ticketsRawBase, rushSyncListingResult] = await Promise.all([
         rdTicketCounter(apiBase, 'tcd/tcd_configuration', { token }),
         fetchAllTicketCounterPages(apiBase, 'tcd/tickets_by_date', { token }),
-        fetchRushSyncMap(),
+        fetchRushSyncListingRows(),
       ]);
+      const rushSyncMap = Object.create(null);
+      for (const row of rushSyncListingResult.rows || []) {
+        const orderId = String(row?.order_id || '').trim();
+        if (orderId && isTruthyRushJob(row?.rush_job)) {
+          rushSyncMap[orderId] = true;
+        }
+      }
+      const { mergedPayload: ticketsRaw } = mergeTicketCounterRowsWithRushSyncFallback(
+        ticketsRawBase,
+        rushSyncListingResult.rows,
+        sessionConfig.uiPreferences
+      );
       const configRaw = parseJsonSafe(configResp.body);
       if (configResp.status !== 200 || !configRaw || Number(configRaw.status) !== 1) {
         throw new Error('RepairDesk ticket counter configuration request failed');
@@ -3785,8 +3913,8 @@ const server = http.createServer(async (req, res) => {
           ticketsRaw,
           queueMetaByOrderId,
           sessionConfig.uiPreferences,
-          rushSyncResult.map,
-          rushSyncResult.status
+          rushSyncMap,
+          rushSyncListingResult.status
         )
       ));
     } catch (e) {
