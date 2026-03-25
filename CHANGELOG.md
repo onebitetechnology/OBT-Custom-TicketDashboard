@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.16
+
+- Fixed the release workflow so macOS and Windows builds no longer race each other while publishing the same GitHub release.
+- Beta releases now publish updater assets through one final release job, which should stop the duplicate-tag finalization failures.
+
 ## v2.1.68-beta.15
 
 - Moved the fullscreen, orientation, and display-target controls into the `Brand` section under a clearer `Window & Display` subsection.
