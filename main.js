@@ -729,8 +729,8 @@ function getWindowBoundsForPreferences(preferences = {}, currentBounds = null) {
   const isVertical = orientation === 'vertical';
   const widthRatio = isVertical ? 0.62 : 0.88;
   const heightRatio = isVertical ? 0.92 : 0.86;
-  const width = Math.max(1100, Math.min(area.width, Math.round(area.width * widthRatio)));
-  const height = Math.max(800, Math.min(area.height, Math.round(area.height * heightRatio)));
+  const width = Math.max(Math.min(960, area.width), Math.min(area.width, Math.round(area.width * widthRatio)));
+  const height = Math.max(Math.min(620, area.height), Math.min(area.height, Math.round(area.height * heightRatio)));
 
   return {
     width,
@@ -842,8 +842,8 @@ async function createMainWindow() {
 
   mainWindow = new BrowserWindow({
     ...bounds,
-    minWidth: 1100,
-    minHeight: 800,
+    minWidth: 960,
+    minHeight: 620,
     backgroundColor: '#08111f',
     autoHideMenuBar: true,
     title: 'One Bite Ticket Display',
