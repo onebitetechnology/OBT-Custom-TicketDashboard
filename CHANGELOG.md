@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.19
+
+- Hardened beta updater metadata publishing so Windows releases create a `latest.yml` compatibility file from any valid generated update metadata, instead of depending on one exact prerelease filename.
+
 ## v2.1.68-beta.18
 
 - Added a targeted queue-membership debug endpoint so we can inspect exactly which raw statuses a ticket has, which merged queue the board chose, and whether Waiting-column filters are hiding it.
