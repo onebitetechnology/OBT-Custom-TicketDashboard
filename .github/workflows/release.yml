@@ -52,6 +52,16 @@ jobs:
             cp "dist/${CHANNEL_NAME}-mac.yml" "dist/latest-mac.yml"
           fi
 
+          if [[ ! -f "dist/latest-mac.yml" ]]; then
+            FALLBACK_MAC_YML="$(find dist -maxdepth 1 -type f -name '*-mac.yml' ! -name 'latest-mac.yml' | head -n 1)"
+            if [[ -n "$FALLBACK_MAC_YML" ]]; then
+              cp "$FALLBACK_MAC_YML" "dist/latest-mac.yml"
+            fi
+          fi
+
+          echo "macOS updater metadata:"
+          ls -1 dist/*.yml 2>/dev/null || true
+
       - name: Upload macOS workflow artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -97,6 +107,16 @@ jobs:
             cp "dist/${CHANNEL_NAME}.yml" "dist/latest.yml"
           fi
 
+          if [[ ! -f "dist/latest.yml" ]]; then
+            FALLBACK_YML="$(find dist -maxdepth 1 -type f -name '*.yml' ! -name 'latest.yml' ! -name 'latest-mac.yml' ! -name 'builder-debug.yml' | head -n 1)"
+            if [[ -n "$FALLBACK_YML" ]]; then
+              cp "$FALLBACK_YML" "dist/latest.yml"
+            fi
+          fi
+
+          echo "Windows updater metadata:"
+          ls -1 dist/*.yml 2>/dev/null || true
+
       - name: Upload Windows workflow artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -104,6 +124,7 @@ jobs:
           path: |
             dist/*.exe
             dist/latest.yml
+            dist/*.yml
             dist/*.blockmap
 
   publish-release:
