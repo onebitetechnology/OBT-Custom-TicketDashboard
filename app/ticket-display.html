@@ -2742,6 +2742,113 @@
     line-height: 1.22;
   }
 
+  body.compact-display .app {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  body.compact-display .topbar,
+  body.compact-display .status-row,
+  body.compact-display .schedule-strip,
+  body.compact-display .board,
+  body.compact-display .footer,
+  body.compact-display .ready-queue {
+    border-radius: 14px;
+  }
+
+  body.compact-display .topbar {
+    padding: 12px 14px;
+    gap: 10px;
+  }
+
+  body.compact-display .title {
+    font-size: clamp(18px, 2.2vw, 24px);
+  }
+
+  body.compact-display .headline {
+    gap: 10px;
+  }
+
+  body.compact-display .headline .pill {
+    font-size: 11px;
+    padding: 8px 10px;
+  }
+
+  body.compact-display .schedule-panel {
+    padding: 10px;
+    gap: 8px;
+    border-radius: 18px;
+  }
+
+  body.compact-display .schedule-panel-head {
+    padding: 8px 10px;
+    border-radius: 14px;
+  }
+
+  body.compact-display .schedule-panel-title {
+    font-size: 15px;
+  }
+
+  body.compact-display .schedule-panel-sub {
+    font-size: 10px;
+  }
+
+  body.compact-display .schedule-strip {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  body.compact-display .schedule-day {
+    min-height: 132px;
+    padding: 8px;
+    gap: 6px;
+    border-radius: 12px;
+  }
+
+  body.compact-display .schedule-label {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+  }
+
+  body.compact-display .schedule-count {
+    font-size: 9px;
+  }
+
+  body.compact-display .schedule-item {
+    padding: 8px;
+    gap: 4px;
+    border-radius: 10px;
+  }
+
+  body.compact-display .schedule-ticket {
+    font-size: 13px;
+  }
+
+  body.compact-display .schedule-time {
+    font-size: 9px;
+    padding: 4px 6px;
+  }
+
+  body.compact-display .schedule-name {
+    font-size: 13px;
+    line-height: 1.05;
+  }
+
+  body.compact-display .schedule-device,
+  body.compact-display .schedule-empty,
+  body.compact-display .schedule-note {
+    font-size: 10px;
+    line-height: 1.2;
+  }
+
+  body.compact-display .board {
+    padding: 10px;
+  }
+
+  body.compact-display.force-vertical .schedule-day {
+    min-height: 96px;
+  }
+
   .settings-select {
     appearance: none;
     background-image:
@@ -5098,11 +5205,20 @@
     queueColumnsEl.style.gridTemplateColumns = `repeat(${visibleCount}, minmax(0, 1fr))`;
   }
 
+  function applyViewportDensity(preferences) {
+    const orientation = effectiveOrientation(preferences);
+    const height = window.innerHeight;
+    const width = window.innerWidth;
+    const compact = height <= 760 || (orientation === 'horizontal' && height <= 860 && width / Math.max(height, 1) >= 1.45);
+    document.body.classList.toggle('compact-display', compact);
+  }
+
   function applyDisplayPreferences(preferences) {
     const prefs = preferences || currentPreferences();
     const orientation = prefs.display?.orientation || 'auto';
     document.body.classList.toggle('force-horizontal', orientation === 'horizontal');
     document.body.classList.toggle('force-vertical', orientation === 'vertical');
+    applyViewportDensity(prefs);
     document.body.dataset.priorityStrobeEnabled = prefs.display?.priorityStrobeEnabled === false ? 'false' : 'true';
     document.body.dataset.priorityStrobeIntensity = prefs.display?.priorityStrobeIntensity || 'medium';
     qs('ready-column').hidden = prefs.columns.readyToStart.visible === false;
