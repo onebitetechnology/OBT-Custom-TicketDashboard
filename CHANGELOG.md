@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.17
+
+- Replaced the final GitHub release publish step with the GitHub CLI so duplicate draft releases no longer break release finalization after the assets are already built and uploaded.
+
 ## v2.1.68-beta.16
 
 - Fixed the release workflow so macOS and Windows builds no longer race each other while publishing the same GitHub release.
