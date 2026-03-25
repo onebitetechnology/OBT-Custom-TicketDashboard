@@ -2,6 +2,14 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.27
+
+- Made the top-right header controls responsive so the Settings button, refresh countdown, and clock reflow cleanly instead of jumbling together on tighter showroom and tech-area displays.
+
+## v2.1.68-beta.26
+
+- Relaxed the main window minimum size and tightened the settings drawer sizing so scaled or lower-height displays can still reach the Save and Close controls.
+
 ## v2.1.68-beta.25
 
 - Added an in-app RepairDesk Sync login flow so each board computer can connect the authenticated RepairDesk session without manually pasting browser cookies.
