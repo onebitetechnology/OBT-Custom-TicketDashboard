@@ -64,7 +64,7 @@ if rg -n --hidden --glob '!dist/**' --glob '!node_modules/**' 'obtadmin\.repaird
 fi
 
 echo "Checking release metadata upload patterns"
-for required_pattern in 'dist/*.yml' 'dist/*.yaml' 'dist/*.blockmap'; do
+for required_pattern in 'dist/latest.yml' 'dist/latest-mac.yml' 'dist/*.blockmap'; do
   if ! grep -Fq "$required_pattern" "$REPO_DIR/.github/workflows/release.yml"; then
     fail "Release workflow is missing updater metadata artifact pattern: $required_pattern"
   fi
@@ -73,6 +73,11 @@ done
 echo "Checking beta updater compatibility step"
 if ! grep -Fq 'Add updater compatibility metadata' "$REPO_DIR/.github/workflows/release.yml"; then
   fail "Release workflow is missing the updater compatibility metadata step for beta builds."
+fi
+
+echo "Checking release publish job"
+if ! grep -Fq 'publish-release:' "$REPO_DIR/.github/workflows/release.yml"; then
+  fail "Release workflow is missing the final publish-release job."
 fi
 
 if [[ "$WITH_PACKAGING" -eq 1 ]]; then
