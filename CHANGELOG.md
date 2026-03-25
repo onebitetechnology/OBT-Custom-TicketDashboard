@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.18
+
+- Added a targeted queue-membership debug endpoint so we can inspect exactly which raw statuses a ticket has, which merged queue the board chose, and whether Waiting-column filters are hiding it.
+
 ## v2.1.68-beta.17
 
 - Replaced the final GitHub release publish step with the GitHub CLI so duplicate draft releases no longer break release finalization after the assets are already built and uploaded.
