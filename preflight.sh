@@ -80,6 +80,13 @@ if ! grep -Fq 'publish-release:' "$REPO_DIR/.github/workflows/release.yml"; then
   fail "Release workflow is missing the final publish-release job."
 fi
 
+echo "Checking CI builds do not auto-publish partial releases"
+for build_command in '--mac dmg zip --publish never' '--win nsis --publish never'; do
+  if ! grep -Fq -- "$build_command" "$REPO_DIR/.github/workflows/release.yml"; then
+    fail "Release workflow is still allowing CI build jobs to auto-publish: missing $build_command"
+  fi
+done
+
 echo "Checking updater metadata verification steps"
 for verification_step in 'Verify Windows updater metadata' 'Verify macOS updater metadata' 'Verify release assets before publish'; do
   if ! grep -Fq "$verification_step" "$REPO_DIR/.github/workflows/release.yml"; then
