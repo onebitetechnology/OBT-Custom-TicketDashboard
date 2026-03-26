@@ -1625,6 +1625,67 @@
     font-weight: 700;
   }
 
+  .settings-label-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .settings-info {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 999px;
+    border: 1px solid rgba(203, 224, 255, 0.24);
+    background: rgba(8, 17, 29, 0.92);
+    color: #d7e8fb;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: help;
+    flex: 0 0 auto;
+  }
+
+  .settings-info-tooltip {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 10px);
+    transform: translateX(-50%);
+    min-width: 220px;
+    max-width: min(300px, 70vw);
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(203, 224, 255, 0.16);
+    background: rgba(7, 16, 28, 0.98);
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.34);
+    color: #dbe8f7;
+    font-family: var(--sans);
+    font-size: calc(12px * var(--theme-text-scale));
+    font-weight: 500;
+    line-height: 1.45;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 140ms ease, transform 140ms ease;
+    z-index: 8;
+  }
+
+  .settings-info:hover .settings-info-tooltip,
+  .settings-info:focus-visible .settings-info-tooltip {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-2px);
+  }
+
+  .settings-info:focus-visible {
+    outline: none;
+    border-color: rgba(110, 231, 200, 0.58);
+    box-shadow: 0 0 0 3px rgba(110, 231, 200, 0.14);
+  }
+
   .settings-input,
   .settings-textarea {
     width: 100%;
@@ -3100,7 +3161,7 @@
 
   .weekday-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
     gap: 10px;
   }
 
@@ -3578,99 +3639,131 @@
   <div class="settings-section span-2">
     <h3>Appointments</h3>
     <div class="settings-section-copy">Which weekdays appear in the calendar, which ones are blocked, which specific dates are temporarily unavailable, and how appointment alerts behave.</div>
-    <div class="settings-grid">
-      <label class="settings-field full">
-        <span class="settings-label">Calendar visibility</span>
-        <span class="settings-check">
-          <input class="settings-checkbox" id="pref-show-calendar" type="checkbox" />
-          <span class="settings-check-copy">
-            <span class="settings-check-title">Show appointment calendar</span>
-            <span class="settings-help">Hide the calendar entirely if this board should only show queue columns.</span>
-          </span>
-        </span>
-      </label>
-      <label class="settings-field full">
-        <span class="settings-label">Included weekdays</span>
-        <div class="weekday-grid" id="pref-included-weekdays"></div>
-        <span class="settings-help">Days shown in the weekly appointment calendar.</span>
-      </label>
-      <label class="settings-field full">
-        <span class="settings-label">Week rotation</span>
-        <span class="settings-check">
-          <input class="settings-checkbox" id="pref-rotate-weeks" type="checkbox" />
-          <span class="settings-check-copy">
-            <span class="settings-check-title">Fade between this week and next week</span>
-            <span class="settings-help">Rotate the appointment area between two weekly views instead of showing only the current week.</span>
-          </span>
-        </span>
-      </label>
-      <label class="settings-field">
-        <span class="settings-label">Show this week for duration (seconds)</span>
-        <input class="settings-input" id="pref-current-week-duration-seconds" type="number" min="5" step="1" />
-        <span class="settings-help">How long the calendar stays on this week before switching.</span>
-      </label>
-      <label class="settings-field">
-        <span class="settings-label">Show next week for duration (seconds)</span>
-        <input class="settings-input" id="pref-next-week-duration-seconds" type="number" min="5" step="1" />
-        <span class="settings-help">How long the calendar stays on next week before switching back.</span>
-      </label>
-      <label class="settings-field full">
-        <span class="settings-label">Blocked weekdays</span>
-        <div class="weekday-grid" id="pref-blocked-weekdays"></div>
-        <span class="settings-help">Blocked days stay visible in the calendar but show as off limits.</span>
-      </label>
-      <label class="settings-field full">
-        <span class="settings-label">Temporary appointment blocks</span>
-        <textarea class="settings-textarea" id="pref-temporary-blocked-dates" placeholder="March 24&#10;March 25&#10;2026-03-30"></textarea>
-        <span class="settings-help">Enter one specific blocked date per line. Formats like <code>March 24</code>, <code>Mar 24</code>, <code>3/24</code>, or <code>2026-03-24</code> all work. Month/day entries are treated as this year.</span>
-      </label>
-      <label class="settings-field full">
-        <span class="settings-label">Calendar day styling</span>
-        <span class="settings-check">
-          <input class="settings-checkbox" id="pref-dim-past-days" type="checkbox" />
-          <span class="settings-check-copy">
-            <span class="settings-check-title">Dim past weekdays</span>
-            <span class="settings-help">Add a light diagonal overlay to weekdays that have already passed.</span>
-          </span>
-        </span>
-      </label>
-      <label class="settings-field">
-        <span class="settings-label">Default warning lead (minutes)</span>
-        <input class="settings-input" id="pref-default-lead" type="number" min="0" />
-      </label>
-      <label class="settings-field">
-        <span class="settings-label">On-Site warning lead (minutes)</span>
-        <input class="settings-input" id="pref-onsite-lead" type="number" min="0" />
-      </label>
-      <label class="settings-field">
-        <span class="settings-label">Fast flash threshold (minutes)</span>
-        <input class="settings-input" id="pref-imminent-minutes" type="number" min="0" />
-      </label>
-      <label class="settings-field full">
-        <span class="settings-label">Appointment audio alerts</span>
-        <span class="settings-check">
-          <input class="settings-checkbox" id="pref-alert-audio-enabled" type="checkbox" />
-          <span class="settings-check-copy">
-            <span class="settings-check-title">Play audio for upcoming appointment alerts</span>
-            <span class="settings-help">Create one or more timed alert rules for different appointment types.</span>
-          </span>
-        </span>
-      </label>
-      <label class="settings-field">
-        <span class="settings-label">Speech voice</span>
-        <select class="settings-input settings-select" id="pref-speech-voice">
-          <option value="">System default</option>
-        </select>
-        <span class="settings-help">Uses voices installed on this computer. If the selected voice is unavailable later, the app falls back to the system default voice.</span>
-      </label>
-      <div class="settings-field full">
-        <span class="settings-label">Alert rules</span>
-        <div class="audio-rule-list" id="pref-alert-rules"></div>
-        <div class="audio-rule-actions">
-        <button class="pill secondary" id="pref-add-alert-rule" type="button">Add Alert Rule</button>
+    <div class="brand-subsections">
+      <section class="brand-subsection collapsible-subsection">
+        <h4 class="brand-subsection-title">Calendar Visibility &amp; Style</h4>
+        <p class="brand-subsection-copy">Choose which days appear in the calendar, which ones are blocked, and how the calendar rotates and styles past days.</p>
+        <div class="settings-grid">
+          <label class="settings-field full">
+            <span class="settings-label">Calendar visibility</span>
+            <span class="settings-check">
+              <input class="settings-checkbox" id="pref-show-calendar" type="checkbox" />
+              <span class="settings-check-copy">
+                <span class="settings-check-title">Show appointment calendar</span>
+                <span class="settings-help">Hide the calendar entirely if this board should only show queue columns.</span>
+              </span>
+            </span>
+          </label>
+          <label class="settings-field full">
+            <span class="settings-label">Included Days</span>
+            <div class="weekday-grid" id="pref-included-weekdays"></div>
+            <span class="settings-help">Days shown in the weekly appointment calendar.</span>
+          </label>
+          <label class="settings-field full">
+            <span class="settings-label">Week rotation</span>
+            <span class="settings-check">
+              <input class="settings-checkbox" id="pref-rotate-weeks" type="checkbox" />
+              <span class="settings-check-copy">
+                <span class="settings-check-title">Fade between this week and next week</span>
+                <span class="settings-help">Rotate the appointment area between two weekly views instead of showing only the current week.</span>
+              </span>
+            </span>
+          </label>
+          <label class="settings-field">
+            <span class="settings-label">Show this week for duration (seconds)</span>
+            <input class="settings-input" id="pref-current-week-duration-seconds" type="number" min="5" step="1" />
+            <span class="settings-help">How long the calendar stays on this week before switching.</span>
+          </label>
+          <label class="settings-field">
+            <span class="settings-label">Show next week for duration (seconds)</span>
+            <input class="settings-input" id="pref-next-week-duration-seconds" type="number" min="5" step="1" />
+            <span class="settings-help">How long the calendar stays on next week before switching back.</span>
+          </label>
+          <label class="settings-field full">
+            <span class="settings-label">Blocked Days</span>
+            <div class="weekday-grid" id="pref-blocked-weekdays"></div>
+            <span class="settings-help">Blocked days stay visible in the calendar but show as off limits.</span>
+          </label>
+          <label class="settings-field full">
+            <span class="settings-label">Temporary appointment blocks</span>
+            <textarea class="settings-textarea" id="pref-temporary-blocked-dates" placeholder="March 24&#10;March 25&#10;2026-03-30"></textarea>
+            <span class="settings-help">Enter one specific blocked date per line. Formats like <code>March 24</code>, <code>Mar 24</code>, <code>3/24</code>, or <code>2026-03-24</code> all work. Month/day entries are treated as this year.</span>
+          </label>
+          <label class="settings-field full">
+            <span class="settings-label">Calendar day styling</span>
+            <span class="settings-check">
+              <input class="settings-checkbox" id="pref-dim-past-days" type="checkbox" />
+              <span class="settings-check-copy">
+                <span class="settings-check-title">Dim past weekdays</span>
+                <span class="settings-help">Add a light diagonal overlay to weekdays that have already passed.</span>
+              </span>
+            </span>
+          </label>
         </div>
-        <span class="settings-help">Example: chime 60 minutes before, spoken reminder 30 minutes before, custom message 10 minutes before.</span>
-      </div>
+      </section>
+
+      <section class="brand-subsection collapsible-subsection">
+        <h4 class="brand-subsection-title">Appointment Notifications</h4>
+        <p class="brand-subsection-copy">Set visual urgency thresholds and optional audio reminders for upcoming appointments.</p>
+        <div class="settings-grid">
+          <label class="settings-field">
+            <span class="settings-label-row">
+              <span class="settings-label">Default warning lead (minutes)</span>
+              <span class="settings-info" tabindex="0" aria-label="Default warning lead help">?
+                <span class="settings-info-tooltip">How many minutes before a standard appointment the calendar starts treating it as urgent.</span>
+              </span>
+            </span>
+            <input class="settings-input" id="pref-default-lead" type="number" min="0" />
+          </label>
+          <label class="settings-field">
+            <span class="settings-label-row">
+              <span class="settings-label">On-Site warning lead (minutes)</span>
+              <span class="settings-info" tabindex="0" aria-label="On-Site warning lead help">?
+                <span class="settings-info-tooltip">The longer lead time used before on-site appointments start flashing as urgent.</span>
+              </span>
+            </span>
+            <input class="settings-input" id="pref-onsite-lead" type="number" min="0" />
+          </label>
+          <label class="settings-field">
+            <span class="settings-label-row">
+              <span class="settings-label">Fast flash threshold (minutes)</span>
+              <span class="settings-info" tabindex="0" aria-label="Fast flash threshold help">?
+                <span class="settings-info-tooltip">Once an appointment gets this close, the calendar switches from the slower urgent flash to the faster imminent flash.</span>
+              </span>
+            </span>
+            <input class="settings-input" id="pref-imminent-minutes" type="number" min="0" />
+          </label>
+          <label class="settings-field full">
+            <span class="settings-label">Appointment audio alerts</span>
+            <span class="settings-check">
+              <input class="settings-checkbox" id="pref-alert-audio-enabled" type="checkbox" />
+              <span class="settings-check-copy">
+                <span class="settings-check-title">Play audio for upcoming appointment alerts</span>
+                <span class="settings-help">Create one or more timed alert rules for different appointment types.</span>
+              </span>
+            </span>
+          </label>
+          <div class="settings-field full" id="appointment-audio-settings">
+            <div class="settings-grid">
+              <label class="settings-field">
+                <span class="settings-label">Speech voice</span>
+                <select class="settings-input settings-select" id="pref-speech-voice">
+                  <option value="">System default</option>
+                </select>
+                <span class="settings-help">Uses voices installed on this computer. If the selected voice is unavailable later, the app falls back to the system default voice.</span>
+              </label>
+              <div class="settings-field full">
+                <span class="settings-label">Alert rules</span>
+                <div class="audio-rule-list" id="pref-alert-rules"></div>
+                <div class="audio-rule-actions">
+                  <button class="pill secondary" id="pref-add-alert-rule" type="button">Add Alert Rule</button>
+                </div>
+                <span class="settings-help">Example: chime 60 minutes before, spoken reminder 30 minutes before, custom message 10 minutes before.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
   <div class="settings-section span-2" id="ticket-details-section">
@@ -3724,49 +3817,63 @@
             </select>
             <span class="settings-help">Controls how fast and aggressive the red Priority strobe feels.</span>
           </label>
-          <div class="settings-field full">
-            <span class="settings-label">Pulse timing</span>
-            <span class="settings-help">How long a ticket can sit before its card starts pulsing red. Each rule supports both days and hours.</span>
+        </div>
+      </section>
+      <section class="brand-subsection collapsible-subsection">
+        <h4 class="brand-subsection-title">Ticket Pulse Timing</h4>
+        <p class="brand-subsection-copy">How long a ticket can sit before its card starts pulsing red. Each rule supports both days and hours.</p>
+        <div class="settings-grid">
+          <label class="settings-field full">
+            <span class="settings-label">Ticket pulse timing</span>
+            <span class="settings-check">
+              <input class="settings-checkbox" id="pref-pulse-timing-enabled" type="checkbox" />
+              <span class="settings-check-copy">
+                <span class="settings-check-title">Enable ticket pulse timing</span>
+                <span class="settings-help">Turn this off if you do not want stale ticket cards pulsing red at all.</span>
+              </span>
+            </span>
+          </label>
+          <div class="settings-field full" id="ticket-pulse-settings">
+            <div class="timing-grid">
+              <div class="timing-card">
+                <h4 class="editor-title">In Progress</h4>
+                <div class="timing-fields">
+                  <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-inprogress-days" type="number" min="0" step="1" /></label>
+                  <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-inprogress-hours" type="number" min="0" step="1" /></label>
+                </div>
+              </div>
+              <div class="timing-card">
+                <h4 class="editor-title">Needs Attention</h4>
+                <div class="timing-fields">
+                  <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-attention-days" type="number" min="0" step="1" /></label>
+                  <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-attention-hours" type="number" min="0" step="1" /></label>
+                </div>
+              </div>
+              <div class="timing-card">
+                <h4 class="editor-title">Waiting on Customer</h4>
+                <div class="timing-fields">
+                  <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-wait-customer-days" type="number" min="0" step="1" /></label>
+                  <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-wait-customer-hours" type="number" min="0" step="1" /></label>
+                </div>
+              </div>
+              <div class="timing-card">
+                <h4 class="editor-title">Waiting for Parts</h4>
+                <div class="timing-fields">
+                  <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-wait-parts-days" type="number" min="0" step="1" /></label>
+                  <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-wait-parts-hours" type="number" min="0" step="1" /></label>
+                </div>
+              </div>
+              <div class="timing-card">
+                <h4 class="editor-title">Quality Control</h4>
+                <div class="timing-fields">
+                  <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-qc-days" type="number" min="0" step="1" /></label>
+                  <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-qc-hours" type="number" min="0" step="1" /></label>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
-    </div>
-    <div class="timing-grid">
-      <div class="timing-card">
-        <h4 class="editor-title">In Progress</h4>
-        <div class="timing-fields">
-          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-inprogress-days" type="number" min="0" step="1" /></label>
-          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-inprogress-hours" type="number" min="0" step="1" /></label>
-        </div>
-      </div>
-      <div class="timing-card">
-        <h4 class="editor-title">Needs Attention</h4>
-        <div class="timing-fields">
-          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-attention-days" type="number" min="0" step="1" /></label>
-          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-attention-hours" type="number" min="0" step="1" /></label>
-        </div>
-      </div>
-      <div class="timing-card">
-        <h4 class="editor-title">Waiting on Customer</h4>
-        <div class="timing-fields">
-          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-wait-customer-days" type="number" min="0" step="1" /></label>
-          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-wait-customer-hours" type="number" min="0" step="1" /></label>
-        </div>
-      </div>
-      <div class="timing-card">
-        <h4 class="editor-title">Waiting for Parts</h4>
-        <div class="timing-fields">
-          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-wait-parts-days" type="number" min="0" step="1" /></label>
-          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-wait-parts-hours" type="number" min="0" step="1" /></label>
-        </div>
-      </div>
-      <div class="timing-card">
-        <h4 class="editor-title">Quality Control</h4>
-        <div class="timing-fields">
-          <label class="settings-field"><span class="settings-label">Days</span><input class="settings-input" id="pref-qc-days" type="number" min="0" step="1" /></label>
-          <label class="settings-field"><span class="settings-label">Hours</span><input class="settings-input" id="pref-qc-hours" type="number" min="0" step="1" /></label>
-        </div>
-      </div>
     </div>
   </div>
   <div class="settings-section span-2" id="columns-section">
@@ -4068,9 +4175,11 @@
         fullscreen: false,
         orientation: 'auto',
         displayTarget: 'current',
+        densityMode: 'auto',
         customerNameMode: 'first_name_only',
         showAssignedTech: true,
         assigneeFilter: [],
+        pulseTimingEnabled: true,
         priorityStrobeEnabled: true,
         priorityStrobeIntensity: 'medium',
       },
@@ -4509,6 +4618,18 @@
     const enabled = qs('rush-sync-enabled').checked;
     if (connectField) connectField.hidden = !enabled;
     if (cookieField) cookieField.hidden = !enabled;
+  }
+
+  function updateAppointmentAudioSettingsVisibility() {
+    const container = qs('appointment-audio-settings');
+    if (!container) return;
+    container.hidden = !qs('pref-alert-audio-enabled').checked;
+  }
+
+  function updatePulseTimingVisibility() {
+    const container = qs('ticket-pulse-settings');
+    if (!container) return;
+    container.hidden = !qs('pref-pulse-timing-enabled').checked;
   }
 
   async function refreshUpdateStatusAndPopup() {
@@ -5230,6 +5351,7 @@
     qs('pref-customer-name-mode').value = prefs.display?.customerNameMode || 'first_name_only';
     qs('pref-show-assigned-tech').checked = prefs.display?.showAssignedTech !== false;
     qs('pref-assignee-filter').innerHTML = assigneeFilterMarkup(prefs.display?.assigneeFilter || []);
+    qs('pref-pulse-timing-enabled').checked = prefs.display?.pulseTimingEnabled !== false;
     qs('pref-priority-strobe-enabled').checked = prefs.display?.priorityStrobeEnabled !== false;
     qs('pref-priority-strobe-intensity').value = prefs.display?.priorityStrobeIntensity || 'medium';
     qs('pref-receive-beta-updates').checked = !!prefs.updates?.receiveBetaUpdates;
@@ -5247,6 +5369,8 @@
     qs('pref-alert-audio-enabled').checked = !!prefs.schedule.alertAudioEnabled;
     populateSpeechVoiceOptions(prefs.schedule?.speechVoiceUri || '');
     renderAlertAudioRules(alertAudioRulesFromPreferences(prefs.schedule || {}));
+    updateAppointmentAudioSettingsVisibility();
+    updatePulseTimingVisibility();
     qs('pref-inprogress-days').value = prefs.staleRules.inProgress?.days ?? 0;
     qs('pref-inprogress-hours').value = prefs.staleRules.inProgress?.hours ?? 12;
     qs('pref-attention-days').value = prefs.staleRules.needsAttention?.days ?? 1;
@@ -5325,6 +5449,7 @@
         customerNameMode: qs('pref-customer-name-mode').value || 'first_name_only',
         showAssignedTech: qs('pref-show-assigned-tech').checked,
         assigneeFilter: selectedAssignees(),
+        pulseTimingEnabled: qs('pref-pulse-timing-enabled').checked,
         priorityStrobeEnabled: qs('pref-priority-strobe-enabled').checked,
         priorityStrobeIntensity: qs('pref-priority-strobe-intensity').value || 'medium',
       },
@@ -5439,6 +5564,11 @@
     qs('qc-column').hidden = prefs.columns.qualityControl.visible === false;
     qs('column6-column').hidden = prefs.columns.column6?.visible !== true;
     applyQueueColumnLayout(prefs);
+  }
+
+  function pulseTimingEnabled(preferences) {
+    const prefs = preferences || currentPreferences();
+    return prefs?.display?.pulseTimingEnabled !== false;
   }
 
   function applyPreferenceLabels(preferences) {
@@ -5855,7 +5985,7 @@
 
     qs('progress-queue-content').innerHTML = `
       <div class="queue-list">
-        ${items.slice(0, 14).map((ticket) => queueCardMarkup(ticket, 'In Progress', ticket.staleHours != null && ticket.staleHours >= ticket.staleThresholdHours ? 'stale' : '')).join('')}
+        ${items.slice(0, 14).map((ticket) => queueCardMarkup(ticket, 'In Progress', pulseTimingEnabled(data.uiPreferences) && ticket.staleHours != null && ticket.staleHours >= ticket.staleThresholdHours ? 'stale' : '')).join('')}
       </div>
     `;
   }
@@ -5878,7 +6008,7 @@
 
     qs('attention-queue-content').innerHTML = `
       <div class="queue-list">
-        ${items.slice(0, 14).map((ticket) => queueCardMarkup(ticket, 'Needs Attention', ticket.staleHours != null && ticket.staleHours >= ticket.staleThresholdHours ? 'stale' : '')).join('')}
+        ${items.slice(0, 14).map((ticket) => queueCardMarkup(ticket, 'Needs Attention', pulseTimingEnabled(data.uiPreferences) && ticket.staleHours != null && ticket.staleHours >= ticket.staleThresholdHours ? 'stale' : '')).join('')}
       </div>
     `;
   }
@@ -5901,7 +6031,7 @@
 
     qs('waiting-queue-content').innerHTML = `
       <div class="queue-list">
-        ${items.slice(0, 14).map((ticket) => queueCardMarkup(ticket, 'Waiting', ticket.staleHours != null && ticket.staleHours >= ticket.staleThresholdHours ? 'stale' : '')).join('')}
+        ${items.slice(0, 14).map((ticket) => queueCardMarkup(ticket, 'Waiting', pulseTimingEnabled(data.uiPreferences) && ticket.staleHours != null && ticket.staleHours >= ticket.staleThresholdHours ? 'stale' : '')).join('')}
       </div>
     `;
   }
@@ -5924,7 +6054,7 @@
 
     qs('qc-queue-content').innerHTML = `
       <div class="queue-list">
-        ${items.slice(0, 14).map((ticket) => queueCardMarkup(ticket, 'Quality Control', ticket.staleHours != null && ticket.staleHours >= ticket.staleThresholdHours ? 'stale' : '')).join('')}
+        ${items.slice(0, 14).map((ticket) => queueCardMarkup(ticket, 'Quality Control', pulseTimingEnabled(data.uiPreferences) && ticket.staleHours != null && ticket.staleHours >= ticket.staleThresholdHours ? 'stale' : '')).join('')}
       </div>
     `;
   }
@@ -6295,6 +6425,8 @@
   qs('settings-close').addEventListener('click', closeSettings);
   qs('settings-close-bottom').addEventListener('click', closeSettings);
   qs('rush-sync-enabled').addEventListener('change', updateRushSyncFieldVisibility);
+  qs('pref-alert-audio-enabled').addEventListener('change', updateAppointmentAudioSettingsVisibility);
+  qs('pref-pulse-timing-enabled').addEventListener('change', updatePulseTimingVisibility);
   qs('settings-open-browser').addEventListener('click', openInBrowser);
   qs('settings-clear-data').addEventListener('click', clearLocalData);
   qs('settings-check-updates').addEventListener('click', checkForUpdates);

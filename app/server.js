@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.68-beta.33';
+const APP_VERSION = 'v2.1.68-beta.34';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -58,6 +58,7 @@ const DEFAULT_UI_PREFERENCES = {
     showAssignedTech: true,
     hideRefurbs: false,
     assigneeFilter: [],
+    pulseTimingEnabled: true,
     priorityStrobeEnabled: true,
     priorityStrobeIntensity: 'medium',
   },
@@ -449,6 +450,9 @@ function normalizeUiPreferences(savedPrefs = {}) {
         ? !!savedPrefs.display.hideRefurbs
         : DEFAULT_UI_PREFERENCES.display.hideRefurbs,
       assigneeFilter: normalizeStringArray(savedPrefs?.display?.assigneeFilter, DEFAULT_UI_PREFERENCES.display.assigneeFilter),
+      pulseTimingEnabled: savedPrefs?.display?.pulseTimingEnabled !== undefined
+        ? !!savedPrefs.display.pulseTimingEnabled
+        : DEFAULT_UI_PREFERENCES.display.pulseTimingEnabled,
       priorityStrobeEnabled: savedPrefs?.display?.priorityStrobeEnabled !== undefined
         ? !!savedPrefs.display.priorityStrobeEnabled
         : DEFAULT_UI_PREFERENCES.display.priorityStrobeEnabled,

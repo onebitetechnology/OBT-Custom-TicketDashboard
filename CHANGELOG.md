@@ -2,6 +2,12 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.34
+
+- Split Appointments into Calendar Visibility & Style and Appointment Notifications subsections, renamed Included/Blocked day labels, and made weekday selector rows fit available width more cleanly.
+- Added inline help hover buttons for appointment warning thresholds and hid audio-only appointment settings whenever audio alerts are turned off.
+- Moved pulse timing into its own Ticket Pulse Timing subsection and added an enable toggle so ticket pulse rules can be turned off cleanly.
+
 ## v2.1.68-beta.33
 
 - Added a scheduled-appointment fallback so recent RepairDesk appointments can still appear in the calendar when the Ticket Counter feed omits them entirely.
