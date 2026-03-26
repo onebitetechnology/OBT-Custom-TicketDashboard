@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.36
+
+- Shrunk the top-right Settings, clock, and refresh controls again and changed their layout so they size to their content and wrap more gracefully on tighter displays.
+
 ## v2.1.68-beta.35
 
 - Changed update popup behavior so full-screen update prompts only latch during startup, overnight/background quiet hours, or right after a manual update check.
