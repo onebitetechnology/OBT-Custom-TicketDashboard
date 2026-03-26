@@ -220,10 +220,12 @@
   .headline {
     flex-wrap: wrap;
     align-content: center;
+    row-gap: 8px;
   }
 
   .headline .title {
-    flex: 1 1 260px;
+    flex: 0 1 auto;
+    min-width: 220px;
   }
 
   .pill.primary,
@@ -2588,12 +2590,8 @@
 
   @media (max-width: 1360px) {
     .meta {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      width: min(100%, 244px);
-    }
-
-    .meta > .settings-button {
-      grid-column: 1 / -1;
+      gap: 5px;
+      max-width: min(100%, 300px);
     }
 
     #open-tickets-pill,
@@ -2639,16 +2637,7 @@
     width: 100%;
     max-width: none;
     flex: 1 1 100%;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  body.force-vertical .pill {
-    padding: 5px 8px;
-    font-size: 10px;
-  }
-
-  body.force-vertical .meta > .settings-button {
-    grid-column: 1 / -1;
+    justify-content: flex-start;
   }
 
   body.force-vertical #open-tickets-pill,
@@ -2975,6 +2964,10 @@
     padding: 10px;
   }
 
+  body.compact-display .queue-columns {
+    gap: 8px;
+  }
+
   body.compact-display .queue-column-head {
     gap: 8px;
     padding: 10px 12px;
@@ -2989,6 +2982,57 @@
   body.compact-display .queue-column-head .pill {
     font-size: 11px;
     padding: 6px 9px;
+  }
+
+  body.compact-display .queue-list {
+    gap: 6px;
+  }
+
+  body.compact-display .queue-item {
+    padding: 8px;
+    gap: 6px;
+    border-radius: 10px;
+  }
+
+  body.compact-display .queue-ticket {
+    font-size: 13px;
+  }
+
+  body.compact-display .queue-flag {
+    min-height: 20px;
+    padding: 3px 7px;
+    font-size: 8px;
+  }
+
+  body.compact-display .status-box {
+    font-size: 10px;
+    padding: 4px 6px;
+    border-radius: 8px;
+  }
+
+  body.compact-display .wait-box {
+    padding: 4px 6px;
+    border-radius: 8px;
+  }
+
+  body.compact-display .wait-box-number {
+    font-size: 12px;
+  }
+
+  body.compact-display .wait-box-label {
+    font-size: 8px;
+  }
+
+  body.compact-display .queue-name {
+    font-size: 12px;
+    line-height: 1.1;
+  }
+
+  body.compact-display .queue-detail,
+  body.compact-display .queue-service,
+  body.compact-display .queue-issue {
+    font-size: 10px;
+    line-height: 1.2;
   }
 
   body.compact-display.force-vertical .schedule-day {
@@ -3124,6 +3168,10 @@
     padding: 8px;
   }
 
+  body.extra-compact-display .queue-columns {
+    gap: 6px;
+  }
+
   body.extra-compact-display .queue-column-head {
     gap: 6px;
     padding: 8px 10px;
@@ -3138,6 +3186,57 @@
   body.extra-compact-display .queue-column-head .pill {
     font-size: 10px;
     padding: 5px 8px;
+  }
+
+  body.extra-compact-display .queue-list {
+    gap: 5px;
+  }
+
+  body.extra-compact-display .queue-item {
+    padding: 7px;
+    gap: 5px;
+    border-radius: 9px;
+  }
+
+  body.extra-compact-display .queue-ticket {
+    font-size: 12px;
+  }
+
+  body.extra-compact-display .queue-flag {
+    min-height: 18px;
+    padding: 2px 6px;
+    font-size: 7px;
+  }
+
+  body.extra-compact-display .status-box {
+    font-size: 9px;
+    padding: 3px 5px;
+    border-radius: 7px;
+  }
+
+  body.extra-compact-display .wait-box {
+    padding: 3px 5px;
+    border-radius: 7px;
+  }
+
+  body.extra-compact-display .wait-box-number {
+    font-size: 11px;
+  }
+
+  body.extra-compact-display .wait-box-label {
+    font-size: 7px;
+  }
+
+  body.extra-compact-display .queue-name {
+    font-size: 11px;
+    line-height: 1.08;
+  }
+
+  body.extra-compact-display .queue-detail,
+  body.extra-compact-display .queue-service,
+  body.extra-compact-display .queue-issue {
+    font-size: 9px;
+    line-height: 1.15;
   }
 
   body.extra-compact-display.force-vertical .schedule-day {
@@ -3811,6 +3910,16 @@
               </span>
             </span>
           </label>
+          <label class="settings-field full">
+            <span class="settings-label">Priority ordering</span>
+            <span class="settings-check">
+              <input class="settings-checkbox" id="pref-pin-priority-tickets" type="checkbox" />
+              <span class="settings-check-copy">
+                <span class="settings-check-title">Pin Priority tickets to the top</span>
+                <span class="settings-help">When enabled, true Priority tickets sort above regular tickets inside each queue before the normal age/order rules apply.</span>
+              </span>
+            </span>
+          </label>
           <label class="settings-field">
             <span class="settings-label">Priority strobe intensity</span>
             <select class="settings-input settings-select" id="pref-priority-strobe-intensity">
@@ -4186,6 +4295,7 @@
         showAssignedTech: true,
         assigneeFilter: [],
         pulseTimingEnabled: true,
+        pinPriorityTickets: false,
         priorityStrobeEnabled: true,
         priorityStrobeIntensity: 'medium',
       },
@@ -5368,6 +5478,7 @@
     qs('pref-show-assigned-tech').checked = prefs.display?.showAssignedTech !== false;
     qs('pref-assignee-filter').innerHTML = assigneeFilterMarkup(prefs.display?.assigneeFilter || []);
     qs('pref-pulse-timing-enabled').checked = prefs.display?.pulseTimingEnabled !== false;
+    qs('pref-pin-priority-tickets').checked = !!prefs.display?.pinPriorityTickets;
     qs('pref-priority-strobe-enabled').checked = prefs.display?.priorityStrobeEnabled !== false;
     qs('pref-priority-strobe-intensity').value = prefs.display?.priorityStrobeIntensity || 'medium';
     qs('pref-receive-beta-updates').checked = !!prefs.updates?.receiveBetaUpdates;
@@ -5466,6 +5577,7 @@
         showAssignedTech: qs('pref-show-assigned-tech').checked,
         assigneeFilter: selectedAssignees(),
         pulseTimingEnabled: qs('pref-pulse-timing-enabled').checked,
+        pinPriorityTickets: qs('pref-pin-priority-tickets').checked,
         priorityStrobeEnabled: qs('pref-priority-strobe-enabled').checked,
         priorityStrobeIntensity: qs('pref-priority-strobe-intensity').value || 'medium',
       },
