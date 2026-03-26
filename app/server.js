@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.68-beta.30';
+const APP_VERSION = 'v2.1.68-beta.31';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -974,11 +974,14 @@ function isValidInvoiceDetail(detail) {
   return !!(detail && typeof detail === 'object' && detail.summary && detail.summary.id);
 }
 
-async function fetchTicketDetailRobust(ticketId, ticketNumHint = '') {
+async function fetchTicketDetailRobust(ticketId, ticketNumHint = '', options = {}) {
+  const forceFresh = !!options.forceFresh;
   const ticketKey = String(ticketId || '');
   const orderKey = String(ticketNumHint || '');
-  if (ticketKey && ticketDetailCacheByInternalId[ticketKey]) return ticketDetailCacheByInternalId[ticketKey];
-  if (orderKey && ticketDetailCacheByOrderId[orderKey]) return ticketDetailCacheByOrderId[orderKey];
+  const cachedByTicketId = ticketKey ? ticketDetailCacheByInternalId[ticketKey] : null;
+  const cachedByOrderId = orderKey ? ticketDetailCacheByOrderId[orderKey] : null;
+  if (!forceFresh && cachedByTicketId) return cachedByTicketId;
+  if (!forceFresh && cachedByOrderId) return cachedByOrderId;
 
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     const response = await rdPublic(`tickets/${ticketId}`);
@@ -1003,14 +1006,14 @@ async function fetchTicketDetailRobust(ticketId, ticketNumHint = '') {
       const match = matches.find((ticket) => String(ticket?.summary?.order_id || '') === String(ticketNumHint));
       const fallbackId = match?.summary?.id;
       if (fallbackId && String(fallbackId) !== String(ticketId)) {
-        return fetchTicketDetailRobust(fallbackId, ticketNumHint);
+        return fetchTicketDetailRobust(fallbackId, ticketNumHint, options);
       }
     } catch (e) {
       console.log(`[TICKET] Fallback search failed for ticket=${ticketNumHint}: ${e.message}`);
     }
   }
 
-  return null;
+  return cachedByTicketId || cachedByOrderId || null;
 }
 
 async function fetchInvoiceDetail(invoiceId) {
@@ -1038,10 +1041,12 @@ async function fetchInvoiceDetail(invoiceId) {
   return null;
 }
 
-async function fetchTicketLookupByOrderId(orderId) {
+async function fetchTicketLookupByOrderId(orderId, options = {}) {
+  const forceFresh = !!options.forceFresh;
   const key = String(orderId || '').trim();
   if (!key) return null;
-  if (ticketLookupCacheByOrderId[key]) return ticketLookupCacheByOrderId[key];
+  const cachedLookup = ticketLookupCacheByOrderId[key] || null;
+  if (!forceFresh && cachedLookup) return cachedLookup;
 
   const response = await rdPublic('tickets', { keyword: key, pagesize: 10, page: 0 });
   const raw = parseJsonSafe(response.body);
@@ -1053,8 +1058,9 @@ async function fetchTicketLookupByOrderId(orderId) {
   const match = matches.find((ticket) => String(ticket?.summary?.order_id || '') === key) || null;
   if (match) {
     ticketLookupCacheByOrderId[key] = match;
+    return match;
   }
-  return match;
+  return cachedLookup;
 }
 
 async function fetchTicketMetaByOrderId(orderId, options = {}) {
@@ -1074,11 +1080,11 @@ async function fetchTicketMetaByOrderId(orderId, options = {}) {
   ) {
     return ticketMetaCacheByOrderId[key];
   }
-  const lookup = await fetchTicketLookupByOrderId(orderId);
+  const lookup = await fetchTicketLookupByOrderId(orderId, { forceFresh });
   if (!lookup?.summary?.id) {
     return emptyTicketMeta();
   }
-  const detail = await fetchTicketDetailRobust(lookup.summary.id, orderId);
+  const detail = await fetchTicketDetailRobust(lookup.summary.id, orderId, { forceFresh });
   const detailServiceText = [];
   collectNestedStrings(detail?.devices || [], detailServiceText);
   const dueCandidates = [];

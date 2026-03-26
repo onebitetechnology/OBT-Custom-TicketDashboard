@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.31
+
+- Fixed appointment refreshes so tickets with edited scheduled dates bypass stale in-memory RepairDesk lookup/detail caches when the board forces a fresh appointment metadata sync.
+
 ## v2.1.68-beta.30
 
 - Removed the embedded RepairDesk login path after RepairDesk blocked in-app sign-in, and returned Enhanced RepairDesk Sync to the clearer manual-cookie workflow.
