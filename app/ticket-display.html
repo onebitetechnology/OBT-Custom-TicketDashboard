@@ -4095,6 +4095,9 @@
     updateStatusTimer: null,
     updatePromptTimer: null,
     latestUpdateStatus: null,
+    appLoadedAt: Date.now(),
+    manualUpdatePopupUntil: 0,
+    latchedUpdatePopupVersion: '',
     speechVoices: [],
     appointmentAlertHistory: {},
     alertAudioContext: null,
@@ -4524,17 +4527,27 @@
     if (!status.available) return false;
     if (!status.version) return false;
     if (status.skipped) return false;
-    return true;
+    const version = String(status.version || '').trim();
+    if (version && state.latchedUpdatePopupVersion === version) return true;
+    if (Date.now() <= Number(state.manualUpdatePopupUntil || 0)) return true;
+    const startupGraceMs = 15 * 60 * 1000;
+    if ((Date.now() - Number(state.appLoadedAt || 0)) <= startupGraceMs) return true;
+    const hour = new Date().getHours();
+    return hour >= 22 || hour < 8;
   }
 
   function renderUpdatePopup(status = {}) {
     const overlay = qs('update-overlay');
+    const version = String(status.version || '').trim();
+    if (!status.available || !version || status.skipped) {
+      state.latchedUpdatePopupVersion = '';
+    }
     if (!shouldShowUpdatePopup(status)) {
       overlay.classList.remove('open');
       return;
     }
 
-    const version = String(status.version || '').trim();
+    state.latchedUpdatePopupVersion = version;
     qs('update-popup-title').textContent = status.downloaded
       ? `Update Ready: ${version}`
       : `Update Available: ${version}`;
@@ -6272,11 +6285,13 @@
     }
 
     btn.disabled = true;
+    state.manualUpdatePopupUntil = Date.now() + (5 * 60 * 1000);
     qs('settings-status').textContent = 'Checking for updates...';
 
     try {
       const status = await window.desktopApp.checkForUpdates();
       renderUpdateStatus(status || {});
+      renderUpdatePopup(status || {});
       qs('settings-status').textContent = status?.message || 'Update check finished.';
     } catch (error) {
       qs('settings-status').textContent = error?.message || 'Update check failed.';
