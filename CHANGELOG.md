@@ -2,6 +2,15 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.38
+
+- Added a Ticket Details setting to pin Priority tickets to the top of each queue, with true synced Priority sorting above fee-based fallback Priority before the normal queue order.
+- Tightened the top headline layout so the Oldest Priority Ticket pill stays aligned more reliably beside the title instead of dropping awkwardly underneath it.
+
+## v2.1.68-beta.37
+
+- Extended compact and extra-compact display density so they now shrink the queue cards themselves, including queue spacing, card padding, ticket text, wait badges, status chips, and priority badges.
+
 ## v2.1.68-beta.36
 
 - Shrunk the top-right Settings, clock, and refresh controls again and changed their layout so they size to their content and wrap more gracefully on tighter displays.

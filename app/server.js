@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.68-beta.36';
+const APP_VERSION = 'v2.1.68-beta.38';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -59,6 +59,7 @@ const DEFAULT_UI_PREFERENCES = {
     hideRefurbs: false,
     assigneeFilter: [],
     pulseTimingEnabled: true,
+    pinPriorityTickets: false,
     priorityStrobeEnabled: true,
     priorityStrobeIntensity: 'medium',
   },
@@ -453,6 +454,9 @@ function normalizeUiPreferences(savedPrefs = {}) {
       pulseTimingEnabled: savedPrefs?.display?.pulseTimingEnabled !== undefined
         ? !!savedPrefs.display.pulseTimingEnabled
         : DEFAULT_UI_PREFERENCES.display.pulseTimingEnabled,
+      pinPriorityTickets: savedPrefs?.display?.pinPriorityTickets !== undefined
+        ? !!savedPrefs.display.pinPriorityTickets
+        : DEFAULT_UI_PREFERENCES.display.pinPriorityTickets,
       priorityStrobeEnabled: savedPrefs?.display?.priorityStrobeEnabled !== undefined
         ? !!savedPrefs.display.priorityStrobeEnabled
         : DEFAULT_UI_PREFERENCES.display.priorityStrobeEnabled,
@@ -1681,6 +1685,17 @@ function durationRuleToHours(rule = {}) {
   return (days * 24) + hours;
 }
 
+function pinnedPrioritySortValue(ticket) {
+  if (ticket?.isRushJob) return 0;
+  if (ticket?.isPriorityTicket) return 1;
+  return 2;
+}
+
+function compareWithPinnedPriority(preferences, left, right) {
+  if (!preferences?.display?.pinPriorityTickets) return 0;
+  return pinnedPrioritySortValue(left) - pinnedPrioritySortValue(right);
+}
+
 function normalizeStatusMatchValue(value) {
   return String(value || '').trim().toLowerCase();
 }
@@ -2000,6 +2015,8 @@ function normalizeTicketCounterPayload(
       };
     })
     .sort((a, b) => {
+      const prioritySort = compareWithPinnedPriority(preferences, a, b);
+      if (prioritySort !== 0) return prioritySort;
       if ((a.createdAt || Infinity) !== (b.createdAt || Infinity)) {
         return (a.createdAt || Infinity) - (b.createdAt || Infinity);
       }
@@ -2043,6 +2060,8 @@ function normalizeTicketCounterPayload(
       };
     })
     .sort((a, b) => {
+      const prioritySort = compareWithPinnedPriority(preferences, a, b);
+      if (prioritySort !== 0) return prioritySort;
       if ((a.sortTouchedAt || Infinity) !== (b.sortTouchedAt || Infinity)) {
         return (a.sortTouchedAt || Infinity) - (b.sortTouchedAt || Infinity);
       }
@@ -2081,6 +2100,8 @@ function normalizeTicketCounterPayload(
       };
     })
     .sort((a, b) => {
+      const prioritySort = compareWithPinnedPriority(preferences, a, b);
+      if (prioritySort !== 0) return prioritySort;
       if ((a.updatedAt || 0) !== (b.updatedAt || 0)) {
         return (a.updatedAt || 0) - (b.updatedAt || 0);
       }
@@ -2126,6 +2147,8 @@ function normalizeTicketCounterPayload(
       };
     })
     .sort((a, b) => {
+      const prioritySort = compareWithPinnedPriority(preferences, a, b);
+      if (prioritySort !== 0) return prioritySort;
       if ((a.updatedAt || 0) !== (b.updatedAt || 0)) {
         return (a.updatedAt || 0) - (b.updatedAt || 0);
       }
@@ -2164,6 +2187,8 @@ function normalizeTicketCounterPayload(
       };
     })
     .sort((a, b) => {
+      const prioritySort = compareWithPinnedPriority(preferences, a, b);
+      if (prioritySort !== 0) return prioritySort;
       if ((a.updatedAt || 0) !== (b.updatedAt || 0)) {
         return (a.updatedAt || 0) - (b.updatedAt || 0);
       }
@@ -2199,6 +2224,8 @@ function normalizeTicketCounterPayload(
       };
     })
     .sort((a, b) => {
+      const prioritySort = compareWithPinnedPriority(preferences, a, b);
+      if (prioritySort !== 0) return prioritySort;
       if ((a.updatedAt || 0) !== (b.updatedAt || 0)) {
         return (a.updatedAt || 0) - (b.updatedAt || 0);
       }
