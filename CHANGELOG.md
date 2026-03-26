@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.35
+
+- Changed update popup behavior so full-screen update prompts only latch during startup, overnight/background quiet hours, or right after a manual update check.
+
 ## v2.1.68-beta.34
 
 - Split Appointments into Calendar Visibility & Style and Appointment Notifications subsections, renamed Included/Blocked day labels, and made weekday selector rows fit available width more cleanly.
