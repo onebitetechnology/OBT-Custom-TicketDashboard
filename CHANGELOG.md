@@ -2,6 +2,16 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.33
+
+- Added a scheduled-appointment fallback so recent RepairDesk appointments can still appear in the calendar when the Ticket Counter feed omits them entirely.
+
+## v2.1.68-beta.32
+
+- Tightened the top-right Settings / clock / refresh controls so they wrap more cleanly and scale down better on tighter TV layouts.
+- Made the top summary pills more responsive so Open Tickets / Oldest Regular / Oldest Priority shrink better on smaller resolutions.
+- Extended compact and extra-compact density modes so they also shrink queue column headers and ticket-count pills instead of mostly affecting the appointment area.
+
 ## v2.1.68-beta.31
 
 - Fixed appointment refreshes so tickets with edited scheduled dates bypass stale in-memory RepairDesk lookup/detail caches when the board forces a fresh appointment metadata sync.

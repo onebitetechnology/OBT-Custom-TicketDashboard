@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.68-beta.31';
+const APP_VERSION = 'v2.1.68-beta.33';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -966,6 +966,33 @@ async function fetchPaginated(endpoint, params, extractItems, maxPages = 10) {
   return items;
 }
 
+function mergeSyntheticTicketRowsIntoPayload(ticketsRaw, syntheticRows = []) {
+  if (!Array.isArray(syntheticRows) || !syntheticRows.length) return ticketsRaw;
+  const existingRows = Array.isArray(ticketsRaw?.data?.pagination?.data) ? ticketsRaw.data.pagination.data : [];
+  if (!existingRows.length) {
+    return {
+      ...(ticketsRaw || {}),
+      data: {
+        ...(ticketsRaw?.data || {}),
+        pagination: {
+          ...(ticketsRaw?.data?.pagination || {}),
+          data: syntheticRows,
+        },
+      },
+    };
+  }
+  return {
+    ...ticketsRaw,
+    data: {
+      ...(ticketsRaw.data || {}),
+      pagination: {
+        ...(ticketsRaw.data?.pagination || {}),
+        data: [...existingRows, ...syntheticRows],
+      },
+    },
+  };
+}
+
 function isValidTicketDetail(td) {
   return !!(td && typeof td === 'object' && td.summary && (td.summary.id || td.summary.order_id));
 }
@@ -1527,6 +1554,99 @@ function buildDisplayFirstName(ticket) {
   if (/^walk[\s-]*in$/i.test(firstName)) return 'Walk-in Customer';
   if (firstName) return firstName;
   return 'Walk-in Customer';
+}
+
+function splitCustomerName(fullName = '') {
+  const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) {
+    return { firstName: '', lastName: '' };
+  }
+  if (parts.length === 1) {
+    return { firstName: parts[0], lastName: '' };
+  }
+  return {
+    firstName: parts[0],
+    lastName: parts.slice(1).join(' '),
+  };
+}
+
+function startOfCurrentWeekMonday(now = new Date()) {
+  const date = new Date(now);
+  const day = date.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + diffToMonday);
+  return date;
+}
+
+async function fetchScheduledAppointmentFallbackRows(existingOrderIds = new Set(), options = {}) {
+  const maxPages = Math.max(1, Number(options.maxPages || 2) || 2);
+  const maxCandidates = Math.max(1, Number(options.maxCandidates || 40) || 40);
+  const lookbackDays = Math.max(1, Number(options.lookbackDays || 30) || 30);
+  const calendarWindowDays = Math.max(7, Number(options.calendarWindowDays || 14) || 14);
+  const lookbackCutoffUnix = Math.floor((Date.now() - (lookbackDays * 86400 * 1000)) / 1000);
+  const monday = startOfCurrentWeekMonday(new Date());
+  const windowStartMs = monday.getTime();
+  const windowEndMs = windowStartMs + (calendarWindowDays * 24 * 60 * 60 * 1000);
+
+  const publicTickets = await fetchPaginated(
+    'tickets',
+    {},
+    (raw) => Array.isArray(raw?.data?.ticketData) ? raw.data.ticketData : [],
+    maxPages
+  );
+
+  const candidateSummaries = publicTickets
+    .map((ticket) => ticket?.summary || ticket || {})
+    .filter((summary) => {
+      const orderId = String(summary?.order_id || '').trim();
+      if (!orderId || existingOrderIds.has(orderId)) return false;
+      const createdAt = Number(summary?.created_date || 0) || 0;
+      return !createdAt || createdAt >= lookbackCutoffUnix;
+    })
+    .sort((a, b) => (Number(b?.created_date || 0) || 0) - (Number(a?.created_date || 0) || 0))
+    .slice(0, maxCandidates);
+
+  const syntheticRows = [];
+  for (const summary of candidateSummaries) {
+    const orderId = String(summary?.order_id || '').trim();
+    if (!orderId) continue;
+
+    let meta = null;
+    try {
+      meta = await fetchTicketMetaByOrderId(orderId, { forceFresh: true });
+    } catch (error) {
+      console.log(`[APPOINTMENTS] Fallback meta lookup failed for order=${orderId}: ${error.message}`);
+      continue;
+    }
+
+    const dueAt = Number(meta?.dueAt || 0) || null;
+    const isScheduled = /scheduled/i.test(String(meta?.serviceSearchText || ''));
+    if (!dueAt || !isScheduled) continue;
+    if (dueAt < windowStartMs || dueAt >= windowEndMs) continue;
+
+    const customer = summary?.customer || {};
+    const fullName = String(customer?.fullName || '').trim();
+    const splitName = splitCustomerName(fullName);
+    syntheticRows.push({
+      order_id: orderId,
+      orderIdToSort: Number(orderId) || 0,
+      first_name: customer?.firstName || splitName.firstName,
+      last_name: customer?.lastName || splitName.lastName,
+      orgonization: customer?.orgonization || customer?.organization || '',
+      status: 'Scheduled',
+      assignee_name: '',
+      inv_type: 0,
+      due_on: '',
+      device_issue: String(meta?.serviceName || '')
+        .split(',')
+        .map((part) => String(part || '').trim())
+        .filter(Boolean)[0] || 'Tech Support',
+      device: String(meta?.repairCategory || '').trim() || null,
+    });
+  }
+
+  return syntheticRows;
 }
 
 function buildCustomerDisplayName(ticket, preferences = DEFAULT_UI_PREFERENCES) {
@@ -3881,6 +4001,7 @@ const server = http.createServer(async (req, res) => {
         throw new Error('RepairDesk ticket counter configuration request failed');
       }
       const rawTickets = Array.isArray(ticketsRaw?.data?.pagination?.data) ? ticketsRaw.data.pagination.data : [];
+      const rawOrderIds = new Set(rawTickets.map((ticket) => String(ticket?.order_id || '').trim()).filter(Boolean));
       const queueMetaOrderIds = Array.from(new Set(rawTickets
         .filter((ticket) => (
           ticket?.status === 'Ready to Start' ||
@@ -3916,11 +4037,35 @@ const server = http.createServer(async (req, res) => {
         }
       }));
       const queueMetaByOrderId = Object.fromEntries(queueMetaEntries);
+      let ticketsForPayload = ticketsRaw;
+      if (hasApiKey) {
+        try {
+          const appointmentFallbackRows = await fetchScheduledAppointmentFallbackRows(rawOrderIds);
+          if (appointmentFallbackRows.length) {
+            for (const row of appointmentFallbackRows) {
+              const orderId = String(row?.order_id || '').trim();
+              if (!orderId) continue;
+              rawOrderIds.add(orderId);
+              if (!queueMetaByOrderId[orderId]) {
+                try {
+                  queueMetaByOrderId[orderId] = await fetchTicketMetaByOrderId(orderId, { forceFresh: true });
+                } catch (error) {
+                  console.log(`[APPOINTMENTS] Fallback queue meta lookup failed for order=${orderId}: ${error.message}`);
+                  queueMetaByOrderId[orderId] = emptyTicketMeta();
+                }
+              }
+            }
+            ticketsForPayload = mergeSyntheticTicketRowsIntoPayload(ticketsRaw, appointmentFallbackRows);
+          }
+        } catch (error) {
+          console.log(`[APPOINTMENTS] Scheduled fallback fetch failed: ${error.message}`);
+        }
+      }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(
         normalizeTicketCounterPayload(
           configRaw,
-          ticketsRaw,
+          ticketsForPayload,
           queueMetaByOrderId,
           sessionConfig.uiPreferences,
           rushSyncMap,
