@@ -142,12 +142,15 @@
   }
 
   .topbar {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 18px;
+    display: block;
     padding: 18px 22px;
+  }
+
+  .topbar-head {
+    display: grid;
+    grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, auto);
+    align-items: center;
+    gap: 12px;
   }
 
   .brand,
@@ -160,7 +163,9 @@
   }
 
   .brand {
-    flex: 1 1 560px;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: min(38vw, 340px);
   }
 
   .brand-logo {
@@ -187,16 +192,19 @@
     line-height: 1;
     margin: 0;
     color: var(--brand-title-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .meta {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: flex-end;
     align-items: center;
     gap: 6px;
     width: auto;
-    max-width: min(100%, 420px);
+    max-width: none;
     flex: 0 1 auto;
     min-width: 0;
   }
@@ -219,20 +227,24 @@
   }
 
   .headline {
-    flex-wrap: wrap;
-    align-content: center;
-    row-gap: 8px;
+    flex-wrap: nowrap;
+    align-content: normal;
+    row-gap: 0;
   }
 
   .headline-pills {
-    flex: 1 1 320px;
-    flex-wrap: wrap;
-    gap: 10px;
+    width: auto;
+    flex: 0 1 auto;
+    flex-wrap: nowrap;
+    gap: 8px;
+    justify-content: flex-start;
+    min-width: 0;
+    overflow: hidden;
   }
 
   .headline .title {
-    flex: 1 1 auto;
-    min-width: 160px;
+    flex: 0 1 auto;
+    min-width: 0;
   }
 
   .pill.primary,
@@ -279,9 +291,11 @@
   }
 
   .headline-pills .pill {
-    flex: 0 1 auto;
+    flex: 1 1 0;
     min-width: 0;
-    max-width: 100%;
+    max-width: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-size: clamp(11px, calc(0.5vw + 10px), calc(16px * var(--theme-text-scale)));
     font-weight: 700;
     padding: clamp(8px, calc(0.45vw + 6px), 12px) clamp(10px, calc(0.55vw + 8px), 16px);
@@ -2626,56 +2640,60 @@
 
   body.force-vertical .topbar {
     padding: 12px 14px;
-    gap: 10px;
-    align-items: flex-start;
+  }
+
+  body.force-vertical .topbar-head {
+    grid-template-columns: minmax(88px, auto) minmax(0, 1fr) minmax(0, auto);
+    gap: 6px;
   }
 
   body.force-vertical .title {
-    font-size: 18px;
+    font-size: 15px;
   }
 
   body.force-vertical .headline,
   body.force-vertical .headline-pills,
   body.force-vertical .meta {
-    gap: 6px;
+    gap: 4px;
   }
 
   body.force-vertical .headline {
-    width: 100%;
-    flex-direction: column;
-    align-items: flex-start;
+    width: auto;
+    flex-direction: row;
+    align-items: center;
     justify-content: flex-start;
-    row-gap: 6px;
+    row-gap: 0;
   }
 
   body.force-vertical .headline .title {
-    flex: 0 1 auto;
+    flex: 1 1 auto;
     min-width: 0;
     text-align: left;
   }
 
   body.force-vertical .headline-pills {
-    width: 100%;
-    flex: 0 1 auto;
+    width: auto;
+    flex: 1 1 auto;
     justify-content: flex-start;
   }
 
   body.force-vertical .brand {
-    flex: 1 1 100%;
+    flex: 0 1 auto;
+    max-width: 132px;
   }
 
   body.force-vertical .meta {
-    width: 100%;
-    max-width: none;
-    flex: 1 1 100%;
+    width: auto;
+    max-width: 132px;
+    flex: 0 1 auto;
     justify-content: flex-start;
   }
 
   body.force-vertical #open-tickets-pill,
   body.force-vertical #oldest-regular-pill,
   body.force-vertical #oldest-priority-pill {
-    font-size: 10px;
-    padding: 5px 8px;
+    font-size: 9px;
+    padding: 4px 7px;
   }
 
   body.force-vertical .status-row {
@@ -2880,6 +2898,9 @@
 
   body.compact-display .topbar {
     padding: 12px 14px;
+  }
+
+  body.compact-display .topbar-head {
     gap: 10px;
   }
 
@@ -2887,11 +2908,7 @@
     font-size: clamp(18px, 2.2vw, 24px);
   }
 
-  body.compact-display .headline {
-    gap: 10px;
-  }
-
-  body.compact-display .headline .pill {
+  body.compact-display .headline-pills .pill {
     font-size: 11px;
     padding: 8px 10px;
   }
@@ -3086,6 +3103,9 @@
 
   body.extra-compact-display .topbar {
     padding: 10px 12px;
+  }
+
+  body.extra-compact-display .topbar-head {
     gap: 8px;
   }
 
@@ -3093,11 +3113,7 @@
     font-size: clamp(16px, 2vw, 21px);
   }
 
-  body.extra-compact-display .headline {
-    gap: 8px;
-  }
-
-  body.extra-compact-display .headline .pill {
+  body.extra-compact-display .headline-pills .pill {
     font-size: 10px;
     padding: 6px 8px;
   }
@@ -3379,21 +3395,23 @@
 <body>
 <div class="app" id="app">
   <section class="topbar">
-    <div class="brand">
-      <img class="brand-logo" id="brand-logo" alt="Logo" />
-      <div class="headline">
-        <h1 class="title" id="page-title">Current Repair Queue</h1>
-        <div class="headline-pills">
-          <div class="pill" id="open-tickets-pill">Open Tickets 0</div>
-          <div class="pill" id="oldest-regular-pill">Oldest Regular Ticket --</div>
-          <div class="pill" id="oldest-priority-pill">Oldest Priority Ticket --</div>
+    <div class="topbar-head">
+      <div class="brand">
+        <img class="brand-logo" id="brand-logo" alt="Logo" />
+        <div class="headline">
+          <h1 class="title" id="page-title">Current Repair Queue</h1>
         </div>
       </div>
-    </div>
-    <div class="meta">
-      <div class="pill" id="clock-pill">--:--</div>
-      <div class="pill" id="refresh-countdown-pill">Refresh in --s</div>
-      <button class="pill settings-button" id="settings-open" type="button" aria-label="Settings" title="Settings"><span class="settings-button-icon" aria-hidden="true">⚙</span><span>Settings</span></button>
+      <div class="headline-pills">
+        <div class="pill" id="open-tickets-pill">Open Tickets 0</div>
+        <div class="pill" id="oldest-regular-pill">Oldest Regular Ticket --</div>
+        <div class="pill" id="oldest-priority-pill">Oldest Priority Ticket --</div>
+      </div>
+      <div class="meta">
+        <div class="pill" id="clock-pill">--:--</div>
+        <div class="pill" id="refresh-countdown-pill">Refresh in --s</div>
+        <button class="pill settings-button" id="settings-open" type="button" aria-label="Settings" title="Settings"><span class="settings-button-icon" aria-hidden="true">⚙</span><span>Settings</span></button>
+      </div>
     </div>
   </section>
 

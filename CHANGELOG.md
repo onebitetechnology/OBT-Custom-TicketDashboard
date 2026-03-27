@@ -2,6 +2,14 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.44
+
+- Reworked the top strip into one responsive row again, with the title on the left, summary pills in the shrinking middle, and the clock/refresh/settings controls on the right so both TVs can keep the top area compact when there is enough room.
+
+## v2.1.68-beta.43
+
+- Rebuilt the topbar structure so the title and right-side controls share the first row while the three summary pills live on their own full-width row, making both the Front TV and Back TV header layout more predictable.
+
 ## v2.1.68-beta.42
 
 - Split the Back TV headline structurally so the title and the top summary pills are separate rows on vertical layouts, giving the three pills their own responsive row instead of forcing them to compete with the title.
