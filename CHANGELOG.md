@@ -2,6 +2,14 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.42
+
+- Split the Back TV headline structurally so the title and the top summary pills are separate rows on vertical layouts, giving the three pills their own responsive row instead of forcing them to compete with the title.
+
+## v2.1.68-beta.41
+
+- Tightened the Back TV topbar further by shrinking the vertical summary pills and switching them to shorter compact labels like `Open`, `Reg`, and `Pri` on tighter layouts so all three pills fit more reliably on one line.
+
 ## v2.1.68-beta.40
 
 - Reworked the top summary pills to shrink responsively with available width instead of forcing a separate title row, so the Back TV can keep the header more compact while still fitting the `Oldest Priority Ticket` pill cleanly.

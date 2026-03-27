@@ -151,7 +151,8 @@
   }
 
   .brand,
-  .headline {
+  .headline,
+  .headline-pills {
     display: flex;
     align-items: center;
     gap: 16px;
@@ -223,6 +224,12 @@
     row-gap: 8px;
   }
 
+  .headline-pills {
+    flex: 1 1 320px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
   .headline .title {
     flex: 1 1 auto;
     min-width: 160px;
@@ -271,7 +278,7 @@
     background: rgba(255,255,255,0.03);
   }
 
-  .headline .pill {
+  .headline-pills .pill {
     flex: 0 1 auto;
     min-width: 0;
     max-width: 100%;
@@ -2624,24 +2631,33 @@
   }
 
   body.force-vertical .title {
-    font-size: 20px;
+    font-size: 18px;
   }
 
   body.force-vertical .headline,
+  body.force-vertical .headline-pills,
   body.force-vertical .meta {
-    gap: 8px;
+    gap: 6px;
   }
 
   body.force-vertical .headline {
     width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
     justify-content: flex-start;
-    row-gap: 8px;
+    row-gap: 6px;
   }
 
   body.force-vertical .headline .title {
-    flex: 1 1 auto;
-    min-width: 120px;
+    flex: 0 1 auto;
+    min-width: 0;
     text-align: left;
+  }
+
+  body.force-vertical .headline-pills {
+    width: 100%;
+    flex: 0 1 auto;
+    justify-content: flex-start;
   }
 
   body.force-vertical .brand {
@@ -2658,8 +2674,8 @@
   body.force-vertical #open-tickets-pill,
   body.force-vertical #oldest-regular-pill,
   body.force-vertical #oldest-priority-pill {
-    font-size: 11px;
-    padding: 6px 9px;
+    font-size: 10px;
+    padding: 5px 8px;
   }
 
   body.force-vertical .status-row {
@@ -3367,9 +3383,11 @@
       <img class="brand-logo" id="brand-logo" alt="Logo" />
       <div class="headline">
         <h1 class="title" id="page-title">Current Repair Queue</h1>
-        <div class="pill" id="open-tickets-pill">Open Tickets 0</div>
-        <div class="pill" id="oldest-regular-pill">Oldest Regular Ticket --</div>
-        <div class="pill" id="oldest-priority-pill">Oldest Priority Ticket --</div>
+        <div class="headline-pills">
+          <div class="pill" id="open-tickets-pill">Open Tickets 0</div>
+          <div class="pill" id="oldest-regular-pill">Oldest Regular Ticket --</div>
+          <div class="pill" id="oldest-priority-pill">Oldest Priority Ticket --</div>
+        </div>
       </div>
     </div>
     <div class="meta">
@@ -5861,10 +5879,23 @@
     return Math.max(1, Math.ceil(state.data.tickets.length / cardsPerPage()));
   }
 
+  function useCompactTopbarSummaryLabels() {
+    return document.body.classList.contains('force-vertical')
+      || document.body.classList.contains('compact-display')
+      || document.body.classList.contains('extra-compact-display');
+  }
+
   function renderSummary(data) {
-    qs('open-tickets-pill').textContent = 'Open Tickets ' + data.totals.tickets;
-    qs('oldest-regular-pill').textContent = 'Oldest Regular Ticket ' + (data.totals.oldestRegularReadyDays == null ? '--' : (data.totals.oldestRegularReadyDays + 'd'));
-    qs('oldest-priority-pill').textContent = 'Oldest Priority Ticket ' + (data.totals.oldestPriorityReadyDays == null ? 'None' : (data.totals.oldestPriorityReadyDays + 'd'));
+    const compact = useCompactTopbarSummaryLabels();
+    qs('open-tickets-pill').textContent = compact
+      ? ('Open ' + data.totals.tickets)
+      : ('Open Tickets ' + data.totals.tickets);
+    qs('oldest-regular-pill').textContent = compact
+      ? ('Reg ' + (data.totals.oldestRegularReadyDays == null ? '--' : (data.totals.oldestRegularReadyDays + 'd')))
+      : ('Oldest Regular Ticket ' + (data.totals.oldestRegularReadyDays == null ? '--' : (data.totals.oldestRegularReadyDays + 'd')));
+    qs('oldest-priority-pill').textContent = compact
+      ? ('Pri ' + (data.totals.oldestPriorityReadyDays == null ? 'None' : (data.totals.oldestPriorityReadyDays + 'd')))
+      : ('Oldest Priority Ticket ' + (data.totals.oldestPriorityReadyDays == null ? 'None' : (data.totals.oldestPriorityReadyDays + 'd')));
   }
 
   function renderStatuses(data) {
@@ -6237,9 +6268,10 @@
     qs('summary').innerHTML = '';
     qs('status-row').innerHTML = '';
     qs('page-dots').innerHTML = '';
-    qs('open-tickets-pill').textContent = 'Open Tickets 0';
-    qs('oldest-regular-pill').textContent = 'Oldest Regular Ticket --';
-    qs('oldest-priority-pill').textContent = 'Oldest Priority Ticket None';
+    const compact = useCompactTopbarSummaryLabels();
+    qs('open-tickets-pill').textContent = compact ? 'Open 0' : 'Open Tickets 0';
+    qs('oldest-regular-pill').textContent = compact ? 'Reg --' : 'Oldest Regular Ticket --';
+    qs('oldest-priority-pill').textContent = compact ? 'Pri None' : 'Oldest Priority Ticket None';
     qs('refresh-countdown-pill').textContent = 'Refresh --s';
     qs('ready-count-pill').textContent = '0 tickets';
     qs('ready-queue-content').innerHTML = '';
