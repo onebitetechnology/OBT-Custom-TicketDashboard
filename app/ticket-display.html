@@ -5898,9 +5898,9 @@
   }
 
   function useCompactTopbarSummaryLabels() {
-    return document.body.classList.contains('force-vertical')
-      || document.body.classList.contains('compact-display')
-      || document.body.classList.contains('extra-compact-display');
+    if (document.body.classList.contains('force-vertical')) return true;
+    const headWidth = document.querySelector('.topbar-head')?.clientWidth || window.innerWidth || 0;
+    return headWidth > 0 && headWidth <= 1400;
   }
 
   function renderSummary(data) {
