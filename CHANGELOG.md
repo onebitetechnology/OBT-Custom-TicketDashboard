@@ -2,6 +2,14 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.40
+
+- Reworked the top summary pills to shrink responsively with available width instead of forcing a separate title row, so the Back TV can keep the header more compact while still fitting the `Oldest Priority Ticket` pill cleanly.
+
+## v2.1.68-beta.39
+
+- Centered the top summary pill row on forced-vertical layouts so the `Oldest Priority Ticket` pill no longer drops below and to the left on the Back TV.
+
 ## v2.1.68-beta.38
 
 - Added a Ticket Details setting to pin Priority tickets to the top of each queue, with true synced Priority sorting above fee-based fallback Priority before the normal queue order.
