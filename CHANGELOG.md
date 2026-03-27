@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.45
+
+- Changed the top summary pills to choose their short `Open / Reg / Pri` labels based on actual topbar width instead of display density, so roomy horizontal installs can keep the full labels while tighter installs still compact them.
+
 ## v2.1.68-beta.44
 
 - Reworked the top strip into one responsive row again, with the title on the left, summary pills in the shrinking middle, and the clock/refresh/settings controls on the right so both TVs can keep the top area compact when there is enough room.
