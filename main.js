@@ -18,6 +18,7 @@ let mainWindow = null;
 let serverProcess = null;
 let serverPort = null;
 let updateCheckTimer = null;
+const PREFERRED_SERVER_PORT = Number(process.env.PREFERRED_PORT || 54338);
 let updateStatus = {
   supported: true,
   available: false,
@@ -38,6 +39,34 @@ let updateStatus = {
 const BACKGROUND_UPDATE_CHECK_MS = 60 * 60 * 1000;
 const GITHUB_RELEASE_NOTES_BASE_URL = 'https://api.github.com/repos/onebitetechnology/OBT-Custom-TicketDashboard/releases/tags/';
 const releaseNotesFetchCache = new Map();
+
+function getLocalBoardUrls() {
+  const localBoardUrl = serverPort ? `http://127.0.0.1:${serverPort}` : '';
+  if (!serverPort) {
+    return {
+      localBoardUrl,
+      networkBoardUrls: [],
+    };
+  }
+
+  const networkBoardUrls = [];
+  const seen = new Set();
+  const interfaces = os.networkInterfaces?.() || {};
+  Object.values(interfaces).forEach((entries) => {
+    (entries || []).forEach((entry) => {
+      if (!entry || entry.internal || entry.family !== 'IPv4') return;
+      const host = String(entry.address || '').trim();
+      if (!host || seen.has(host)) return;
+      seen.add(host);
+      networkBoardUrls.push(`http://${host}:${serverPort}`);
+    });
+  });
+
+  return {
+    localBoardUrl,
+    networkBoardUrls,
+  };
+}
 
 function getUnsupportedMacUpdateStatus() {
   return {
@@ -342,6 +371,7 @@ function createSupportBundle() {
   const { updateChannel, receiveBetaUpdates } = readUpdateChannelPreferencesFromConfig();
   const timestamp = new Date();
   const bundlePath = path.join(supportDir, `support-bundle-${formatTimestampForFile(timestamp)}.json`);
+  const { localBoardUrl, networkBoardUrls } = getLocalBoardUrls();
   const payload = {
     capturedAt: timestamp.toISOString(),
     app: {
@@ -349,7 +379,8 @@ function createSupportBundle() {
       packaged: app.isPackaged,
       appPath: getBundledAppDir(),
       userDataPath: getDataDir(),
-      localBoardUrl: serverPort ? `http://127.0.0.1:${serverPort}` : '',
+      localBoardUrl,
+      networkBoardUrls,
     },
     system: {
       platform: process.platform,
@@ -463,15 +494,17 @@ function applyWindowPreferences(preferences = {}) {
   return nextPreferences;
 }
 
-function findOpenPort() {
-  return new Promise((resolve, reject) => {
+function findOpenPort(preferredPort = PREFERRED_SERVER_PORT) {
+  const tryPort = (port) => new Promise((resolve, reject) => {
     const server = net.createServer();
-    server.listen(0, '127.0.0.1', () => {
+    server.listen(port, '127.0.0.1', () => {
       const address = server.address();
       server.close(() => resolve(address.port));
     });
     server.on('error', reject);
   });
+
+  return tryPort(preferredPort).catch(() => tryPort(0));
 }
 
 function waitForServer(port, timeoutMs = 20000) {
@@ -650,6 +683,8 @@ ipcMain.handle('app:get-metadata', () => ({
   userDataPath: getDataDir(),
   appPath: getBundledAppDir(),
   isPackaged: app.isPackaged,
+  preferredServerPort: PREFERRED_SERVER_PORT,
+  ...getLocalBoardUrls(),
 }));
 
 ipcMain.handle('window:apply-preferences', (_, preferences) => applyWindowPreferences(preferences || {}));

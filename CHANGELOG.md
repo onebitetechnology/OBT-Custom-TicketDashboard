@@ -2,6 +2,15 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.47
+
+- Added shared calendar-block sync settings so one board can host blocked appointment days and other boards on the same network can follow and merge them.
+- Desktop installs now prefer port `54338` when available, making the shared-calendar host URL much more predictable across the store.
+
+## v2.1.68-beta.46
+
+- Softened the compact top-summary labels so they now use `Regular` and `Priority` instead of the more abrupt `Reg` and `Pri` abbreviations.
+
 ## v2.1.68-beta.45
 
 - Changed the top summary pills to choose their short `Open / Reg / Pri` labels based on actual topbar width instead of display density, so roomy horizontal installs can keep the full labels while tighter installs still compact them.
