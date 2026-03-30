@@ -3842,6 +3842,53 @@
             <textarea class="settings-textarea" id="pref-temporary-blocked-dates" placeholder="March 24&#10;March 25&#10;2026-03-30"></textarea>
             <span class="settings-help">Enter one specific blocked date per line. Formats like <code>March 24</code>, <code>Mar 24</code>, <code>3/24</code>, or <code>2026-03-24</code> all work. Month/day entries are treated as this year.</span>
           </label>
+          <section class="settings-field full subtle-panel">
+            <span class="settings-label">Shared Calendar Blocks</span>
+            <div class="settings-grid compact-2">
+              <label class="settings-field align-end">
+                <span class="settings-label">Sync mode</span>
+                <select class="settings-input settings-select" id="pref-shared-calendar-mode">
+                  <option value="local">Local only</option>
+                  <option value="host">Host this store's shared calendar blocks</option>
+                  <option value="follow">Follow another board on the network</option>
+                </select>
+                <span class="settings-help">Use this if you want one board to control blocked appointment days for the other TVs in the store.</span>
+              </label>
+              <label class="settings-field full" id="shared-calendar-host-url-field">
+                <span class="settings-label">Host board URL</span>
+                <input class="settings-input" id="pref-shared-calendar-host-url" placeholder="http://192.168.1.50:54338" />
+                <span class="settings-help">On follower boards, enter the host board's local network URL. The default desktop-app port is usually <code>54338</code>.</span>
+              </label>
+              <label class="settings-field">
+                <span class="settings-label">Sync blocked weekdays</span>
+                <span class="settings-check">
+                  <input class="settings-checkbox" id="pref-shared-calendar-sync-weekdays" type="checkbox" />
+                  <span class="settings-check-copy">
+                    <span class="settings-check-title">Include recurring blocked days</span>
+                    <span class="settings-help">Follower boards merge the host's blocked weekdays with their own local list.</span>
+                  </span>
+                </span>
+              </label>
+              <label class="settings-field">
+                <span class="settings-label">Sync temporary blocked dates</span>
+                <span class="settings-check">
+                  <input class="settings-checkbox" id="pref-shared-calendar-sync-dates" type="checkbox" />
+                  <span class="settings-check-copy">
+                    <span class="settings-check-title">Include one-off blocked dates</span>
+                    <span class="settings-help">Follower boards merge the host's temporary blocked dates with their own local list.</span>
+                  </span>
+                </span>
+              </label>
+              <div class="settings-field full">
+                <span class="settings-label">Connection status</span>
+                <div class="settings-sync-status">
+                  <span class="settings-status-light" id="shared-calendar-status-light" data-state="disabled" aria-hidden="true"></span>
+                  <div class="settings-inline-status" id="shared-calendar-status-copy">Shared calendar blocks are local to this board.</div>
+                </div>
+                <span class="settings-help" id="shared-calendar-host-note">If this board is the host, followers can point at this machine's local network address on port <code>54338</code>.</span>
+              </div>
+            </div>
+          </section>
           <label class="settings-field full">
             <span class="settings-label">Calendar day styling</span>
             <span class="settings-check">
@@ -4265,6 +4312,7 @@
     appointmentAlertHistory: {},
     alertAudioContext: null,
     rushSyncDismissedKey: '',
+    desktopMetadata: null,
   };
 
   const DEFAULT_PAGE_SECONDS = 12;
@@ -4292,6 +4340,18 @@
         includedWeekdays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
         blockedWeekdays: ['Monday'],
         temporaryBlockedDates: [],
+        sharedCalendarSync: {
+          mode: 'local',
+          hostUrl: '',
+          syncBlockedWeekdays: true,
+          syncTemporaryBlockedDates: true,
+          cachedBlocks: {
+            blockedWeekdays: [],
+            temporaryBlockedDates: [],
+            sourceHostUrl: '',
+            syncedAt: null,
+          },
+        },
         showCalendar: true,
         rotateWeeks: false,
         currentWeekDurationSeconds: 20,
@@ -4797,6 +4857,81 @@
     if (cookieField) cookieField.hidden = !enabled;
   }
 
+  function sharedCalendarSyncStatusText(status = {}, mode = 'local') {
+    const normalizedMode = String(mode || status.mode || 'local').toLowerCase();
+    if (normalizedMode === 'host') {
+      return 'This board is hosting shared calendar blocks for other boards on the network.';
+    }
+    if (normalizedMode !== 'follow') {
+      return 'Shared calendar blocks are local to this board.';
+    }
+    if (status.connected) {
+      const syncedAt = status.lastSyncedAt
+        ? ` Last synced ${new Date(status.lastSyncedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`
+        : '';
+      return `Connected to the shared calendar host.${syncedAt}`;
+    }
+    if (status.usingCached) {
+      return `The host is unavailable right now, so this board is using the last synced blocked dates.${status.lastError ? ` ${status.lastError}` : ''}`;
+    }
+    return `This board could not reach the shared calendar host yet.${status.lastError ? ` ${status.lastError}` : ''}`;
+  }
+
+  function renderSharedCalendarSyncStatus(status = {}) {
+    const mode = qs('pref-shared-calendar-mode')?.value || currentPreferences().schedule?.sharedCalendarSync?.mode || status.mode || 'local';
+    const statusEl = qs('shared-calendar-status-copy');
+    const statusLight = qs('shared-calendar-status-light');
+    if (statusEl) {
+      statusEl.textContent = sharedCalendarSyncStatusText(status, mode);
+    }
+    if (statusLight) {
+      statusLight.dataset.state = mode === 'local'
+        ? 'disabled'
+        : (status.connected ? 'connected' : (status.usingCached ? 'warning' : 'warning'));
+    }
+  }
+
+  function updateSharedCalendarHostNote() {
+    const noteEl = qs('shared-calendar-host-note');
+    if (!noteEl) return;
+    const mode = qs('pref-shared-calendar-mode')?.value || 'local';
+    const hostUrl = String(qs('pref-shared-calendar-host-url')?.value || '').trim();
+    const metadata = state.desktopMetadata || {};
+    const localBoardUrl = String(metadata.localBoardUrl || '').trim();
+    const networkBoardUrls = Array.isArray(metadata.networkBoardUrls) ? metadata.networkBoardUrls.filter(Boolean) : [];
+    const preferredPort = metadata.preferredServerPort || 54338;
+
+    if (mode === 'host') {
+      const primaryUrl = networkBoardUrls[0] || localBoardUrl || `http://<this-board-ip>:${preferredPort}`;
+      const extraUrls = networkBoardUrls.slice(1).map((url) => `<code>${escapeHtml(url)}</code>`).join(', ');
+      noteEl.innerHTML = extraUrls
+        ? `Followers can point to <code>${escapeHtml(primaryUrl)}</code>. Other detected board URLs: ${extraUrls}.`
+        : `Followers can point to <code>${escapeHtml(primaryUrl)}</code>.`;
+      return;
+    }
+
+    if (mode === 'follow') {
+      noteEl.innerHTML = hostUrl
+        ? `This board will poll <code>${escapeHtml(hostUrl)}</code> and merge the shared blocked dates into its local calendar settings.`
+        : `Enter the host board's local network URL, for example <code>http://192.168.1.50:${preferredPort}</code>.`;
+      return;
+    }
+
+    noteEl.textContent = 'Leave this on Local only if this board should keep its own blocked dates without syncing them to or from the other TVs.';
+  }
+
+  function updateSharedCalendarSyncFieldVisibility() {
+    const mode = qs('pref-shared-calendar-mode')?.value || 'local';
+    const hostUrlField = qs('shared-calendar-host-url-field');
+    const syncWeekdays = qs('pref-shared-calendar-sync-weekdays')?.closest('.settings-field');
+    const syncDates = qs('pref-shared-calendar-sync-dates')?.closest('.settings-field');
+    if (hostUrlField) hostUrlField.hidden = mode !== 'follow';
+    if (syncWeekdays) syncWeekdays.hidden = mode !== 'follow';
+    if (syncDates) syncDates.hidden = mode !== 'follow';
+    updateSharedCalendarHostNote();
+    renderSharedCalendarSyncStatus(state.data?.calendarSync || {});
+  }
+
   function updateAppointmentAudioSettingsVisibility() {
     const container = qs('appointment-audio-settings');
     if (!container) return;
@@ -4838,6 +4973,19 @@
       state.displays = [];
     }
     setDisplayTargetOptions(currentPreferences().display?.displayTarget || 'current');
+  }
+
+  async function loadDesktopMetadata() {
+    if (!window.desktopApp?.getMetadata) {
+      state.desktopMetadata = null;
+      return null;
+    }
+    try {
+      state.desktopMetadata = await window.desktopApp.getMetadata();
+    } catch (_) {
+      state.desktopMetadata = null;
+    }
+    return state.desktopMetadata;
   }
 
   function enhanceSettingsSections() {
@@ -5540,6 +5688,10 @@
     qs('pref-next-week-duration-seconds').value = prefs.schedule.nextWeekDurationSeconds ?? 5;
     qs('pref-blocked-weekdays').innerHTML = checkboxGroupMarkup('blocked-weekdays', prefs.schedule.blockedWeekdays || []);
     qs('pref-temporary-blocked-dates').value = (prefs.schedule.temporaryBlockedDates || []).join('\n');
+    qs('pref-shared-calendar-mode').value = prefs.schedule?.sharedCalendarSync?.mode || 'local';
+    qs('pref-shared-calendar-host-url').value = prefs.schedule?.sharedCalendarSync?.hostUrl || '';
+    qs('pref-shared-calendar-sync-weekdays').checked = prefs.schedule?.sharedCalendarSync?.syncBlockedWeekdays !== false;
+    qs('pref-shared-calendar-sync-dates').checked = prefs.schedule?.sharedCalendarSync?.syncTemporaryBlockedDates !== false;
     qs('pref-dim-past-days').checked = prefs.schedule.dimPastDays !== false;
     qs('pref-default-lead').value = prefs.schedule.defaultLeadMinutes ?? 45;
     qs('pref-onsite-lead').value = prefs.schedule.onsiteLeadMinutes ?? 60;
@@ -5549,6 +5701,8 @@
     renderAlertAudioRules(alertAudioRulesFromPreferences(prefs.schedule || {}));
     updateAppointmentAudioSettingsVisibility();
     updatePulseTimingVisibility();
+    renderSharedCalendarSyncStatus(state.data?.calendarSync || {});
+    updateSharedCalendarSyncFieldVisibility();
     qs('pref-inprogress-days').value = prefs.staleRules.inProgress?.days ?? 0;
     qs('pref-inprogress-hours').value = prefs.staleRules.inProgress?.hours ?? 12;
     qs('pref-attention-days').value = prefs.staleRules.needsAttention?.days ?? 1;
@@ -5646,6 +5800,18 @@
           .split(/\r?\n/)
           .map((value) => String(value || '').trim())
           .filter(Boolean),
+        sharedCalendarSync: {
+          mode: qs('pref-shared-calendar-mode').value || 'local',
+          hostUrl: qs('pref-shared-calendar-host-url').value || '',
+          syncBlockedWeekdays: qs('pref-shared-calendar-sync-weekdays').checked,
+          syncTemporaryBlockedDates: qs('pref-shared-calendar-sync-dates').checked,
+          cachedBlocks: currentPreferences().schedule?.sharedCalendarSync?.cachedBlocks || {
+            blockedWeekdays: [],
+            temporaryBlockedDates: [],
+            sourceHostUrl: '',
+            syncedAt: null,
+          },
+        },
         dimPastDays: qs('pref-dim-past-days').checked,
         defaultLeadMinutes: Number(qs('pref-default-lead').value || 0),
         onsiteLeadMinutes: Number(qs('pref-onsite-lead').value || 0),
@@ -5909,10 +6075,10 @@
       ? ('Open ' + data.totals.tickets)
       : ('Open Tickets ' + data.totals.tickets);
     qs('oldest-regular-pill').textContent = compact
-      ? ('Reg ' + (data.totals.oldestRegularReadyDays == null ? '--' : (data.totals.oldestRegularReadyDays + 'd')))
+      ? ('Regular ' + (data.totals.oldestRegularReadyDays == null ? '--' : (data.totals.oldestRegularReadyDays + 'd')))
       : ('Oldest Regular Ticket ' + (data.totals.oldestRegularReadyDays == null ? '--' : (data.totals.oldestRegularReadyDays + 'd')));
     qs('oldest-priority-pill').textContent = compact
-      ? ('Pri ' + (data.totals.oldestPriorityReadyDays == null ? 'None' : (data.totals.oldestPriorityReadyDays + 'd')))
+      ? ('Priority ' + (data.totals.oldestPriorityReadyDays == null ? 'None' : (data.totals.oldestPriorityReadyDays + 'd')))
       : ('Oldest Priority Ticket ' + (data.totals.oldestPriorityReadyDays == null ? 'None' : (data.totals.oldestPriorityReadyDays + 'd')));
   }
 
@@ -6058,6 +6224,9 @@
     updateAlertRuleVisibility();
     loadApiConfig().catch(() => {
       qs('settings-status').textContent = 'Could not load API settings.';
+    });
+    loadDesktopMetadata().then(() => {
+      updateSharedCalendarHostNote();
     });
     loadDetectedDisplays();
     refreshUpdateStatus();
@@ -6288,8 +6457,8 @@
     qs('page-dots').innerHTML = '';
     const compact = useCompactTopbarSummaryLabels();
     qs('open-tickets-pill').textContent = compact ? 'Open 0' : 'Open Tickets 0';
-    qs('oldest-regular-pill').textContent = compact ? 'Reg --' : 'Oldest Regular Ticket --';
-    qs('oldest-priority-pill').textContent = compact ? 'Pri None' : 'Oldest Priority Ticket None';
+    qs('oldest-regular-pill').textContent = compact ? 'Regular --' : 'Oldest Regular Ticket --';
+    qs('oldest-priority-pill').textContent = compact ? 'Priority None' : 'Oldest Priority Ticket None';
     qs('refresh-countdown-pill').textContent = 'Refresh --s';
     qs('ready-count-pill').textContent = '0 tickets';
     qs('ready-queue-content').innerHTML = '';
@@ -6330,6 +6499,7 @@
     renderColumn6Queue(state.data);
     setupRefurbRotation();
     renderRushSyncStatus(state.data.rushSync || {});
+    renderSharedCalendarSyncStatus(state.data.calendarSync || {});
     renderRushSyncPopup(state.data.rushSync || {});
     qs('footer-note').textContent = state.data.displayTicketCounts
       ? 'RepairDesk count widgets are enabled for this token. This custom board still prioritizes full ticket cards.'
@@ -6620,6 +6790,10 @@
   qs('settings-close').addEventListener('click', closeSettings);
   qs('settings-close-bottom').addEventListener('click', closeSettings);
   qs('rush-sync-enabled').addEventListener('change', updateRushSyncFieldVisibility);
+  qs('pref-shared-calendar-mode').addEventListener('change', updateSharedCalendarSyncFieldVisibility);
+  qs('pref-shared-calendar-host-url').addEventListener('input', updateSharedCalendarHostNote);
+  qs('pref-shared-calendar-sync-weekdays').addEventListener('change', () => renderSharedCalendarSyncStatus(state.data?.calendarSync || {}));
+  qs('pref-shared-calendar-sync-dates').addEventListener('change', () => renderSharedCalendarSyncStatus(state.data?.calendarSync || {}));
   qs('pref-alert-audio-enabled').addEventListener('change', updateAppointmentAudioSettingsVisibility);
   qs('pref-pulse-timing-enabled').addEventListener('change', updatePulseTimingVisibility);
   qs('settings-open-browser').addEventListener('click', openInBrowser);

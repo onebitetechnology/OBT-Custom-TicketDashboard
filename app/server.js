@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.68-beta.45';
+const APP_VERSION = 'v2.1.68-beta.47';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -25,6 +25,7 @@ const TICKET_META_CACHE_VERSION = 5;
 const TICKET_META_CACHE_TTL_MS = 60 * 1000;
 const RUSH_SYNC_CACHE_TTL_MS = 45 * 1000;
 const RUSH_SYNC_MAX_PAGES = 10;
+const SHARED_CALENDAR_SYNC_CACHE_TTL_MS = 60 * 1000;
 const DEFAULT_UI_PREFERENCES = {
   brand: {
     title: 'Current Repair Queue',
@@ -70,6 +71,18 @@ const DEFAULT_UI_PREFERENCES = {
     includedWeekdays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
     blockedWeekdays: ['Monday'],
     temporaryBlockedDates: [],
+    sharedCalendarSync: {
+      mode: 'local',
+      hostUrl: '',
+      syncBlockedWeekdays: true,
+      syncTemporaryBlockedDates: true,
+      cachedBlocks: {
+        blockedWeekdays: [],
+        temporaryBlockedDates: [],
+        sourceHostUrl: '',
+        syncedAt: null,
+      },
+    },
     showCalendar: true,
     rotateWeeks: false,
     currentWeekDurationSeconds: 20,
@@ -473,6 +486,7 @@ function normalizeUiPreferences(savedPrefs = {}) {
       includedWeekdays: normalizeStringArray(savedPrefs?.schedule?.includedWeekdays, DEFAULT_UI_PREFERENCES.schedule.includedWeekdays),
       blockedWeekdays: normalizeStringArray(savedPrefs?.schedule?.blockedWeekdays, DEFAULT_UI_PREFERENCES.schedule.blockedWeekdays),
       temporaryBlockedDates: normalizeStringArray(savedPrefs?.schedule?.temporaryBlockedDates, DEFAULT_UI_PREFERENCES.schedule.temporaryBlockedDates),
+      sharedCalendarSync: normalizeSharedCalendarSync(savedPrefs?.schedule?.sharedCalendarSync, DEFAULT_UI_PREFERENCES.schedule.sharedCalendarSync),
       showCalendar: savedPrefs?.schedule?.showCalendar !== undefined ? !!savedPrefs.schedule.showCalendar : DEFAULT_UI_PREFERENCES.schedule.showCalendar,
       rotateWeeks: savedPrefs?.schedule?.rotateWeeks !== undefined ? !!savedPrefs.schedule.rotateWeeks : DEFAULT_UI_PREFERENCES.schedule.rotateWeeks,
       currentWeekDurationSeconds: Math.max(
@@ -573,6 +587,43 @@ function normalizeRushSyncCookie(rawValue) {
     .trim();
 }
 
+function normalizeSharedCalendarHostUrl(rawValue) {
+  const raw = String(rawValue || '').trim();
+  if (!raw) return '';
+  const withProtocol = /^[a-z]+:\/\//i.test(raw) ? raw : `http://${raw}`;
+  try {
+    const parsed = new URL(withProtocol);
+    return parsed.origin;
+  } catch (_) {
+    return '';
+  }
+}
+
+function normalizeSharedCalendarCachedBlocks(saved = {}, defaults = DEFAULT_UI_PREFERENCES.schedule.sharedCalendarSync.cachedBlocks) {
+  return {
+    blockedWeekdays: normalizeStringArray(saved?.blockedWeekdays, defaults.blockedWeekdays),
+    temporaryBlockedDates: normalizeStringArray(saved?.temporaryBlockedDates, defaults.temporaryBlockedDates),
+    sourceHostUrl: normalizeSharedCalendarHostUrl(saved?.sourceHostUrl || defaults.sourceHostUrl),
+    syncedAt: saved?.syncedAt ? String(saved.syncedAt) : defaults.syncedAt,
+  };
+}
+
+function normalizeSharedCalendarSync(saved = {}, defaults = DEFAULT_UI_PREFERENCES.schedule.sharedCalendarSync) {
+  return {
+    mode: ['local', 'host', 'follow'].includes(String(saved?.mode || '').toLowerCase())
+      ? String(saved.mode).toLowerCase()
+      : defaults.mode,
+    hostUrl: normalizeSharedCalendarHostUrl(saved?.hostUrl || defaults.hostUrl),
+    syncBlockedWeekdays: saved?.syncBlockedWeekdays !== undefined
+      ? !!saved.syncBlockedWeekdays
+      : defaults.syncBlockedWeekdays,
+    syncTemporaryBlockedDates: saved?.syncTemporaryBlockedDates !== undefined
+      ? !!saved.syncTemporaryBlockedDates
+      : defaults.syncTemporaryBlockedDates,
+    cachedBlocks: normalizeSharedCalendarCachedBlocks(saved?.cachedBlocks, defaults.cachedBlocks),
+  };
+}
+
 function getRushSyncOrigin(rawDisplayUrl = '') {
   const parsed = parseTicketCounterDisplayUrl(rawDisplayUrl);
   if (!parsed.displayUrl) return '';
@@ -599,6 +650,44 @@ function emptyRushSyncStatus(overrides = {}) {
   };
 }
 
+function emptySharedCalendarSyncStatus(overrides = {}) {
+  return {
+    mode: 'local',
+    connected: false,
+    usingCached: false,
+    lastSyncedAt: null,
+    lastError: '',
+    hostUrl: '',
+    source: 'local',
+    ...overrides,
+  };
+}
+
+function mergeUniqueStrings(...groups) {
+  const output = [];
+  const seen = new Set();
+  groups.flat().forEach((value) => {
+    const item = String(value || '').trim();
+    if (!item) return;
+    const key = item.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    output.push(item);
+  });
+  return output;
+}
+
+function buildSharedCalendarBlocksPayload(preferences = sessionConfig.uiPreferences) {
+  const prefs = normalizeUiPreferences(preferences || {});
+  return {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    appVersion: APP_VERSION,
+    blockedWeekdays: normalizeStringArray(prefs.schedule?.blockedWeekdays, []),
+    temporaryBlockedDates: normalizeStringArray(prefs.schedule?.temporaryBlockedDates, []),
+  };
+}
+
 function extractRushSyncListingRows(raw) {
   if (Array.isArray(raw?.data)) return raw.data;
   if (Array.isArray(raw?.data?.data)) return raw.data.data;
@@ -622,6 +711,13 @@ let rushSyncCache = {
   cookie: '',
   map: Object.create(null),
   status: emptyRushSyncStatus(),
+};
+let sharedCalendarSyncCache = {
+  fetchedAt: 0,
+  hostUrl: '',
+  settingsKey: '',
+  effectivePreferences: null,
+  status: emptySharedCalendarSyncStatus(),
 };
 
 function restartServerProcess() {
@@ -843,7 +939,15 @@ function readBody(req) {
 function fetchJson(fullUrl, headers = {}) {
   return new Promise((resolve, reject) => {
     console.log(`[HTTP] GET ${fullUrl}`);
-    const req = https.get(fullUrl, { headers }, (res) => {
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(fullUrl);
+    } catch (error) {
+      reject(error);
+      return;
+    }
+    const client = parsedUrl.protocol === 'http:' ? http : https;
+    const req = client.get(parsedUrl, { headers }, (res) => {
       let data = '';
       res.on('data', (chunk) => { data += chunk; });
       res.on('end', () => {
@@ -899,6 +1003,171 @@ function rdTicketCounter(apiBase, endpoint, params = {}) {
     Authorization: 'Bear :)',
     'User-Agent': 'OneBiteTech-TicketCounter/1.0',
   });
+}
+
+function persistSharedCalendarCachedBlocksIfNeeded(nextCachedBlocks) {
+  const current = normalizeSharedCalendarCachedBlocks(
+    sessionConfig?.uiPreferences?.schedule?.sharedCalendarSync?.cachedBlocks || {}
+  );
+  const next = normalizeSharedCalendarCachedBlocks(nextCachedBlocks || {});
+  if (JSON.stringify(current) === JSON.stringify(next)) return;
+  sessionConfig.uiPreferences = normalizeUiPreferences({
+    ...sessionConfig.uiPreferences,
+    schedule: {
+      ...(sessionConfig.uiPreferences?.schedule || {}),
+      sharedCalendarSync: {
+        ...(sessionConfig.uiPreferences?.schedule?.sharedCalendarSync || {}),
+        cachedBlocks: next,
+      },
+    },
+  });
+  saveConfig(sessionConfig);
+}
+
+function applySharedCalendarBlocks(preferences, sharedBlocks, syncSettings) {
+  const prefs = normalizeUiPreferences(preferences || {});
+  const nextPrefs = JSON.parse(JSON.stringify(prefs));
+  const shared = normalizeSharedCalendarCachedBlocks(sharedBlocks || {});
+  if (syncSettings?.syncBlockedWeekdays !== false) {
+    nextPrefs.schedule.blockedWeekdays = mergeUniqueStrings(
+      prefs.schedule.blockedWeekdays,
+      shared.blockedWeekdays
+    );
+  }
+  if (syncSettings?.syncTemporaryBlockedDates !== false) {
+    nextPrefs.schedule.temporaryBlockedDates = mergeUniqueStrings(
+      prefs.schedule.temporaryBlockedDates,
+      shared.temporaryBlockedDates
+    );
+  }
+  return nextPrefs;
+}
+
+async function resolveSharedCalendarPreferences(basePreferences = sessionConfig.uiPreferences) {
+  const preferences = normalizeUiPreferences(basePreferences || {});
+  const syncSettings = preferences.schedule?.sharedCalendarSync || DEFAULT_UI_PREFERENCES.schedule.sharedCalendarSync;
+
+  if (syncSettings.mode === 'host') {
+    return {
+      preferences,
+      status: emptySharedCalendarSyncStatus({
+        mode: 'host',
+        connected: true,
+        source: 'host',
+      }),
+    };
+  }
+
+  if (syncSettings.mode !== 'follow') {
+    return {
+      preferences,
+      status: emptySharedCalendarSyncStatus({
+        mode: 'local',
+        connected: false,
+        source: 'local',
+      }),
+    };
+  }
+
+  if (!syncSettings.hostUrl) {
+    return {
+      preferences,
+      status: emptySharedCalendarSyncStatus({
+        mode: 'follow',
+        connected: false,
+        hostUrl: '',
+        lastError: 'Shared calendar host URL is missing.',
+        source: 'local',
+      }),
+    };
+  }
+
+  const settingsKey = JSON.stringify({
+    hostUrl: syncSettings.hostUrl,
+    syncBlockedWeekdays: !!syncSettings.syncBlockedWeekdays,
+    syncTemporaryBlockedDates: !!syncSettings.syncTemporaryBlockedDates,
+    localBlockedWeekdays: preferences.schedule.blockedWeekdays,
+    localTemporaryBlockedDates: preferences.schedule.temporaryBlockedDates,
+  });
+
+  if (
+    sharedCalendarSyncCache.effectivePreferences &&
+    (Date.now() - sharedCalendarSyncCache.fetchedAt) < SHARED_CALENDAR_SYNC_CACHE_TTL_MS &&
+    sharedCalendarSyncCache.hostUrl === syncSettings.hostUrl &&
+    sharedCalendarSyncCache.settingsKey === settingsKey
+  ) {
+    return {
+      preferences: sharedCalendarSyncCache.effectivePreferences,
+      status: sharedCalendarSyncCache.status,
+    };
+  }
+
+  const sharedUrl = `${syncSettings.hostUrl}/api/shared-calendar-blocks`;
+  try {
+    const response = await fetchJson(sharedUrl, { Accept: 'application/json' });
+    const payload = parseJsonSafe(response.body);
+    if (response.status !== 200 || !payload || typeof payload !== 'object') {
+      throw new Error(`Shared calendar host returned ${response.status || 'an unexpected response'}.`);
+    }
+    const sharedBlocks = normalizeSharedCalendarCachedBlocks({
+      blockedWeekdays: payload.blockedWeekdays,
+      temporaryBlockedDates: payload.temporaryBlockedDates,
+      sourceHostUrl: syncSettings.hostUrl,
+      syncedAt: payload.exportedAt || new Date().toISOString(),
+    });
+    persistSharedCalendarCachedBlocksIfNeeded(sharedBlocks);
+    const effectivePreferences = applySharedCalendarBlocks(preferences, sharedBlocks, syncSettings);
+    const status = emptySharedCalendarSyncStatus({
+      mode: 'follow',
+      connected: true,
+      usingCached: false,
+      lastSyncedAt: sharedBlocks.syncedAt,
+      hostUrl: syncSettings.hostUrl,
+      source: 'network',
+    });
+    sharedCalendarSyncCache = {
+      fetchedAt: Date.now(),
+      hostUrl: syncSettings.hostUrl,
+      settingsKey,
+      effectivePreferences,
+      status,
+    };
+    return { preferences: effectivePreferences, status };
+  } catch (error) {
+    const cachedBlocks = normalizeSharedCalendarCachedBlocks(syncSettings.cachedBlocks || {});
+    if (cachedBlocks.blockedWeekdays.length || cachedBlocks.temporaryBlockedDates.length) {
+      const effectivePreferences = applySharedCalendarBlocks(preferences, cachedBlocks, syncSettings);
+      const status = emptySharedCalendarSyncStatus({
+        mode: 'follow',
+        connected: false,
+        usingCached: true,
+        lastSyncedAt: cachedBlocks.syncedAt,
+        lastError: String(error.message || error || '').trim(),
+        hostUrl: syncSettings.hostUrl,
+        source: 'cached',
+      });
+      sharedCalendarSyncCache = {
+        fetchedAt: Date.now(),
+        hostUrl: syncSettings.hostUrl,
+        settingsKey,
+        effectivePreferences,
+        status,
+      };
+      return { preferences: effectivePreferences, status };
+    }
+
+    return {
+      preferences,
+      status: emptySharedCalendarSyncStatus({
+        mode: 'follow',
+        connected: false,
+        usingCached: false,
+        lastError: String(error.message || error || '').trim(),
+        hostUrl: syncSettings.hostUrl,
+        source: 'local',
+      }),
+    };
+  }
 }
 
 async function fetchAllTicketCounterPages(apiBase, endpoint, params = {}, maxPages = 20) {
@@ -1815,7 +2084,8 @@ function normalizeTicketCounterPayload(
   ticketMetaByOrderId = {},
   uiPreferences = DEFAULT_UI_PREFERENCES,
   rushSyncMap = Object.create(null),
-  rushSyncStatus = emptyRushSyncStatus()
+  rushSyncStatus = emptyRushSyncStatus(),
+  calendarSyncStatus = emptySharedCalendarSyncStatus()
 ) {
   const config = configRaw?.data || {};
   const ticketsData = ticketsRaw?.data || {};
@@ -2328,6 +2598,7 @@ function normalizeTicketCounterPayload(
     scheduledCalendar,
     nextScheduledCalendar,
     rushSync: rushSyncStatus,
+    calendarSync: calendarSyncStatus,
     uiPreferences: preferences,
     statusColors,
     assignees: availableAssignees,
@@ -3539,6 +3810,19 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (pathname === '/api/shared-calendar-blocks' && req.method === 'GET') {
+    const localPreferences = normalizeUiPreferences(sessionConfig.uiPreferences || {});
+    const syncSettings = localPreferences.schedule?.sharedCalendarSync || DEFAULT_UI_PREFERENCES.schedule.sharedCalendarSync;
+    if (syncSettings.mode !== 'host') {
+      res.writeHead(409, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'This board is not configured as a shared calendar host.' }));
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(buildSharedCalendarBlocksPayload(localPreferences)));
+    return;
+  }
+
   if (pathname === '/api/config/status') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     const ticketCounterConnection = getTicketCounterConnection();
@@ -3547,6 +3831,7 @@ const server = http.createServer(async (req, res) => {
       hasTicketCounterToken: !!ticketCounterConnection.token,
       hasTicketCounterDisplayUrl: !!ticketCounterConnection.displayUrl,
       rushSync: rushSyncCache.status,
+      calendarSync: sharedCalendarSyncCache.status,
       preferencesReady: !!sessionConfig.uiPreferences,
       restarting: false,
       version: APP_VERSION,
@@ -4010,6 +4295,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
+      const { preferences: effectivePreferences, status: calendarSyncStatus } = await resolveSharedCalendarPreferences(sessionConfig.uiPreferences);
       const [configResp, ticketsRawBase, rushSyncListingResult] = await Promise.all([
         rdTicketCounter(apiBase, 'tcd/tcd_configuration', { token }),
         fetchAllTicketCounterPages(apiBase, 'tcd/tickets_by_date', { token }),
@@ -4025,7 +4311,7 @@ const server = http.createServer(async (req, res) => {
       const { mergedPayload: ticketsRaw } = mergeTicketCounterRowsWithRushSyncFallback(
         ticketsRawBase,
         rushSyncListingResult.rows,
-        sessionConfig.uiPreferences
+        effectivePreferences
       );
       const configRaw = parseJsonSafe(configResp.body);
       if (configResp.status !== 200 || !configRaw || Number(configRaw.status) !== 1) {
@@ -4098,9 +4384,10 @@ const server = http.createServer(async (req, res) => {
           configRaw,
           ticketsForPayload,
           queueMetaByOrderId,
-          sessionConfig.uiPreferences,
+          effectivePreferences,
           rushSyncMap,
-          rushSyncListingResult.status
+          rushSyncListingResult.status,
+          calendarSyncStatus
         )
       ));
     } catch (e) {
