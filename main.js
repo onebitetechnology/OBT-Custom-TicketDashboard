@@ -18,6 +18,7 @@ let mainWindow = null;
 let serverProcess = null;
 let serverPort = null;
 let updateCheckTimer = null;
+let displayReapplyTimer = null;
 const PREFERRED_SERVER_PORT = Number(process.env.PREFERRED_PORT || 54338);
 let updateStatus = {
   supported: true,
@@ -494,6 +495,21 @@ function applyWindowPreferences(preferences = {}) {
   return nextPreferences;
 }
 
+function reapplySavedWindowPreferences() {
+  if (!mainWindow) return;
+  const preferences = loadWindowPreferences();
+  applyWindowPreferences(preferences);
+}
+
+function scheduleReapplyWindowPreferences(delayMs = 1200) {
+  if (!mainWindow) return;
+  if (displayReapplyTimer) clearTimeout(displayReapplyTimer);
+  displayReapplyTimer = setTimeout(() => {
+    displayReapplyTimer = null;
+    reapplySavedWindowPreferences();
+  }, delayMs);
+}
+
 function findOpenPort(preferredPort = PREFERRED_SERVER_PORT) {
   const tryPort = (port) => new Promise((resolve, reject) => {
     const server = net.createServer();
@@ -818,6 +834,7 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   app.isQuitting = true;
   if (updateCheckTimer) clearInterval(updateCheckTimer);
+  if (displayReapplyTimer) clearTimeout(displayReapplyTimer);
   stopBundledServer();
 });
 
@@ -826,6 +843,9 @@ app.whenReady().then(async () => {
     await startBundledServer();
     await createMainWindow();
     setupAutoUpdates();
+    screen.on('display-added', () => scheduleReapplyWindowPreferences());
+    screen.on('display-removed', () => scheduleReapplyWindowPreferences());
+    screen.on('display-metrics-changed', () => scheduleReapplyWindowPreferences());
   } catch (error) {
     dialog.showErrorBox('Startup failed', error.message);
     app.quit();
