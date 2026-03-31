@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.48
+
+- Reapply the saved display target automatically when Windows adds or changes displays, so boards aimed at a TV can move themselves over when the TV powers on after the computer.
+
 ## v2.1.68-beta.47
 
 - Added shared calendar-block sync settings so one board can host blocked appointment days and other boards on the same network can follow and merge them.
