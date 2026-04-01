@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.56
+
+- Polished `Connections & Sync > Sync` so the `Search Network` button has clearer search/found/not-found states, the host URL reads as a manual fallback for troubleshooting, and sync checkbox copy now adapts based on whether the board is hosting or following shared settings.
+
 ## v2.1.68-beta.55
 
 - Cleaned up the connection fields in `Connections & Sync > Connections` so the Ticket Counter URL and API key use compact single-line masked inputs, while the RepairDesk session cookie uses a cleaner two-row field with a smaller reveal button.
