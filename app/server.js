@@ -12,7 +12,7 @@ const os = require('os');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.68-beta.56';
+const APP_VERSION = 'v2.1.68-beta.57';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -2071,7 +2071,9 @@ function collectRushSignals(value, sink, pathParts = [], depth = 0) {
 }
 
 function isScheduledServiceName(value, preferences = DEFAULT_UI_PREFERENCES) {
-  return false;
+  const text = String(value || '').trim().toLowerCase();
+  if (!text) return false;
+  return /(tech support|on[\s-]?site support|remote support|house ?call|appointment|scheduled service|consultation|onsite support)/i.test(text);
 }
 
 function isCalendarAppointmentTicket(ticket, preferences = DEFAULT_UI_PREFERENCES) {
@@ -2124,10 +2126,10 @@ function startOfCurrentWeekMonday(now = new Date()) {
 }
 
 async function fetchScheduledAppointmentFallbackRows(existingOrderIds = new Set(), options = {}) {
-  const maxPages = Math.max(1, Number(options.maxPages || 2) || 2);
-  const maxCandidates = Math.max(1, Number(options.maxCandidates || 40) || 40);
-  const lookbackDays = Math.max(1, Number(options.lookbackDays || 30) || 30);
-  const calendarWindowDays = Math.max(7, Number(options.calendarWindowDays || 14) || 14);
+  const maxPages = Math.max(1, Number(options.maxPages || 6) || 6);
+  const maxCandidates = Math.max(1, Number(options.maxCandidates || 120) || 120);
+  const lookbackDays = Math.max(1, Number(options.lookbackDays || 90) || 90);
+  const calendarWindowDays = Math.max(7, Number(options.calendarWindowDays || 21) || 21);
   const lookbackCutoffUnix = Math.floor((Date.now() - (lookbackDays * 86400 * 1000)) / 1000);
   const monday = startOfCurrentWeekMonday(new Date());
   const windowStartMs = monday.getTime();
@@ -2165,8 +2167,17 @@ async function fetchScheduledAppointmentFallbackRows(existingOrderIds = new Set(
     }
 
     const dueAt = Number(meta?.dueAt || 0) || null;
-    const isScheduled = /scheduled/i.test(String(meta?.serviceSearchText || ''));
-    if (!dueAt || !isScheduled) continue;
+    const combinedMetaText = [
+      meta?.repairCategory,
+      meta?.serviceName,
+      meta?.serviceSearchText,
+    ].filter(Boolean).join(', ');
+    const qualifiesAsAppointment = !!dueAt && (
+      /scheduled/i.test(String(meta?.serviceSearchText || ''))
+      || isScheduledServiceName(combinedMetaText, sessionConfig.uiPreferences)
+      || /tech support/i.test(combinedMetaText)
+    );
+    if (!qualifiesAsAppointment) continue;
     if (dueAt < windowStartMs || dueAt >= windowEndMs) continue;
 
     const customer = summary?.customer || {};

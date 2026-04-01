@@ -327,6 +327,32 @@ function seedDataFiles() {
   }
 }
 
+function migrateLegacyDataFiles() {
+  ensureDataDir();
+  const legacyDir = getBundledAppDir();
+  const targetDir = getDataDir();
+  const fileNames = [
+    'config.json',
+    'update-preferences.json',
+    'category-rules.json',
+    'consignment-rules.json',
+    'invoice-detail-cache.json',
+    'ticket-meta-cache.json',
+  ];
+
+  fileNames.forEach((fileName) => {
+    const legacyPath = path.join(legacyDir, fileName);
+    const targetPath = path.join(targetDir, fileName);
+    if (!fs.existsSync(legacyPath) || fs.existsSync(targetPath)) return;
+    try {
+      fs.copyFileSync(legacyPath, targetPath);
+      console.log(`[migrate] Copied legacy ${fileName} into user data.`);
+    } catch (error) {
+      console.warn(`[migrate] Could not copy legacy ${fileName}: ${error.message}`);
+    }
+  });
+}
+
 function summarizeConfigForSupport() {
   try {
     ensureDataDir();
@@ -548,6 +574,7 @@ function waitForServer(port, timeoutMs = 20000) {
 
 async function startBundledServer() {
   ensureDataDir();
+  migrateLegacyDataFiles();
   seedDataFiles();
   serverPort = await findOpenPort();
 
