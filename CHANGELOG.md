@@ -2,6 +2,10 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.58
+
+- Fixed the settings drawer so long sections scroll reliably on cramped displays, with the bottom Save/Close actions staying reachable instead of disappearing below the viewport.
+
 ## v2.1.68-beta.57
 
 - Added a legacy data migration step so older bundled config/cache files are copied into the app's user-data folder on startup, helping saved settings survive updates on installs that were still using the older storage location.
