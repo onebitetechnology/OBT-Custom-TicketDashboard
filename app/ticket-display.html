@@ -1227,6 +1227,7 @@
     backdrop-filter: blur(18px);
     overflow: hidden;
     flex-direction: column;
+    min-height: 0;
   }
 
   .settings-drawer.open {
@@ -1518,6 +1519,9 @@
     align-content: start;
     gap: 14px;
     padding-right: 2px;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
   .settings-nav-card {
@@ -1589,12 +1593,14 @@
     min-width: 0;
     min-height: 0;
     height: 100%;
+    flex: 1 1 auto;
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-gutter: stable;
     padding-right: 4px;
     display: grid;
     overscroll-behavior: contain;
+    padding-bottom: 12px;
   }
 
   .settings-panel {
@@ -2354,6 +2360,9 @@
     padding-top: 12px;
     border-top: 1px solid rgba(255,255,255,0.08);
     background: rgba(14, 20, 32, 0.985);
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
   }
 
   .settings-status {
@@ -2975,7 +2984,8 @@
       grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     }
     .settings-panel-stage {
-      overflow: visible;
+      overflow-y: auto;
+      overflow-x: hidden;
     }
     .settings-grid {
       grid-template-columns: 1fr;
