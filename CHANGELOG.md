@@ -2,6 +2,12 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.57
+
+- Added a legacy data migration step so older bundled config/cache files are copied into the app's user-data folder on startup, helping saved settings survive updates on installs that were still using the older storage location.
+- Made the welcome/setup popup more conservative so it only appears when configuration is truly missing, instead of flashing during a transient startup/config read problem.
+- Strengthened scheduled appointment fallback detection for missing Ticket Counter appointments by scanning more candidate tickets and recognizing on-site / tech-support style scheduled services more reliably.
+
 ## v2.1.68-beta.56
 
 - Polished `Connections & Sync > Sync` so the `Search Network` button has clearer search/found/not-found states, the host URL reads as a manual fallback for troubleshooting, and sync checkbox copy now adapts based on whether the board is hosting or following shared settings.

@@ -7519,11 +7519,17 @@
   async function loadFeed() {
     const urlToken = String(params().get('token') || '').trim();
     const urlDisplayUrl = String(params().get('displayUrl') || '').trim();
-    const config = await loadApiConfig().catch(() => ({ apiKey: '', ticketCounterDisplayUrl: '' }));
+    const config = await loadApiConfig().catch(() => null);
+    if (!config && !urlDisplayUrl && !urlToken) {
+      renderError('Could not load saved board settings yet. Please reopen the app in a moment.');
+      return;
+    }
     const displayUrl = urlDisplayUrl || String(config?.ticketCounterDisplayUrl || '').trim();
     if (!displayUrl && !urlToken) {
       renderError('Missing Ticket Counter Display URL. Add it in Settings or complete the welcome setup.');
-      maybeShowWelcome(config).catch(() => {});
+      if (config) {
+        maybeShowWelcome(config).catch(() => {});
+      }
       return;
     }
 
@@ -7541,7 +7547,9 @@
       setupPaging();
       setupRefresh();
       setupCalendarRotation();
-      maybeShowWelcome(config).catch(() => {});
+      if (config) {
+        maybeShowWelcome(config).catch(() => {});
+      }
     } catch (error) {
       renderError(error.message || 'Could not load the RepairDesk ticket feed.');
     }
