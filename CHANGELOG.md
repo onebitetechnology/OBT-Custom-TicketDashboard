@@ -11,6 +11,10 @@ All notable changes to One Bite Ticket Display Desktop should be recorded in thi
 - Let logos keep non-square aspect ratios in both the settings preview and the live top bar.
 - Removed the old AutoSpec reference copy from `Updates & Maintenance`.
 
+## v2.1.68-beta.51
+
+- Reissued the same settings cleanup and connection-field polish from `beta.50` as a fresh beta version so the update can be pushed again cleanly.
+
 ## v2.1.68-beta.49
 
 - Reworked the settings drawer into a left-nav/right-content layout so the app’s deeper configuration is easier to scan and navigate.

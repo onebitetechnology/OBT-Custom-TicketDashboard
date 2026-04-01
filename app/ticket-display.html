@@ -1482,7 +1482,7 @@
     background: linear-gradient(180deg, rgba(10, 18, 31, 0.96), rgba(8, 14, 24, 0.9));
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
     display: grid;
-    gap: 14px;
+    gap: 10px;
   }
 
   .settings-nav-title {
@@ -1492,13 +1492,6 @@
     letter-spacing: 0.18em;
     text-transform: uppercase;
     color: #8ea6c5;
-  }
-
-  .settings-nav-copy {
-    margin: 0;
-    color: #c3d3e9;
-    font-size: 13px;
-    line-height: 1.45;
   }
 
   .settings-nav-list {
@@ -1976,41 +1969,41 @@
   .settings-sensitive-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 10px;
-    align-items: start;
+    gap: 8px;
+    align-items: center;
   }
 
   .settings-sensitive-control {
     width: 100%;
+    min-height: 44px;
   }
 
   .settings-sensitive-control.masked {
     -webkit-text-security: disc;
-    filter: blur(5px);
-    color: rgba(236, 245, 255, 0.8);
     user-select: none;
-    transition: filter 140ms ease;
-  }
-
-  .settings-sensitive-control.masked:focus {
-    filter: blur(0);
   }
 
   .settings-sensitive-control.revealed {
-    filter: none;
     user-select: text;
   }
 
   .settings-sensitive-toggle {
-    min-height: 52px;
-    min-width: 54px;
-    padding: 0 14px;
-    align-self: stretch;
+    min-height: 40px;
+    min-width: 40px;
+    padding: 0 10px;
+    font-size: 14px;
+    align-self: center;
   }
 
   .settings-sensitive-toggle[data-state="revealed"] {
     border-color: rgba(110, 231, 200, 0.38);
     background: rgba(18, 31, 49, 0.92);
+  }
+
+  .settings-sensitive-row .settings-textarea {
+    min-height: 44px;
+    height: 44px;
+    resize: none;
   }
 
   .settings-logo-preview {
@@ -3778,7 +3771,7 @@
     <div class="brand-subsections">
       <section class="brand-subsection collapsible-subsection">
         <h4 class="brand-subsection-title">Connections</h4>
-        <p class="brand-subsection-copy">These are the direct RepairDesk inputs this board uses to read queue data and enrich ticket details.</p>
+        <p class="brand-subsection-copy">These are the direct RepairDesk inputs this board uses to read queue data, enrich ticket details, and optionally connect to the authenticated RepairDesk fallback feed.</p>
         <div class="settings-grid">
           <label class="settings-field full">
             <span class="settings-label">Ticket Counter Display URL</span>
@@ -3796,30 +3789,23 @@
             </div>
             <span class="settings-help">Used for the extra RepairDesk detail lookups that power waiting age, priority detection, and appointment enrichment.</span>
           </label>
-        </div>
-      </section>
-
-      <section class="brand-subsection collapsible-subsection">
-        <h4 class="brand-subsection-title">Sync</h4>
-        <p class="brand-subsection-copy">Connect to RepairDesk for true Priority tickets and optionally share selected settings from one board to the others on your network.</p>
-        <div class="settings-grid">
           <label class="settings-field full">
-            <span class="settings-label">Enhanced RepairDesk Sync</span>
+            <span class="settings-label">Enhanced RepairDesk Connection</span>
             <span class="settings-check">
               <input class="settings-checkbox" id="rush-sync-enabled" type="checkbox" />
               <span class="settings-check-copy">
-                <span class="settings-check-title">Use a RepairDesk session cookie for true Priority tickets and missing-ticket fallback</span>
-                <span class="settings-help">Optional, but recommended. When the normal Ticket Counter feed leaves tickets out, this authenticated sync helps recover them. If it disconnects, the board falls back gracefully.</span>
+                <span class="settings-check-title">Use an authenticated RepairDesk session for true Priority tickets and missing-ticket fallback</span>
+                <span class="settings-help">Optional, but recommended. When the normal Ticket Counter feed leaves tickets out, this authenticated connection helps recover them. If it disconnects, the board falls back gracefully.</span>
               </span>
             </span>
           </label>
           <div class="settings-field full" id="rush-sync-connect-field">
-            <span class="settings-label">Enhanced RepairDesk Sync status</span>
+            <span class="settings-label">Enhanced RepairDesk Connection status</span>
             <div class="settings-sync-status">
               <span class="settings-status-light" id="rush-sync-status-light" data-state="disabled" aria-hidden="true"></span>
-              <div class="settings-inline-status" id="rush-sync-status-copy">Enhanced RepairDesk Sync is disabled.</div>
+              <div class="settings-inline-status" id="rush-sync-status-copy">Enhanced RepairDesk Connection is disabled.</div>
             </div>
-            <span class="settings-help">Paste the current RepairDesk session cookie for this machine below. If the sync drops, the board will prompt you to open Settings and paste a fresh cookie.</span>
+            <span class="settings-help">Paste the current RepairDesk session cookie for this machine below. If the connection drops, the board will prompt you to open Settings and paste a fresh cookie.</span>
           </div>
           <label class="settings-field full" id="rush-sync-cookie-field">
             <span class="settings-label">RepairDesk session cookie</span>
@@ -3829,7 +3815,13 @@
             </div>
             <span class="settings-help">Paste the full <code>Cookie:</code> value from a logged-in RepairDesk browser session for this store. This is sensitive and should only be used on the local board computer.</span>
           </label>
+        </div>
+      </section>
 
+      <section class="brand-subsection collapsible-subsection">
+        <h4 class="brand-subsection-title">Sync</h4>
+        <p class="brand-subsection-copy">Choose which settings this board should host for the store, or follow from another board on the network.</p>
+        <div class="settings-grid">
           <section class="settings-field full subtle-panel">
             <span class="settings-label">Shared Store Settings</span>
             <div class="settings-grid compact-2">
@@ -3847,8 +3839,7 @@
                 <input class="settings-input" id="pref-shared-calendar-host-url" placeholder="http://192.168.1.50:54338" />
                 <span class="settings-help">On follower boards, enter the host board's local network URL. The default desktop-app port is usually <code>54338</code>.</span>
               </label>
-              <label class="settings-field">
-                <span class="settings-label">Shared settings</span>
+              <label class="settings-field align-end">
                 <span class="settings-check">
                   <input class="settings-checkbox" id="pref-shared-calendar-sync-calendar-blocks" type="checkbox" />
                   <span class="settings-check-copy">
@@ -3857,8 +3848,7 @@
                   </span>
                 </span>
               </label>
-              <label class="settings-field">
-                <span class="settings-label">Shared settings</span>
+              <label class="settings-field align-end">
                 <span class="settings-check">
                   <input class="settings-checkbox" id="pref-shared-calendar-sync-appointments" type="checkbox" />
                   <span class="settings-check-copy">
@@ -3867,8 +3857,7 @@
                   </span>
                 </span>
               </label>
-              <label class="settings-field">
-                <span class="settings-label">Shared settings</span>
+              <label class="settings-field align-end">
                 <span class="settings-check">
                   <input class="settings-checkbox" id="pref-shared-calendar-sync-brand" type="checkbox" />
                   <span class="settings-check-copy">
@@ -3877,8 +3866,7 @@
                   </span>
                 </span>
               </label>
-              <label class="settings-field">
-                <span class="settings-label">Shared settings</span>
+              <label class="settings-field align-end">
                 <span class="settings-check">
                   <input class="settings-checkbox" id="pref-shared-calendar-sync-display" type="checkbox" />
                   <span class="settings-check-copy">
@@ -3887,8 +3875,7 @@
                   </span>
                 </span>
               </label>
-              <label class="settings-field">
-                <span class="settings-label">Shared settings</span>
+              <label class="settings-field align-end">
                 <span class="settings-check">
                   <input class="settings-checkbox" id="pref-shared-calendar-sync-ticket-details" type="checkbox" />
                   <span class="settings-check-copy">
@@ -3897,8 +3884,7 @@
                   </span>
                 </span>
               </label>
-              <label class="settings-field">
-                <span class="settings-label">Shared settings</span>
+              <label class="settings-field align-end">
                 <span class="settings-check">
                   <input class="settings-checkbox" id="pref-shared-calendar-sync-columns" type="checkbox" />
                   <span class="settings-check-copy">
@@ -3907,8 +3893,7 @@
                   </span>
                 </span>
               </label>
-              <label class="settings-field">
-                <span class="settings-label">Shared settings</span>
+              <label class="settings-field align-end">
                 <span class="settings-check">
                   <input class="settings-checkbox" id="pref-shared-calendar-sync-updates" type="checkbox" />
                   <span class="settings-check-copy">
@@ -4642,10 +4627,10 @@
 <div class="warning-overlay" id="rush-sync-overlay">
   <div class="warning-card">
     <div>
-      <h2 class="warning-title">RepairDesk Sync Disconnected</h2>
-      <p class="warning-subtitle">The board can still run, but the enhanced RepairDesk sync needs you to log back in.</p>
+      <h2 class="warning-title">RepairDesk Connection Disconnected</h2>
+      <p class="warning-subtitle">The board can still run, but the enhanced RepairDesk connection needs you to reconnect it.</p>
     </div>
-    <div class="warning-copy" id="rush-sync-popup-copy">The board has switched back to Ticket Counter data and fee-based Priority detection until RepairDesk Sync reconnects.</div>
+    <div class="warning-copy" id="rush-sync-popup-copy">The board has switched back to Ticket Counter data and fee-based Priority detection until the enhanced RepairDesk connection is restored.</div>
     <div class="warning-actions">
       <button class="pill" id="rush-sync-popup-dismiss" type="button">Dismiss</button>
       <button class="pill" id="rush-sync-popup-reconnect" type="button">Open Sync Settings</button>
@@ -5083,7 +5068,6 @@
     nav.innerHTML = `
       <section class="settings-nav-card">
         <div class="settings-nav-title">Control Room</div>
-        <p class="settings-nav-copy">Use the left nav to jump between focused settings panels instead of opening one long wall of controls.</p>
         <div class="settings-nav-list" id="settings-nav-list"></div>
       </section>
     `;
@@ -5301,15 +5285,15 @@
   }
 
   function rushSyncStatusText(status = {}) {
-    if (!status.enabled) return 'Enhanced RepairDesk Sync is off. The board is using Ticket Counter data and fee-based Priority detection only.';
-    if (!status.configured) return 'Enhanced RepairDesk Sync is on, but this computer still needs a valid RepairDesk session cookie.';
+    if (!status.enabled) return 'Enhanced RepairDesk Connection is off. The board is using Ticket Counter data and fee-based Priority detection only.';
+    if (!status.configured) return 'Enhanced RepairDesk Connection is on, but this computer still needs a valid RepairDesk session cookie.';
     if (status.connected) {
       const checkedAt = status.lastCheckedAt
         ? ` Last checked ${new Date(status.lastCheckedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`
         : '';
-      return `Enhanced RepairDesk Sync is connected and watching ${Number(status.ticketCount || 0)} RepairDesk tickets (${Number(status.rushCount || 0)} true Priority).${checkedAt}`;
+      return `Enhanced RepairDesk Connection is connected and watching ${Number(status.ticketCount || 0)} RepairDesk tickets (${Number(status.rushCount || 0)} true Priority).${checkedAt}`;
     }
-    return `Enhanced RepairDesk Sync is disconnected. Falling back to Ticket Counter data and fee-based Priority detection.${status.lastError ? ` ${status.lastError}` : ''}`;
+    return `Enhanced RepairDesk Connection is disconnected. Falling back to Ticket Counter data and fee-based Priority detection.${status.lastError ? ` ${status.lastError}` : ''}`;
   }
 
   function renderRushSyncStatus(status = {}) {
@@ -5341,7 +5325,7 @@
       return;
     }
     qs('rush-sync-popup-copy').textContent = status.lastError
-      ? `RepairDesk Sync could not reach RepairDesk: ${status.lastError}\n\nThe board is still running and has fallen back to Ticket Counter data plus fee-based Priority detection until you paste a fresh session cookie.`
+      ? `RepairDesk Connection could not reach RepairDesk: ${status.lastError}\n\nThe board is still running and has fallen back to Ticket Counter data plus fee-based Priority detection until you paste a fresh session cookie.`
       : 'The board has switched back to Ticket Counter data plus fee-based Priority detection until you paste a fresh session cookie.';
     overlay.classList.add('open');
   }
