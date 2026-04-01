@@ -18,6 +18,11 @@
     --brand-title-size: clamp(28px, 3vw, 42px);
     --ticker-text-color: #dbeafe;
     --ticker-font-size: 18px;
+    --column-header-title-scale: 1;
+    --column-header-count-scale: 1;
+    --column-header-text: #f3f8ff;
+    --column-header-overlay-rgb: 255, 255, 255;
+    --column-header-overlay-opacity: 0.1;
     --surface: rgba(11, 22, 38, 0.82);
     --surface-strong: rgba(17, 30, 49, 0.96);
     --line: rgba(180, 209, 255, 0.12);
@@ -289,6 +294,29 @@
     color: rgba(255,255,255,0.42);
     border-color: rgba(255,255,255,0.1);
     background: rgba(255,255,255,0.03);
+  }
+
+  .pill.ready-update {
+    border-color: rgba(250, 204, 21, 0.82);
+    background: linear-gradient(180deg, #fde047 0%, #f59e0b 100%);
+    color: #2b1600;
+    box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.26), 0 12px 28px rgba(245, 158, 11, 0.34);
+    animation: readyUpdatePulse 1.7s ease-in-out infinite;
+  }
+
+  .pill.ready-update:hover:not(:disabled) {
+    box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.34), 0 14px 30px rgba(245, 158, 11, 0.4);
+  }
+
+  @keyframes readyUpdatePulse {
+    0%, 100% {
+      transform: scale(1);
+      box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.24), 0 10px 24px rgba(245, 158, 11, 0.28);
+    }
+    50% {
+      transform: scale(1.02);
+      box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.2), 0 16px 34px rgba(245, 158, 11, 0.42);
+    }
   }
 
   .headline-pills .pill {
@@ -654,9 +682,9 @@
   }
 
   .board-title {
-    font-size: 22px;
+    font-size: calc(22px * var(--column-header-title-scale));
     font-weight: 950;
-    color: var(--text);
+    color: var(--column-header-text);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     line-height: 1.15;
@@ -844,6 +872,23 @@
     padding: 14px 16px;
     min-height: 78px;
     background: rgba(255,255,255,0.08);
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .queue-column-head::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(var(--column-header-overlay-rgb), var(--column-header-overlay-opacity));
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .queue-column-head > * {
+    position: relative;
+    z-index: 1;
   }
 
   .queue-column-head.tone-pink {
@@ -883,10 +928,10 @@
   }
 
   .queue-column-head .pill {
-    font-size: 15px;
+    font-size: calc(15px * var(--column-header-count-scale));
     font-weight: 800;
     padding: 10px 12px;
-    color: #fff;
+    color: var(--column-header-text);
     background: rgba(255,255,255,0.16);
     border-color: rgba(255,255,255,0.22);
     justify-self: auto;
@@ -1597,7 +1642,7 @@
 
   .settings-live-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 12px;
   }
 
@@ -1937,6 +1982,32 @@
     border-radius: 10px;
   }
 
+  .settings-color-control {
+    display: grid;
+    grid-template-columns: auto minmax(94px, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .settings-color-control .settings-input[type="color"] {
+    margin: 0;
+  }
+
+  .settings-color-hex {
+    min-height: 44px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+
+  .settings-color-reset {
+    min-height: 44px;
+    min-width: 72px;
+    padding: 0 12px;
+    white-space: nowrap;
+  }
+
   .settings-input:focus,
   .settings-textarea:focus,
   .settings-select:focus {
@@ -1978,6 +2049,11 @@
     min-height: 44px;
   }
 
+  .settings-sensitive-control.settings-input {
+    min-height: 42px;
+    padding: 10px 12px;
+  }
+
   .settings-sensitive-control.masked {
     -webkit-text-security: disc;
     user-select: none;
@@ -1988,10 +2064,10 @@
   }
 
   .settings-sensitive-toggle {
-    min-height: 40px;
-    min-width: 40px;
-    padding: 0 10px;
-    font-size: 14px;
+    min-height: 34px;
+    min-width: 34px;
+    padding: 0 8px;
+    font-size: 12px;
     align-self: center;
   }
 
@@ -2004,6 +2080,23 @@
     min-height: 44px;
     height: 44px;
     resize: none;
+  }
+
+  .settings-sensitive-row.cookie-row {
+    align-items: start;
+  }
+
+  .settings-sensitive-row.cookie-row .settings-textarea {
+    min-height: 76px;
+    height: 76px;
+    resize: vertical;
+    overflow-y: auto;
+    padding: 10px 12px;
+  }
+
+  .settings-sensitive-row.cookie-row .settings-sensitive-toggle {
+    align-self: start;
+    margin-top: 4px;
   }
 
   .settings-logo-preview {
@@ -3063,6 +3156,28 @@
     justify-content: flex-start;
   }
 
+  body[data-column-header-layout="inline"] .queue-column-head {
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  body[data-column-header-layout="inline"] .queue-column-head .pill {
+    margin-left: auto;
+    align-self: center;
+  }
+
+  body[data-column-header-layout="stacked"] .queue-column-head {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+
+  body[data-column-header-layout="stacked"] .queue-column-head .pill {
+    margin-left: 0;
+    align-self: flex-start;
+  }
+
   body.force-vertical .board-title,
   body.force-horizontal .board-title {
     font-size: 15px;
@@ -3776,7 +3891,7 @@
           <label class="settings-field full">
             <span class="settings-label">Ticket Counter Display URL</span>
             <div class="settings-sensitive-row">
-              <textarea class="settings-textarea settings-sensitive-control" id="ticket-counter-url" data-sensitive-input="ticket-counter-url"></textarea>
+              <input class="settings-input settings-sensitive-control" id="ticket-counter-url" data-sensitive-input="ticket-counter-url" type="text" />
               <button class="pill secondary settings-sensitive-toggle" type="button" data-sensitive-toggle="ticket-counter-url" aria-label="Reveal Ticket Counter Display URL">👁</button>
             </div>
             <span class="settings-help">This powers the main queue feed. In RepairDesk, go to 9 dots &gt; Integrations &gt; Ticket Counter Display, click Copy Display URL, and paste the full URL here.</span>
@@ -3784,7 +3899,7 @@
           <label class="settings-field full">
             <span class="settings-label">RepairDesk API key</span>
             <div class="settings-sensitive-row">
-              <textarea class="settings-textarea settings-sensitive-control" id="api-key" data-sensitive-input="api-key"></textarea>
+              <input class="settings-input settings-sensitive-control" id="api-key" data-sensitive-input="api-key" type="text" />
               <button class="pill secondary settings-sensitive-toggle" type="button" data-sensitive-toggle="api-key" aria-label="Reveal RepairDesk API key">👁</button>
             </div>
             <span class="settings-help">Used for the extra RepairDesk detail lookups that power waiting age, priority detection, and appointment enrichment.</span>
@@ -3809,7 +3924,7 @@
           </div>
           <label class="settings-field full" id="rush-sync-cookie-field">
             <span class="settings-label">RepairDesk session cookie</span>
-            <div class="settings-sensitive-row">
+            <div class="settings-sensitive-row cookie-row">
               <textarea class="settings-textarea settings-sensitive-control" id="rush-sync-cookie" data-sensitive-input="rush-sync-cookie"></textarea>
               <button class="pill secondary settings-sensitive-toggle" type="button" data-sensitive-toggle="rush-sync-cookie" aria-label="Reveal RepairDesk session cookie">👁</button>
             </div>
@@ -3822,6 +3937,11 @@
         <h4 class="brand-subsection-title">Sync</h4>
         <p class="brand-subsection-copy">Choose which settings this board should host for the store, or follow from another board on the network.</p>
         <div class="settings-grid">
+          <label class="settings-field align-end">
+            <span class="settings-label">This board name</span>
+            <input class="settings-input" id="pref-shared-calendar-board-name" placeholder="Rear TV - Host" />
+            <span class="settings-help">Give this install a friendly name so other boards can discover and select it more easily on the network.</span>
+          </label>
           <section class="settings-field full subtle-panel">
             <span class="settings-label">Shared Store Settings</span>
             <div class="settings-grid compact-2">
@@ -3839,6 +3959,16 @@
                 <input class="settings-input" id="pref-shared-calendar-host-url" placeholder="http://192.168.1.50:54338" />
                 <span class="settings-help">On follower boards, enter the host board's local network URL. The default desktop-app port is usually <code>54338</code>.</span>
               </label>
+              <div class="settings-field full" id="shared-calendar-discovery-field">
+                <span class="settings-label">Find host on the network</span>
+                <div class="settings-grid compact-2">
+                  <button class="pill secondary" id="shared-calendar-discover-hosts" type="button">Search Network</button>
+                  <select class="settings-input settings-select" id="pref-shared-calendar-discovered-host">
+                    <option value="">No hosts discovered yet</option>
+                  </select>
+                </div>
+                <span class="settings-help" id="shared-calendar-discovery-copy">Searches your local network for other boards that are actively hosting shared store settings.</span>
+              </div>
               <label class="settings-field align-end">
                 <span class="settings-check">
                   <input class="settings-checkbox" id="pref-shared-calendar-sync-calendar-blocks" type="checkbox" />
@@ -3957,7 +4087,11 @@
           </label>
           <label class="settings-field">
             <span class="settings-label">Header colour</span>
-            <input class="settings-input" id="pref-brand-header-color" type="color" />
+            <div class="settings-color-control" data-color-control="pref-brand-header-color" data-default-color="#ecf3ff">
+              <input class="settings-input" id="pref-brand-header-color" type="color" />
+              <input class="settings-input settings-color-hex" id="pref-brand-header-color-hex" type="text" inputmode="text" spellcheck="false" maxlength="7" />
+              <button class="pill secondary settings-color-reset" type="button" data-color-reset="pref-brand-header-color">Reset</button>
+            </div>
           </label>
           <label class="settings-field">
             <span class="settings-label">Header size</span>
@@ -3993,7 +4127,11 @@
           </label>
           <label class="settings-field">
             <span class="settings-label">Ticker font colour</span>
-            <input class="settings-input" id="pref-brand-ticker-text-color" type="color" />
+            <div class="settings-color-control" data-color-control="pref-brand-ticker-text-color" data-default-color="#dbeafe">
+              <input class="settings-input" id="pref-brand-ticker-text-color" type="color" />
+              <input class="settings-input settings-color-hex" id="pref-brand-ticker-text-color-hex" type="text" inputmode="text" spellcheck="false" maxlength="7" />
+              <button class="pill secondary settings-color-reset" type="button" data-color-reset="pref-brand-ticker-text-color">Reset</button>
+            </div>
           </label>
           <label class="settings-field">
             <span class="settings-label">Ticker font size</span>
@@ -4041,11 +4179,19 @@
           </label>
           <label class="settings-field">
             <span class="settings-label">Background colour</span>
-            <input class="settings-input" id="pref-brand-background-start" type="color" />
+            <div class="settings-color-control" data-color-control="pref-brand-background-start" data-default-color="#08111f">
+              <input class="settings-input" id="pref-brand-background-start" type="color" />
+              <input class="settings-input settings-color-hex" id="pref-brand-background-start-hex" type="text" inputmode="text" spellcheck="false" maxlength="7" />
+              <button class="pill secondary settings-color-reset" type="button" data-color-reset="pref-brand-background-start">Reset</button>
+            </div>
           </label>
           <label class="settings-field">
             <span class="settings-label">Background fade colour</span>
-            <input class="settings-input" id="pref-brand-background-end" type="color" />
+            <div class="settings-color-control" data-color-control="pref-brand-background-end" data-default-color="#0d1a2b">
+              <input class="settings-input" id="pref-brand-background-end" type="color" />
+              <input class="settings-input settings-color-hex" id="pref-brand-background-end-hex" type="text" inputmode="text" spellcheck="false" maxlength="7" />
+              <button class="pill secondary settings-color-reset" type="button" data-color-reset="pref-brand-background-end">Reset</button>
+            </div>
           </label>
         </div>
       </section>
@@ -4061,12 +4207,20 @@
           </label>
           <label class="settings-field">
             <span class="settings-label">Primary colour</span>
-            <input class="settings-input" id="pref-brand-text-color" type="color" />
+            <div class="settings-color-control" data-color-control="pref-brand-text-color" data-default-color="#ecf3ff">
+              <input class="settings-input" id="pref-brand-text-color" type="color" />
+              <input class="settings-input settings-color-hex" id="pref-brand-text-color-hex" type="text" inputmode="text" spellcheck="false" maxlength="7" />
+              <button class="pill secondary settings-color-reset" type="button" data-color-reset="pref-brand-text-color">Reset</button>
+            </div>
             <span class="settings-help">Used for the main board text colour.</span>
           </label>
           <label class="settings-field">
             <span class="settings-label">Accent colour</span>
-            <input class="settings-input" id="pref-brand-accent-color" type="color" />
+            <div class="settings-color-control" data-color-control="pref-brand-accent-color" data-default-color="#6ee7c8">
+              <input class="settings-input" id="pref-brand-accent-color" type="color" />
+              <input class="settings-input settings-color-hex" id="pref-brand-accent-color-hex" type="text" inputmode="text" spellcheck="false" maxlength="7" />
+              <button class="pill secondary settings-color-reset" type="button" data-color-reset="pref-brand-accent-color">Reset</button>
+            </div>
           </label>
         </div>
       </section>
@@ -4122,6 +4276,16 @@
         <div class="settings-live-help" id="window-display-viewport-copy">Waiting for desktop metadata…</div>
       </div>
       <div class="settings-live-card">
+        <div class="settings-live-label">Screen space</div>
+        <div class="settings-live-value" id="window-display-screen-value">--</div>
+        <div class="settings-live-help" id="window-display-screen-copy">Scaled screen metrics will appear here.</div>
+      </div>
+      <div class="settings-live-card">
+        <div class="settings-live-label">Detected displays</div>
+        <div class="settings-live-value" id="window-display-detected-value">--</div>
+        <div class="settings-live-help" id="window-display-detected-copy">Waiting for the desktop wrapper to list connected displays.</div>
+      </div>
+      <div class="settings-live-card">
         <div class="settings-live-label">Saved target</div>
         <div class="settings-live-value" id="window-display-target-value">--</div>
         <div class="settings-live-help" id="window-display-target-copy">Choose which display the packaged app should reopen on.</div>
@@ -4130,6 +4294,11 @@
         <div class="settings-live-label">Window mode</div>
         <div class="settings-live-value" id="window-display-mode-value">--</div>
         <div class="settings-live-help" id="window-display-mode-copy">Fullscreen and density settings are saved per install.</div>
+      </div>
+      <div class="settings-live-card">
+        <div class="settings-live-label">Local board URL</div>
+        <div class="settings-live-value" id="window-display-network-value">--</div>
+        <div class="settings-live-help" id="window-display-network-copy">Use this when another board on the network needs to follow this install.</div>
       </div>
     </div>
     <div class="brand-subsections">
@@ -4447,6 +4616,54 @@
   <div class="settings-section settings-panel" id="columns-section">
     <h3>Columns</h3>
     <div class="settings-section-copy">Configure what each queue column is called, whether it is shown, and which RepairDesk statuses feed into it. Status matching is case-insensitive and works on partial text. Column 6 is optional and off by default.</div>
+    <div class="brand-subsections">
+      <section class="brand-subsection collapsible-subsection">
+        <h4 class="brand-subsection-title">Appearance</h4>
+        <p class="brand-subsection-copy">Tune queue-header layout, sizing, and tinting separately from the actual column behavior.</p>
+        <div class="settings-grid compact-3">
+          <label class="settings-field">
+            <span class="settings-label">Header layout</span>
+            <select class="settings-input settings-select" id="pref-columns-header-layout">
+              <option value="auto">Auto</option>
+              <option value="inline">Inline</option>
+              <option value="stacked">Stacked</option>
+            </select>
+            <span class="settings-help">Auto lets the board wrap when needed. Inline keeps the count pill on the right. Stacked always puts it underneath.</span>
+          </label>
+          <label class="settings-field">
+            <span class="settings-label">Header title size (%)</span>
+            <input class="settings-input" id="pref-columns-header-title-scale" type="number" min="70" max="140" step="1" />
+            <span class="settings-help">Scales the column title text without changing the rest of the ticket card content.</span>
+          </label>
+          <label class="settings-field">
+            <span class="settings-label">Count pill size (%)</span>
+            <input class="settings-input" id="pref-columns-header-count-scale" type="number" min="70" max="140" step="1" />
+            <span class="settings-help">Scales the small ticket-count pill shown inside each queue header.</span>
+          </label>
+          <label class="settings-field">
+            <span class="settings-label">Header text colour</span>
+            <div class="settings-color-control" data-color-control="pref-columns-header-text-color" data-default-color="#f3f8ff">
+              <input class="settings-input" id="pref-columns-header-text-color" type="color" />
+              <input class="settings-input settings-color-hex" id="pref-columns-header-text-color-hex" type="text" inputmode="text" spellcheck="false" maxlength="7" />
+              <button class="pill secondary settings-color-reset" type="button" data-color-reset="pref-columns-header-text-color">Reset</button>
+            </div>
+          </label>
+          <label class="settings-field">
+            <span class="settings-label">Header tint colour</span>
+            <div class="settings-color-control" data-color-control="pref-columns-header-surface-color" data-default-color="#ffffff">
+              <input class="settings-input" id="pref-columns-header-surface-color" type="color" />
+              <input class="settings-input settings-color-hex" id="pref-columns-header-surface-color-hex" type="text" inputmode="text" spellcheck="false" maxlength="7" />
+              <button class="pill secondary settings-color-reset" type="button" data-color-reset="pref-columns-header-surface-color">Reset</button>
+            </div>
+          </label>
+          <label class="settings-field">
+            <span class="settings-label">Header tint opacity (%)</span>
+            <input class="settings-input" id="pref-columns-header-surface-opacity" type="number" min="0" max="35" step="1" />
+            <span class="settings-help">Adds a subtle shared tint over the built-in pink, blue, and purple queue header gradients.</span>
+          </label>
+        </div>
+      </section>
+    </div>
     <div class="column-editor-grid">
       <section class="column-editor collapsible-subsection">
         <h4 class="editor-title">Column 1</h4>
@@ -4672,9 +4889,11 @@
     rushSyncDismissedKey: '',
     desktopMetadata: null,
     settingsActivePanelId: 'api-section',
+    discoveredSharedHosts: [],
   };
 
   const DEFAULT_PAGE_SECONDS = 12;
+  const QUEUE_COLUMN_KEYS = ['readyToStart', 'inProgress', 'needsAttention', 'waiting', 'qualityControl', 'column6'];
 
   function qs(id) {
     return document.getElementById(id);
@@ -4701,6 +4920,7 @@
         temporaryBlockedDates: [],
         sharedCalendarSync: {
           mode: 'local',
+          boardName: '',
           hostUrl: '',
           syncCalendarBlocks: true,
           syncAppointments: false,
@@ -4777,6 +4997,14 @@
         receiveBetaUpdates: false,
       },
       columns: {
+        appearance: {
+          headerLayout: 'auto',
+          headerTitleScalePercent: 100,
+          headerCountScalePercent: 100,
+          headerTextColor: '#f3f8ff',
+          headerSurfaceColor: '#ffffff',
+          headerSurfaceOpacityPercent: 10,
+        },
         readyToStart: { label: 'Ready to start', visible: true, refurbMode: 'all', refurbRotateSeconds: 12, statuses: [] },
         inProgress: { label: 'In Progress', visible: true, refurbMode: 'all', refurbRotateSeconds: 12, statuses: [] },
         needsAttention: { label: 'Needs Attention', visible: true, refurbMode: 'all', refurbRotateSeconds: 12, statuses: [] },
@@ -5104,33 +5332,66 @@
   function renderWindowDisplayLiveStatus() {
     const viewportValue = qs('window-display-viewport-value');
     const viewportCopy = qs('window-display-viewport-copy');
+    const screenValue = qs('window-display-screen-value');
+    const screenCopy = qs('window-display-screen-copy');
+    const detectedValue = qs('window-display-detected-value');
+    const detectedCopy = qs('window-display-detected-copy');
     const targetValue = qs('window-display-target-value');
     const targetCopy = qs('window-display-target-copy');
     const modeValue = qs('window-display-mode-value');
     const modeCopy = qs('window-display-mode-copy');
-    if (!viewportValue || !viewportCopy || !targetValue || !targetCopy || !modeValue || !modeCopy) return;
+    const networkValue = qs('window-display-network-value');
+    const networkCopy = qs('window-display-network-copy');
+    if (!viewportValue || !viewportCopy || !screenValue || !screenCopy || !detectedValue || !detectedCopy || !targetValue || !targetCopy || !modeValue || !modeCopy || !networkValue || !networkCopy) return;
 
     const metadata = state.desktopMetadata || {};
-    const displayCount = Array.isArray(state.displays) ? state.displays.length : 0;
+    const displays = Array.isArray(state.displays) ? state.displays : [];
+    const displayCount = displays.length;
     const launchContext = window.desktopApp?.getMetadata ? 'Desktop app' : 'Browser preview';
     const densityMode = String(qs('pref-display-density')?.value || currentPreferences().display?.densityMode || 'auto')
       .replace(/_/g, ' ')
       .replace(/\b\w/g, (char) => char.toUpperCase());
     const orientation = String(qs('pref-orientation')?.value || currentPreferences().display?.orientation || 'auto');
     const fullscreen = !!qs('pref-fullscreen')?.checked;
+    const screenScale = Number(window.devicePixelRatio || 1);
+    const localBoardUrl = String(metadata.localBoardUrl || '').trim();
+    const displayTarget = String(qs('pref-display-target')?.value || currentPreferences().display?.displayTarget || 'current').toLowerCase();
+    const resolvedTargetDisplay = (() => {
+      if (!displayCount) return null;
+      if (displayTarget.startsWith('display:')) {
+        const id = Number(displayTarget.slice('display:'.length));
+        return displays.find((display) => Number(display.id) === id) || null;
+      }
+      if (displayTarget === 'primary') return displays.find((display) => display.isPrimary) || displays[0];
+      if (displayTarget === 'secondary') return displays.find((display) => !display.isPrimary) || displays.find((display) => display.isPrimary) || displays[0];
+      return null;
+    })();
 
     viewportValue.textContent = `${window.innerWidth} × ${window.innerHeight}`;
     viewportCopy.textContent = displayCount
       ? `${displayCount} display${displayCount === 1 ? '' : 's'} detected. ${launchContext}.`
       : `${launchContext}. Display metadata will appear here when the desktop wrapper reports it.`;
 
+    screenValue.textContent = `${window.screen.width} × ${window.screen.height}`;
+    screenCopy.textContent = `Browser screen space at ${screenScale.toFixed(screenScale % 1 ? 2 : 0)}x device scale. Helpful when Windows scaling makes a 1080p TV behave more like 1280 × 720.`;
+
+    detectedValue.textContent = displayCount ? `${displayCount} connected` : 'No desktop data';
+    detectedCopy.textContent = displayCount
+      ? displays.slice(0, 2).map((display) => display.label).join(' · ') + (displayCount > 2 ? ` · +${displayCount - 2} more` : '')
+      : 'Open the packaged desktop app to see detected displays and scaling details.';
+
     targetValue.textContent = selectedDisplayTargetLabel();
-    targetCopy.textContent = metadata.localBoardUrl
-      ? `Boards on your network can usually reach this install at ${metadata.localBoardUrl}.`
+    targetCopy.textContent = resolvedTargetDisplay
+      ? `Currently resolves to ${resolvedTargetDisplay.label}.`
       : 'Choose which display the packaged app should reopen on.';
 
     modeValue.textContent = fullscreen ? 'Fullscreen' : 'Windowed';
     modeCopy.textContent = `${orientation === 'auto' ? 'Auto layout' : `${orientation[0].toUpperCase()}${orientation.slice(1)} layout`} · ${densityMode} density`;
+
+    networkValue.textContent = localBoardUrl ? localBoardUrl.replace(/^https?:\/\//, '') : '--';
+    networkCopy.textContent = localBoardUrl
+      ? `Other TVs on the network can usually follow this board at ${localBoardUrl}.`
+      : 'Start the desktop app server to expose a local board URL for browser testing and shared-store sync.';
   }
 
   function formatBytes(value) {
@@ -5193,6 +5454,7 @@
     const installBtn = qs('settings-install-update');
     installBtn.disabled = !status.downloaded || status.supported === false;
     installBtn.textContent = status.downloaded ? 'Install Update Now' : (status.available ? 'Downloading...' : 'Install Update Now');
+    installBtn.classList.toggle('ready-update', !!status.downloaded && status.supported !== false);
 
     const progressWrap = qs('update-progress');
     const progressBar = qs('update-progress-bar');
@@ -5280,6 +5542,7 @@
     const installBtn = qs('update-popup-install');
     installBtn.disabled = !status.downloaded;
     installBtn.textContent = status.downloaded ? 'Update Now' : 'Downloading...';
+    installBtn.classList.toggle('ready-update', !!status.downloaded);
 
     overlay.classList.add('open');
   }
@@ -5358,6 +5621,55 @@
     return `This board could not reach the shared settings host yet.${status.lastError ? ` ${status.lastError}` : ''}`;
   }
 
+  function normalizeBoardName(value) {
+    return String(value || '').trim().slice(0, 80);
+  }
+
+  function renderDiscoveredSharedHosts() {
+    const select = qs('pref-shared-calendar-discovered-host');
+    const copy = qs('shared-calendar-discovery-copy');
+    if (!select || !copy) return;
+    const hosts = Array.isArray(state.discoveredSharedHosts) ? state.discoveredSharedHosts : [];
+    const currentHostUrl = String(qs('pref-shared-calendar-host-url')?.value || '').trim();
+    const options = ['<option value="">Select a discovered host…</option>'];
+    hosts.forEach((host) => {
+      const labelParts = [host.boardName || host.hostUrl];
+      if (host.hostname) labelParts.push(host.hostname);
+      if (host.appVersion) labelParts.push(host.appVersion);
+      options.push(`<option value="${escapeHtml(host.hostUrl)}">${escapeHtml(labelParts.join(' · '))}</option>`);
+    });
+    select.innerHTML = options.join('');
+    if (currentHostUrl && hosts.some((host) => host.hostUrl === currentHostUrl)) {
+      select.value = currentHostUrl;
+    }
+    copy.textContent = hosts.length
+      ? `Found ${hosts.length} host${hosts.length === 1 ? '' : 's'} on the network. Pick one to fill the host URL automatically.`
+      : 'Searches your local network for other boards that are actively hosting shared store settings.';
+  }
+
+  async function discoverSharedStoreHosts() {
+    const button = qs('shared-calendar-discover-hosts');
+    const copy = qs('shared-calendar-discovery-copy');
+    if (!button || !copy) return;
+    button.disabled = true;
+    copy.textContent = 'Searching the local network for boards hosting shared settings...';
+    try {
+      const response = await fetch('/api/shared-store-hosts');
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || 'Could not search the network.');
+      }
+      state.discoveredSharedHosts = Array.isArray(payload.hosts) ? payload.hosts : [];
+      renderDiscoveredSharedHosts();
+    } catch (error) {
+      state.discoveredSharedHosts = [];
+      renderDiscoveredSharedHosts();
+      copy.textContent = error.message || 'Could not search the network.';
+    } finally {
+      button.disabled = false;
+    }
+  }
+
   function renderSharedCalendarSyncStatus(status = {}) {
     const mode = qs('pref-shared-calendar-mode')?.value || currentPreferences().schedule?.sharedCalendarSync?.mode || status.mode || 'local';
     const statusEl = qs('shared-calendar-status-copy');
@@ -5377,6 +5689,7 @@
     if (!noteEl) return;
     const mode = qs('pref-shared-calendar-mode')?.value || 'local';
     const hostUrl = String(qs('pref-shared-calendar-host-url')?.value || '').trim();
+    const boardName = normalizeBoardName(qs('pref-shared-calendar-board-name')?.value || currentPreferences().schedule?.sharedCalendarSync?.boardName || '');
     const metadata = state.desktopMetadata || {};
     const localBoardUrl = String(metadata.localBoardUrl || '').trim();
     const networkBoardUrls = Array.isArray(metadata.networkBoardUrls) ? metadata.networkBoardUrls.filter(Boolean) : [];
@@ -5385,9 +5698,10 @@
     if (mode === 'host') {
       const primaryUrl = networkBoardUrls[0] || localBoardUrl || `http://<this-board-ip>:${preferredPort}`;
       const extraUrls = networkBoardUrls.slice(1).map((url) => `<code>${escapeHtml(url)}</code>`).join(', ');
+      const nameCopy = boardName ? `Boards will see this host as <strong>${escapeHtml(boardName)}</strong>. ` : '';
       noteEl.innerHTML = extraUrls
-        ? `Follower boards can point to <code>${escapeHtml(primaryUrl)}</code>. Other detected board URLs: ${extraUrls}.`
-        : `Followers can point to <code>${escapeHtml(primaryUrl)}</code>.`;
+        ? `${nameCopy}Follower boards can point to <code>${escapeHtml(primaryUrl)}</code>. Other detected board URLs: ${extraUrls}.`
+        : `${nameCopy}Followers can point to <code>${escapeHtml(primaryUrl)}</code>.`;
       return;
     }
 
@@ -5404,6 +5718,7 @@
   function updateSharedCalendarSyncFieldVisibility() {
     const mode = qs('pref-shared-calendar-mode')?.value || 'local';
     const hostUrlField = qs('shared-calendar-host-url-field');
+    const discoveryField = qs('shared-calendar-discovery-field');
     const syncFields = [
       qs('pref-shared-calendar-sync-calendar-blocks')?.closest('.settings-field'),
       qs('pref-shared-calendar-sync-appointments')?.closest('.settings-field'),
@@ -5414,6 +5729,7 @@
       qs('pref-shared-calendar-sync-updates')?.closest('.settings-field'),
     ].filter(Boolean);
     if (hostUrlField) hostUrlField.hidden = mode !== 'follow';
+    if (discoveryField) discoveryField.hidden = mode !== 'follow';
     syncFields.forEach((field) => {
       field.hidden = mode === 'local';
     });
@@ -5641,6 +5957,86 @@
   function normalizedThemeColor(value, fallback) {
     const raw = String(value || '').trim();
     return /^#[0-9a-f]{6}$/i.test(raw) ? raw.toLowerCase() : fallback;
+  }
+
+  function normalizedColumnHeaderScale(value, fallback = 100) {
+    const percent = Number(value || 0);
+    if (!percent) return fallback;
+    return Math.max(70, Math.min(140, percent));
+  }
+
+  function normalizedColumnHeaderOpacity(value, fallback = 10) {
+    const percent = Number(value || 0);
+    if (Number.isNaN(percent)) return fallback;
+    return Math.max(0, Math.min(35, percent));
+  }
+
+  function normalizedColumnHeaderLayout(value, fallback = 'auto') {
+    const layout = String(value || '').trim().toLowerCase();
+    return ['auto', 'inline', 'stacked'].includes(layout) ? layout : fallback;
+  }
+
+  function hexToRgbList(value, fallback = '255, 255, 255') {
+    const normalized = normalizedThemeColor(value, '');
+    if (!normalized) return fallback;
+    const parsed = normalized.match(/[0-9a-f]{2}/gi);
+    if (!parsed || parsed.length !== 3) return fallback;
+    return parsed.map((part) => parseInt(part, 16)).join(', ');
+  }
+
+  function syncColorControl(control) {
+    if (!control) return;
+    const fieldId = control.dataset.colorControl;
+    const colorInput = qs(fieldId);
+    const hexInput = qs(`${fieldId}-hex`);
+    const fallback = control.dataset.defaultColor || '#ffffff';
+    if (!colorInput || !hexInput) return;
+    const normalized = normalizedThemeColor(colorInput.value, fallback);
+    colorInput.value = normalized;
+    hexInput.value = normalized.toUpperCase();
+  }
+
+  function syncAllColorControls() {
+    document.querySelectorAll('[data-color-control]').forEach((control) => syncColorControl(control));
+  }
+
+  function wireColorControls() {
+    document.querySelectorAll('[data-color-control]').forEach((control) => {
+      if (control.dataset.wired === 'true') return;
+      const fieldId = control.dataset.colorControl;
+      const colorInput = qs(fieldId);
+      const hexInput = qs(`${fieldId}-hex`);
+      const resetButton = control.querySelector(`[data-color-reset="${fieldId}"]`);
+      const fallback = control.dataset.defaultColor || '#ffffff';
+      if (!colorInput || !hexInput) return;
+
+      const syncFromColor = () => syncColorControl(control);
+      const syncFromHex = () => {
+        const normalized = normalizedThemeColor(hexInput.value, colorInput.value || fallback);
+        colorInput.value = normalized;
+        hexInput.value = normalized.toUpperCase();
+      };
+
+      colorInput.addEventListener('input', syncFromColor);
+      colorInput.addEventListener('change', syncFromColor);
+      hexInput.addEventListener('input', () => {
+        const normalized = normalizedThemeColor(hexInput.value, '');
+        if (!normalized) return;
+        colorInput.value = normalized;
+        hexInput.value = normalized.toUpperCase();
+      });
+      hexInput.addEventListener('blur', syncFromHex);
+      if (resetButton) {
+        resetButton.addEventListener('click', () => {
+          colorInput.value = normalizedThemeColor(fallback, '#ffffff');
+          syncColorControl(control);
+          colorInput.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+      }
+
+      control.dataset.wired = 'true';
+      syncColorControl(control);
+    });
   }
 
   function detectSideMediaType(dataUrl) {
@@ -6144,6 +6540,12 @@
     qs('pref-brand-text-color').value = prefs.brand?.textColor || '#ecf3ff';
     qs('pref-brand-accent-color').value = prefs.brand?.accentColor || '#6ee7c8';
     qs('pref-brand-text-scale').value = prefs.brand?.textScalePercent ?? 100;
+    qs('pref-columns-header-layout').value = prefs.columns?.appearance?.headerLayout || 'auto';
+    qs('pref-columns-header-title-scale').value = prefs.columns?.appearance?.headerTitleScalePercent ?? 100;
+    qs('pref-columns-header-count-scale').value = prefs.columns?.appearance?.headerCountScalePercent ?? 100;
+    qs('pref-columns-header-text-color').value = prefs.columns?.appearance?.headerTextColor || '#f3f8ff';
+    qs('pref-columns-header-surface-color').value = prefs.columns?.appearance?.headerSurfaceColor || '#ffffff';
+    qs('pref-columns-header-surface-opacity').value = prefs.columns?.appearance?.headerSurfaceOpacityPercent ?? 10;
     setThemeBackgroundPreview(
       prefs.brand?.backgroundImageDataUrl || '',
       prefs.brand?.backgroundImageDataUrl ? 'Stored background image' : ''
@@ -6168,6 +6570,7 @@
     qs('pref-blocked-weekdays').innerHTML = checkboxGroupMarkup('blocked-weekdays', prefs.schedule.blockedWeekdays || []);
     qs('pref-temporary-blocked-dates').value = (prefs.schedule.temporaryBlockedDates || []).join('\n');
     qs('pref-shared-calendar-mode').value = prefs.schedule?.sharedCalendarSync?.mode || 'local';
+    qs('pref-shared-calendar-board-name').value = prefs.schedule?.sharedCalendarSync?.boardName || '';
     qs('pref-shared-calendar-host-url').value = prefs.schedule?.sharedCalendarSync?.hostUrl || '';
     qs('pref-shared-calendar-sync-calendar-blocks').checked = prefs.schedule?.sharedCalendarSync?.syncCalendarBlocks !== false;
     qs('pref-shared-calendar-sync-appointments').checked = !!prefs.schedule?.sharedCalendarSync?.syncAppointments;
@@ -6187,6 +6590,7 @@
     updatePulseTimingVisibility();
     renderSharedCalendarSyncStatus(state.data?.calendarSync || {});
     updateSharedCalendarSyncFieldVisibility();
+    renderDiscoveredSharedHosts();
     qs('pref-inprogress-days').value = prefs.staleRules.inProgress?.days ?? 0;
     qs('pref-inprogress-hours').value = prefs.staleRules.inProgress?.hours ?? 12;
     qs('pref-attention-days').value = prefs.staleRules.needsAttention?.days ?? 1;
@@ -6230,6 +6634,7 @@
     renderRushSyncStatus(state.data?.rushSync || {});
     updateRushSyncFieldVisibility();
     resetSensitiveFieldMasking();
+    syncAllColorControls();
     renderWindowDisplayLiveStatus();
     qs('settings-status').textContent = '';
   }
@@ -6288,6 +6693,7 @@
           .filter(Boolean),
         sharedCalendarSync: {
           mode: qs('pref-shared-calendar-mode').value || 'local',
+          boardName: normalizeBoardName(qs('pref-shared-calendar-board-name').value || currentPreferences().schedule?.sharedCalendarSync?.boardName || ''),
           hostUrl: qs('pref-shared-calendar-host-url').value || '',
           syncCalendarBlocks: qs('pref-shared-calendar-sync-calendar-blocks').checked,
           syncAppointments: qs('pref-shared-calendar-sync-appointments').checked,
@@ -6333,6 +6739,14 @@
         },
       },
       columns: {
+        appearance: {
+          headerLayout: normalizedColumnHeaderLayout(qs('pref-columns-header-layout').value, currentPreferences().columns?.appearance?.headerLayout || 'auto'),
+          headerTitleScalePercent: normalizedColumnHeaderScale(qs('pref-columns-header-title-scale').value || currentPreferences().columns?.appearance?.headerTitleScalePercent || 100),
+          headerCountScalePercent: normalizedColumnHeaderScale(qs('pref-columns-header-count-scale').value || currentPreferences().columns?.appearance?.headerCountScalePercent || 100),
+          headerTextColor: normalizedThemeColor(qs('pref-columns-header-text-color').value, currentPreferences().columns?.appearance?.headerTextColor || '#f3f8ff'),
+          headerSurfaceColor: normalizedThemeColor(qs('pref-columns-header-surface-color').value, currentPreferences().columns?.appearance?.headerSurfaceColor || '#ffffff'),
+          headerSurfaceOpacityPercent: normalizedColumnHeaderOpacity(qs('pref-columns-header-surface-opacity').value || currentPreferences().columns?.appearance?.headerSurfaceOpacityPercent || 10),
+        },
         readyToStart: { label: qs('pref-ready-label').value || 'Ready to start', visible: qs('pref-ready-visible').checked, refurbMode: qs('pref-ready-refurbs').value || 'all', refurbRotateSeconds: Math.max(5, Number(qs('pref-ready-refurb-seconds').value || 12) || 12), statuses: parseLines(qs('pref-ready-statuses').value) },
         inProgress: { label: qs('pref-progress-label').value || 'In Progress', visible: qs('pref-progress-visible').checked, refurbMode: qs('pref-progress-refurbs').value || 'all', refurbRotateSeconds: Math.max(5, Number(qs('pref-progress-refurb-seconds').value || 12) || 12), statuses: parseLines(qs('pref-progress-statuses').value) },
         needsAttention: { label: qs('pref-attention-label').value || 'Needs Attention', visible: qs('pref-attention-visible').checked, refurbMode: qs('pref-attention-refurbs').value || 'all', refurbRotateSeconds: Math.max(5, Number(qs('pref-attention-refurb-seconds').value || 12) || 12), statuses: parseLines(qs('pref-attention-statuses').value) },
@@ -6345,12 +6759,17 @@
 
   function visibleColumnLabels(preferences) {
     const columns = preferences?.columns || currentPreferences().columns;
-    return new Set(Object.values(columns).filter((column) => column.visible !== false).map((column) => column.label));
+    return new Set(
+      QUEUE_COLUMN_KEYS
+        .map((columnKey) => columns?.[columnKey])
+        .filter((column) => column?.visible !== false)
+        .map((column) => column.label)
+    );
   }
 
   function visibleQueueColumnCount(preferences) {
     const columns = preferences?.columns || currentPreferences().columns;
-    return Math.max(1, Object.values(columns).filter((column) => column.visible !== false).length);
+    return Math.max(1, QUEUE_COLUMN_KEYS.map((columnKey) => columns?.[columnKey]).filter((column) => column?.visible !== false).length);
   }
 
   function applyQueueColumnLayout(preferences) {
@@ -6384,6 +6803,17 @@
     document.body.classList.toggle('extra-compact-display', extraCompact);
   }
 
+  function applyColumnAppearancePreferences(preferences) {
+    const appearance = preferences?.columns?.appearance || currentPreferences().columns?.appearance || {};
+    const rootStyle = document.documentElement.style;
+    rootStyle.setProperty('--column-header-title-scale', String(normalizedColumnHeaderScale(appearance.headerTitleScalePercent || 100) / 100));
+    rootStyle.setProperty('--column-header-count-scale', String(normalizedColumnHeaderScale(appearance.headerCountScalePercent || 100) / 100));
+    rootStyle.setProperty('--column-header-text', normalizedThemeColor(appearance.headerTextColor, '#f3f8ff'));
+    rootStyle.setProperty('--column-header-overlay-rgb', hexToRgbList(appearance.headerSurfaceColor, '255, 255, 255'));
+    rootStyle.setProperty('--column-header-overlay-opacity', String(normalizedColumnHeaderOpacity(appearance.headerSurfaceOpacityPercent, 10) / 100));
+    document.body.dataset.columnHeaderLayout = normalizedColumnHeaderLayout(appearance.headerLayout, 'auto');
+  }
+
   function applyDisplayPreferences(preferences) {
     const prefs = preferences || currentPreferences();
     const orientation = prefs.display?.orientation || 'auto';
@@ -6398,6 +6828,7 @@
     qs('waiting-column').hidden = prefs.columns.waiting.visible === false;
     qs('qc-column').hidden = prefs.columns.qualityControl.visible === false;
     qs('column6-column').hidden = prefs.columns.column6?.visible !== true;
+    applyColumnAppearancePreferences(prefs);
     applyQueueColumnLayout(prefs);
   }
 
@@ -6762,7 +7193,7 @@
     if (state.refurbRotationTimer) clearInterval(state.refurbRotationTimer);
     state.refurbRotationTimer = null;
     const columns = state.data?.uiPreferences?.columns || {};
-    const hasRotatingColumn = Object.values(columns).some((column) => column?.refurbMode === 'rotate_refurbs');
+    const hasRotatingColumn = QUEUE_COLUMN_KEYS.some((columnKey) => columns?.[columnKey]?.refurbMode === 'rotate_refurbs');
     if (!hasRotatingColumn) return;
     state.refurbRotationTimer = setInterval(() => {
       renderBoard(state.data);
@@ -7288,8 +7719,22 @@
   qs('settings-close').addEventListener('click', closeSettings);
   qs('settings-close-bottom').addEventListener('click', closeSettings);
   qs('rush-sync-enabled').addEventListener('change', updateRushSyncFieldVisibility);
-  qs('pref-shared-calendar-mode').addEventListener('change', updateSharedCalendarSyncFieldVisibility);
+  qs('pref-shared-calendar-mode').addEventListener('change', () => {
+    updateSharedCalendarSyncFieldVisibility();
+    if ((qs('pref-shared-calendar-mode')?.value || 'local') === 'follow' && !(state.discoveredSharedHosts || []).length) {
+      discoverSharedStoreHosts();
+    }
+  });
+  qs('pref-shared-calendar-board-name').addEventListener('input', updateSharedCalendarHostNote);
   qs('pref-shared-calendar-host-url').addEventListener('input', updateSharedCalendarHostNote);
+  qs('shared-calendar-discover-hosts').addEventListener('click', discoverSharedStoreHosts);
+  qs('pref-shared-calendar-discovered-host').addEventListener('change', (event) => {
+    const hostUrl = String(event.target?.value || '').trim();
+    if (!hostUrl) return;
+    qs('pref-shared-calendar-host-url').value = hostUrl;
+    updateSharedCalendarHostNote();
+    renderDiscoveredSharedHosts();
+  });
   [
     'pref-shared-calendar-sync-calendar-blocks',
     'pref-shared-calendar-sync-appointments',
@@ -7418,6 +7863,7 @@
   reorderSettingsSections();
   enhanceSettingsSections();
   enhanceCollapsibleSubsections();
+  wireColorControls();
   qs('page-title').textContent = pageTitle();
   startClock();
   startUpdatePromptPolling();

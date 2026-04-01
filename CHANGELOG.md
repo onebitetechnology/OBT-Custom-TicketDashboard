@@ -2,6 +2,22 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.55
+
+- Cleaned up the connection fields in `Connections & Sync > Connections` so the Ticket Counter URL and API key use compact single-line masked inputs, while the RepairDesk session cookie uses a cleaner two-row field with a smaller reveal button.
+
+## v2.1.68-beta.54
+
+- Added friendly board naming for shared-store sync so each install can advertise itself as something readable like `Rear TV - Host`.
+- Added a built-in `Search Network` action in `Connections & Sync > Sync` so follower boards can discover host boards on the LAN and fill the host URL automatically.
+- Host boards now expose lightweight host metadata for discovery, including board name, hostname, app version, and candidate network URLs.
+
+## v2.1.68-beta.53
+
+- Added a new `Columns > Appearance` subsection so queue-header layout, size, tint, and text color can be tuned without mixing those controls into the column behavior editors.
+- Expanded `Window & Display` into a fuller live diagnostics panel with viewport, scaled screen space, detected-display count, saved target resolution, and local board URL details.
+- Upgraded theme color controls to show editable hex values with one-click reset buttons, making it easier to match branding across multiple installs.
+
 ## v2.1.68-beta.50
 
 - Hid sensitive connection values like the Ticket Counter URL, RepairDesk API key, and RepairDesk session cookie behind reveal buttons by default.
@@ -10,6 +26,10 @@ All notable changes to One Bite Ticket Display Desktop should be recorded in thi
 - Cleaned up the `Appointment Notifications > Alert Rules` cards with clearer summaries, chips, and action layout.
 - Let logos keep non-square aspect ratios in both the settings preview and the live top bar.
 - Removed the old AutoSpec reference copy from `Updates & Maintenance`.
+
+## v2.1.68-beta.52
+
+- Made the downloaded update action much more obvious by lighting up the install button once an update is fully ready to install.
 
 ## v2.1.68-beta.51
 
