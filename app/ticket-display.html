@@ -1441,10 +1441,21 @@
   .settings-section {
     border: 1px solid rgba(207, 224, 255, 0.16);
     border-radius: 20px;
-    padding: 18px 20px;
-    background: linear-gradient(180deg, rgba(14, 24, 39, 0.98), rgba(11, 20, 34, 0.94));
+    padding: 22px;
+    background: linear-gradient(180deg, rgba(14, 24, 39, 0.98), rgba(11, 20, 34, 0.96));
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 16px 40px rgba(0, 0, 0, 0.16);
     min-width: 0;
+    display: grid;
+    gap: 16px;
+  }
+
+  .settings-section > h3 {
+    margin: 0;
+    font-size: calc(24px * var(--theme-text-scale));
+    line-height: 1.08;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    color: #f3f8ff;
   }
 
   .settings-section-copy {
@@ -1453,6 +1464,170 @@
     font-size: 14px;
     line-height: 1.5;
     font-family: var(--sans);
+  }
+
+  .settings-nav {
+    min-width: 0;
+    display: grid;
+    align-content: start;
+    gap: 14px;
+    padding-right: 2px;
+  }
+
+  .settings-nav-card {
+    border: 1px solid rgba(207, 224, 255, 0.14);
+    border-radius: 18px;
+    padding: 16px;
+    background: linear-gradient(180deg, rgba(10, 18, 31, 0.96), rgba(8, 14, 24, 0.9));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+    display: grid;
+    gap: 14px;
+  }
+
+  .settings-nav-title {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #8ea6c5;
+  }
+
+  .settings-nav-copy {
+    margin: 0;
+    color: #c3d3e9;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .settings-nav-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .settings-nav-button {
+    width: 100%;
+    border: 1px solid rgba(204, 223, 255, 0.12);
+    border-radius: 16px;
+    padding: 14px 16px;
+    background: rgba(255,255,255,0.025);
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    display: grid;
+    gap: 4px;
+    transition: border-color 160ms ease, background 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+  }
+
+  .settings-nav-button:hover {
+    border-color: rgba(110, 231, 200, 0.3);
+    background: rgba(18, 31, 49, 0.82);
+    transform: translateY(-1px);
+  }
+
+  .settings-nav-button.active {
+    border-color: rgba(110, 231, 200, 0.38);
+    background:
+      linear-gradient(135deg, rgba(43, 109, 255, 0.18), rgba(12, 34, 52, 0.88)),
+      rgba(18, 31, 49, 0.92);
+    box-shadow: 0 12px 28px rgba(4, 10, 20, 0.22), inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+
+  .settings-nav-button-label {
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    color: #f4fbff;
+  }
+
+  .settings-nav-button-copy {
+    font-size: 12px;
+    line-height: 1.4;
+    color: #b8cbdf;
+  }
+
+  .settings-panel-stage {
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+    padding-right: 4px;
+    display: grid;
+  }
+
+  .settings-panel {
+    display: none;
+    align-content: start;
+  }
+
+  .settings-panel.active {
+    display: grid;
+  }
+
+  .settings-panel-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 28px;
+    width: fit-content;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(110, 231, 200, 0.24);
+    background: rgba(110, 231, 200, 0.09);
+    color: #c9fff2;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .settings-panel-hero {
+    display: grid;
+    gap: 8px;
+    padding-bottom: 2px;
+  }
+
+  .settings-panel-hero-copy {
+    max-width: 74ch;
+  }
+
+  .settings-panel-body {
+    display: grid;
+    gap: 14px;
+  }
+
+  .settings-live-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .settings-live-card {
+    border: 1px solid rgba(203, 224, 255, 0.14);
+    border-radius: 16px;
+    padding: 14px;
+    background: rgba(7, 16, 28, 0.54);
+    display: grid;
+    gap: 4px;
+  }
+
+  .settings-live-label {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #8ea6c5;
+    font-weight: 800;
+  }
+
+  .settings-live-value {
+    font-size: 18px;
+    font-weight: 800;
+    color: #f3f8ff;
+  }
+
+  .settings-live-help {
+    font-size: 12px;
+    line-height: 1.45;
+    color: #bfd1e8;
   }
 
   .settings-section-head {
@@ -1538,17 +1713,12 @@
 
   .settings-layout {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 12px;
+    grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
+    gap: 16px;
     align-items: start;
     flex: 1 1 auto;
     min-height: 0;
-    overflow: auto;
-    padding-right: 4px;
-  }
-
-  .settings-section.span-2 {
-    grid-column: 1 / -1;
+    overflow: hidden;
   }
 
   .settings-grid {
@@ -1618,6 +1788,19 @@
     padding: 8px 14px;
     border-radius: 12px;
     font-size: 13px;
+  }
+
+  .column-editor.collapsible-subsection {
+    padding: 14px;
+    background: rgba(7, 16, 28, 0.54);
+  }
+
+  .column-editor.collapsible-subsection .subsection-head {
+    align-items: flex-start;
+  }
+
+  .column-editor.collapsible-subsection .subsection-body {
+    padding-top: 12px;
   }
 
   .subsection-body {
@@ -2603,8 +2786,26 @@
     }
     .settings-layout {
       grid-template-columns: 1fr;
+      gap: 12px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+    .settings-nav {
+      padding-right: 0;
+    }
+    .settings-nav-card {
+      padding: 12px;
+    }
+    .settings-nav-list {
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    }
+    .settings-panel-stage {
+      overflow: visible;
     }
     .settings-grid {
+      grid-template-columns: 1fr;
+    }
+    .settings-live-grid {
       grid-template-columns: 1fr;
     }
     .weekday-grid {
@@ -3500,7 +3701,9 @@
     <button class="pill settings-close" id="settings-close" type="button">Close</button>
   </div>
   <div class="settings-layout">
-  <div class="settings-section span-2" id="api-section">
+    <div class="settings-nav" id="settings-nav"></div>
+    <div class="settings-panel-stage" id="settings-panel-stage">
+  <div class="settings-section settings-panel" id="api-section">
     <h3>RepairDesk API</h3>
     <div class="settings-section-copy">Connection details for the RepairDesk account this board reads from.</div>
     <div class="settings-grid">
@@ -3539,9 +3742,9 @@
       </label>
     </div>
   </div>
-  <div class="settings-section span-2">
+  <div class="settings-section settings-panel" id="brand-section">
     <h3>Brand</h3>
-    <div class="settings-section-copy">Group the board visuals by logo, header, ticker, background, and general theme so each shop can brand the display more easily.</div>
+    <div class="settings-section-copy">Control the branded look of the board without mixing in operational display controls.</div>
     <div class="brand-subsections">
       <section class="brand-subsection collapsible-subsection">
         <h4 class="brand-subsection-title">Logo</h4>
@@ -3586,60 +3789,6 @@
             <span class="settings-label">Header size</span>
             <input class="settings-input" id="pref-brand-header-size" type="number" min="26" max="72" step="1" />
             <span class="settings-help">Sets the title size in pixels for the top bar.</span>
-          </label>
-        </div>
-      </section>
-
-      <section class="brand-subsection collapsible-subsection">
-        <h4 class="brand-subsection-title">Window & Display</h4>
-        <p class="brand-subsection-copy">Choose fullscreen mode, the board orientation, and which screen the desktop app should use.</p>
-        <div class="settings-grid compact-2">
-          <label class="settings-field full">
-            <span class="settings-label">Browser option</span>
-            <span class="settings-check">
-              <span class="settings-check-copy">
-                <span class="settings-check-title">Open this board in the system browser</span>
-                <span class="settings-help">Useful if someone wants the local board in a normal browser tab instead of the desktop window.</span>
-              </span>
-              <button class="pill secondary" id="settings-open-browser" type="button">Open in Browser</button>
-            </span>
-          </label>
-          <label class="settings-field full">
-            <span class="settings-label">Desktop window mode</span>
-            <span class="settings-check">
-              <input class="settings-checkbox" id="pref-fullscreen" type="checkbox" />
-              <span class="settings-check-copy">
-                <span class="settings-check-title">Open in fullscreen</span>
-                <span class="settings-help">Applies in the desktop app. Browser preview ignores this.</span>
-              </span>
-            </span>
-          </label>
-          <label class="settings-field align-end">
-            <span class="settings-label">Layout orientation</span>
-            <select class="settings-input settings-select" id="pref-orientation">
-              <option value="auto">Auto</option>
-              <option value="horizontal">Horizontal</option>
-              <option value="vertical">Vertical</option>
-            </select>
-            <span class="settings-help">Force the board to use a wide or portrait layout regardless of the screen shape.</span>
-          </label>
-          <label class="settings-field align-end">
-            <span class="settings-label">Display target</span>
-            <select class="settings-input settings-select" id="pref-display-target">
-              <option value="current">Current display</option>
-              <option value="primary">Primary display</option>
-              <option value="secondary">Secondary display</option>
-            </select>
-            <span class="settings-help">Choose which monitor the desktop window and fullscreen mode should use. Connected displays are detected and listed here.</span>
-          </label>
-          <label class="settings-field align-end">
-            <span class="settings-label">Display density</span>
-            <select class="settings-input settings-select" id="pref-display-density">
-              <option value="auto">Auto</option>
-              <option value="compact">Compact</option>
-              <option value="extra_compact">Extra compact</option>
-            </select>
-            <span class="settings-help">Use Compact or Extra compact if Windows scaling makes the header and appointments too large on a TV.</span>
           </label>
         </div>
       </section>
@@ -3789,7 +3938,89 @@
       </section>
     </div>
   </div>
-  <div class="settings-section span-2">
+  <div class="settings-section settings-panel" id="window-display-section">
+    <h3>Window &amp; Display</h3>
+    <div class="settings-section-copy">Operational controls for where the desktop app opens, how dense the board feels, and what the current machine is doing right now.</div>
+    <div class="settings-live-grid">
+      <div class="settings-live-card">
+        <div class="settings-live-label">Current viewport</div>
+        <div class="settings-live-value" id="window-display-viewport-value">--</div>
+        <div class="settings-live-help" id="window-display-viewport-copy">Waiting for desktop metadata…</div>
+      </div>
+      <div class="settings-live-card">
+        <div class="settings-live-label">Saved target</div>
+        <div class="settings-live-value" id="window-display-target-value">--</div>
+        <div class="settings-live-help" id="window-display-target-copy">Choose which display the packaged app should reopen on.</div>
+      </div>
+      <div class="settings-live-card">
+        <div class="settings-live-label">Window mode</div>
+        <div class="settings-live-value" id="window-display-mode-value">--</div>
+        <div class="settings-live-help" id="window-display-mode-copy">Fullscreen and density settings are saved per install.</div>
+      </div>
+    </div>
+    <div class="brand-subsections">
+      <section class="brand-subsection collapsible-subsection">
+        <h4 class="brand-subsection-title">Launch &amp; Positioning</h4>
+        <p class="brand-subsection-copy">Choose fullscreen mode, the layout orientation, and which screen the desktop app should use after launch or when TVs come online later.</p>
+        <div class="settings-grid compact-2">
+          <label class="settings-field full">
+            <span class="settings-label">Browser option</span>
+            <span class="settings-check">
+              <span class="settings-check-copy">
+                <span class="settings-check-title">Open this board in the system browser</span>
+                <span class="settings-help">Useful for testing the local board in a normal browser tab instead of the desktop window.</span>
+              </span>
+              <button class="pill secondary" id="settings-open-browser" type="button">Open in Browser</button>
+            </span>
+          </label>
+          <label class="settings-field full">
+            <span class="settings-label">Desktop window mode</span>
+            <span class="settings-check">
+              <input class="settings-checkbox" id="pref-fullscreen" type="checkbox" />
+              <span class="settings-check-copy">
+                <span class="settings-check-title">Open in fullscreen</span>
+                <span class="settings-help">Applies in the desktop app. Browser preview ignores this.</span>
+              </span>
+            </span>
+          </label>
+          <label class="settings-field align-end">
+            <span class="settings-label">Layout orientation</span>
+            <select class="settings-input settings-select" id="pref-orientation">
+              <option value="auto">Auto</option>
+              <option value="horizontal">Horizontal</option>
+              <option value="vertical">Vertical</option>
+            </select>
+            <span class="settings-help">Force the board to use a wide or portrait layout regardless of the screen shape.</span>
+          </label>
+          <label class="settings-field align-end">
+            <span class="settings-label">Display target</span>
+            <select class="settings-input settings-select" id="pref-display-target">
+              <option value="current">Current display</option>
+              <option value="primary">Primary display</option>
+              <option value="secondary">Secondary display</option>
+            </select>
+            <span class="settings-help">Choose which monitor the desktop window and fullscreen mode should use. Connected displays are detected and listed here.</span>
+          </label>
+        </div>
+      </section>
+      <section class="brand-subsection collapsible-subsection">
+        <h4 class="brand-subsection-title">Density &amp; Fitting</h4>
+        <p class="brand-subsection-copy">Use density controls when Windows scaling makes a TV feel smaller than its physical resolution.</p>
+        <div class="settings-grid compact-2">
+          <label class="settings-field align-end">
+            <span class="settings-label">Display density</span>
+            <select class="settings-input settings-select" id="pref-display-density">
+              <option value="auto">Auto</option>
+              <option value="compact">Compact</option>
+              <option value="extra_compact">Extra compact</option>
+            </select>
+            <span class="settings-help">Compact and Extra compact shrink the top bar, appointment area, and queue cards so scaled TVs can fit more board content.</span>
+          </label>
+        </div>
+      </section>
+    </div>
+  </div>
+  <div class="settings-section settings-panel" id="appointments-section">
     <h3>Appointments</h3>
     <div class="settings-section-copy">Which weekdays appear in the calendar, which ones are blocked, which specific dates are temporarily unavailable, and how appointment alerts behave.</div>
     <div class="brand-subsections">
@@ -3966,7 +4197,7 @@
       </section>
     </div>
   </div>
-  <div class="settings-section span-2" id="ticket-details-section">
+  <div class="settings-section settings-panel" id="ticket-details-section">
     <h3>Ticket Details</h3>
     <div class="settings-section-copy">Control how the desktop window behaves, which ticket details are shown, and how strongly true Priority jobs pulse.</div>
     <div class="brand-subsections">
@@ -4086,11 +4317,11 @@
       </section>
     </div>
   </div>
-  <div class="settings-section span-2" id="columns-section">
+  <div class="settings-section settings-panel" id="columns-section">
     <h3>Columns</h3>
     <div class="settings-section-copy">Configure what each queue column is called, whether it is shown, and which RepairDesk statuses feed into it. Status matching is case-insensitive and works on partial text. Column 6 is optional and off by default.</div>
     <div class="column-editor-grid">
-      <div class="column-editor">
+      <section class="column-editor collapsible-subsection">
         <h4 class="editor-title">Column 1</h4>
         <label class="settings-field"><span class="settings-label">Header label</span><input class="settings-input" id="pref-ready-label" /></label>
         <div class="editor-copy">This is the left-most queue column on the board.</div>
@@ -4098,8 +4329,8 @@
         <label class="settings-field"><span class="settings-label">Refurb tickets</span><select class="settings-input settings-select" id="pref-ready-refurbs"><option value="all">Show all tickets</option><option value="hide_refurbs">Show Customer Tickets only</option><option value="only_refurbs">Show Refurb Tickets only</option><option value="rotate_refurbs">Rotate between Customer and Refurb Tickets</option></select></label>
         <label class="settings-field"><span class="settings-label">Rotate timing (seconds)</span><input class="settings-input" id="pref-ready-refurb-seconds" type="number" min="5" step="1" /><span class="settings-help">Used when this column is set to rotate between customer and refurb tickets.</span></label>
         <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-ready-statuses"></textarea><span class="settings-help">Enter one status or partial match per line. Example: <code>Ready to Start</code> will match longer status names that contain it.</span></label>
-      </div>
-      <div class="column-editor">
+      </section>
+      <section class="column-editor collapsible-subsection">
         <h4 class="editor-title">Column 2</h4>
         <label class="settings-field"><span class="settings-label">Header label</span><input class="settings-input" id="pref-progress-label" /></label>
         <div class="editor-copy">Second queue column from the left.</div>
@@ -4107,8 +4338,8 @@
         <label class="settings-field"><span class="settings-label">Refurb tickets</span><select class="settings-input settings-select" id="pref-progress-refurbs"><option value="all">Show all tickets</option><option value="hide_refurbs">Show Customer Tickets only</option><option value="only_refurbs">Show Refurb Tickets only</option><option value="rotate_refurbs">Rotate between Customer and Refurb Tickets</option></select></label>
         <label class="settings-field"><span class="settings-label">Rotate timing (seconds)</span><input class="settings-input" id="pref-progress-refurb-seconds" type="number" min="5" step="1" /><span class="settings-help">Used when this column is set to rotate between customer and refurb tickets.</span></label>
         <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-progress-statuses"></textarea><span class="settings-help">Enter one status or partial match per line. Matching is case-insensitive.</span></label>
-      </div>
-      <div class="column-editor">
+      </section>
+      <section class="column-editor collapsible-subsection">
         <h4 class="editor-title">Column 3</h4>
         <label class="settings-field"><span class="settings-label">Header label</span><input class="settings-input" id="pref-attention-label" /></label>
         <div class="editor-copy">Middle queue column on the board.</div>
@@ -4116,8 +4347,8 @@
         <label class="settings-field"><span class="settings-label">Refurb tickets</span><select class="settings-input settings-select" id="pref-attention-refurbs"><option value="all">Show all tickets</option><option value="hide_refurbs">Show Customer Tickets only</option><option value="only_refurbs">Show Refurb Tickets only</option><option value="rotate_refurbs">Rotate between Customer and Refurb Tickets</option></select></label>
         <label class="settings-field"><span class="settings-label">Rotate timing (seconds)</span><input class="settings-input" id="pref-attention-refurb-seconds" type="number" min="5" step="1" /><span class="settings-help">Used when this column is set to rotate between customer and refurb tickets.</span></label>
         <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-attention-statuses"></textarea><span class="settings-help">Enter one status or partial match per line. Matching is case-insensitive.</span></label>
-      </div>
-      <div class="column-editor">
+      </section>
+      <section class="column-editor collapsible-subsection">
         <h4 class="editor-title">Column 4</h4>
         <label class="settings-field"><span class="settings-label">Header label</span><input class="settings-input" id="pref-waiting-label" /></label>
         <div class="editor-copy">Fourth queue column from the left.</div>
@@ -4125,8 +4356,8 @@
         <label class="settings-field"><span class="settings-label">Refurb tickets</span><select class="settings-input settings-select" id="pref-waiting-refurbs"><option value="all">Show all tickets</option><option value="hide_refurbs">Show Customer Tickets only</option><option value="only_refurbs">Show Refurb Tickets only</option><option value="rotate_refurbs">Rotate between Customer and Refurb Tickets</option></select></label>
         <label class="settings-field"><span class="settings-label">Rotate timing (seconds)</span><input class="settings-input" id="pref-waiting-refurb-seconds" type="number" min="5" step="1" /><span class="settings-help">Used when this column is set to rotate between customer and refurb tickets.</span></label>
         <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-waiting-statuses"></textarea><span class="settings-help">Enter one status or partial match per line. Matching is case-insensitive.</span></label>
-      </div>
-      <div class="column-editor">
+      </section>
+      <section class="column-editor collapsible-subsection">
         <h4 class="editor-title">Column 5</h4>
         <label class="settings-field"><span class="settings-label">Header label</span><input class="settings-input" id="pref-qc-label" /></label>
         <div class="editor-copy">Right-most queue column on the board.</div>
@@ -4134,8 +4365,8 @@
         <label class="settings-field"><span class="settings-label">Refurb tickets</span><select class="settings-input settings-select" id="pref-qc-refurbs"><option value="all">Show all tickets</option><option value="hide_refurbs">Show Customer Tickets only</option><option value="only_refurbs">Show Refurb Tickets only</option><option value="rotate_refurbs">Rotate between Customer and Refurb Tickets</option></select></label>
         <label class="settings-field"><span class="settings-label">Rotate timing (seconds)</span><input class="settings-input" id="pref-qc-refurb-seconds" type="number" min="5" step="1" /><span class="settings-help">Used when this column is set to rotate between customer and refurb tickets.</span></label>
         <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-qc-statuses"></textarea><span class="settings-help">Enter one status or partial match per line. Matching is case-insensitive.</span></label>
-      </div>
-      <div class="column-editor">
+      </section>
+      <section class="column-editor collapsible-subsection">
         <h4 class="editor-title">Column 6</h4>
         <label class="settings-field"><span class="settings-label">Header label</span><input class="settings-input" id="pref-column6-label" /></label>
         <div class="editor-copy">Optional sixth queue column on wider layouts.</div>
@@ -4143,10 +4374,10 @@
         <label class="settings-field"><span class="settings-label">Refurb tickets</span><select class="settings-input settings-select" id="pref-column6-refurbs"><option value="all">Show all tickets</option><option value="hide_refurbs">Show Customer Tickets only</option><option value="only_refurbs">Show Refurb Tickets only</option><option value="rotate_refurbs">Rotate between Customer and Refurb Tickets</option></select></label>
         <label class="settings-field"><span class="settings-label">Rotate timing (seconds)</span><input class="settings-input" id="pref-column6-refurb-seconds" type="number" min="5" step="1" /><span class="settings-help">Used when this column is set to rotate between customer and refurb tickets.</span></label>
         <label class="settings-field"><span class="settings-label">Included RD statuses</span><textarea class="settings-textarea" id="pref-column6-statuses"></textarea><span class="settings-help">Leave blank to keep this extra column disabled by default, or add one status / partial match per line.</span></label>
-      </div>
+      </section>
     </div>
   </div>
-  <div class="settings-section span-2">
+  <div class="settings-section settings-panel" id="updates-section">
     <h3>Updates &amp; Maintenance</h3>
     <div class="settings-section-copy">Keep this board current with the same compact update card style used in the PC AutoSpec app.</div>
     <div class="update-card">
@@ -4205,6 +4436,7 @@
       </div>
     </div>
   </div>
+    </div>
   </div>
   <div class="settings-status" id="settings-status"></div>
   <div class="settings-actions">
@@ -4313,6 +4545,7 @@
     alertAudioContext: null,
     rushSyncDismissedKey: '',
     desktopMetadata: null,
+    settingsActivePanelId: 'api-section',
   };
 
   const DEFAULT_PAGE_SECONDS = 12;
@@ -4650,6 +4883,112 @@
     const options = [...staticOptions, ...detectedOptions];
     select.innerHTML = options.map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`).join('');
     select.value = options.some((option) => option.value === selectedValue) ? selectedValue : 'current';
+    renderWindowDisplayLiveStatus();
+  }
+
+  const SETTINGS_PANEL_ORDER = [
+    'api-section',
+    'brand-section',
+    'window-display-section',
+    'appointments-section',
+    'ticket-details-section',
+    'columns-section',
+    'updates-section',
+  ];
+
+  function setActiveSettingsPanel(panelId) {
+    const panelStage = qs('settings-panel-stage');
+    if (!panelStage) return;
+    const panels = [...panelStage.querySelectorAll('.settings-panel')];
+    const nextPanelId = panels.some((panel) => panel.id === panelId) ? panelId : panels[0]?.id;
+    if (!nextPanelId) return;
+    state.settingsActivePanelId = nextPanelId;
+    panels.forEach((panel) => {
+      panel.classList.toggle('active', panel.id === nextPanelId);
+    });
+    qs('settings-nav')?.querySelectorAll('.settings-nav-button').forEach((button) => {
+      const active = button.dataset.panelTarget === nextPanelId;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-current', active ? 'page' : 'false');
+    });
+    panelStage.scrollTop = 0;
+  }
+
+  function setupSettingsNavigation() {
+    const nav = qs('settings-nav');
+    const panelStage = qs('settings-panel-stage');
+    if (!nav || !panelStage || nav.dataset.enhanced === 'true') return;
+    const panels = SETTINGS_PANEL_ORDER
+      .map((id) => qs(id))
+      .filter(Boolean);
+
+    nav.innerHTML = `
+      <section class="settings-nav-card">
+        <div class="settings-nav-title">Control Room</div>
+        <p class="settings-nav-copy">Use the left nav to jump between focused settings panels instead of opening one long wall of controls.</p>
+        <div class="settings-nav-list" id="settings-nav-list"></div>
+      </section>
+    `;
+
+    const list = qs('settings-nav-list');
+    panels.forEach((panel) => {
+      const title = panel.querySelector(':scope > h3')?.textContent?.trim() || panel.id;
+      const copy = panel.querySelector(':scope > .settings-section-copy')?.textContent?.trim() || '';
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'settings-nav-button';
+      button.dataset.panelTarget = panel.id;
+      button.innerHTML = `
+        <span class="settings-nav-button-label">${escapeHtml(title)}</span>
+        <span class="settings-nav-button-copy">${escapeHtml(copy)}</span>
+      `;
+      button.addEventListener('click', () => {
+        setActiveSettingsPanel(panel.id);
+      });
+      list.appendChild(button);
+    });
+
+    panels.forEach((panel) => panel.classList.add('settings-panel'));
+    nav.dataset.enhanced = 'true';
+    setActiveSettingsPanel(state.settingsActivePanelId || panels[0]?.id);
+  }
+
+  function selectedDisplayTargetLabel() {
+    const select = qs('pref-display-target');
+    if (!select) return 'Current display';
+    return select.options[select.selectedIndex]?.textContent || 'Current display';
+  }
+
+  function renderWindowDisplayLiveStatus() {
+    const viewportValue = qs('window-display-viewport-value');
+    const viewportCopy = qs('window-display-viewport-copy');
+    const targetValue = qs('window-display-target-value');
+    const targetCopy = qs('window-display-target-copy');
+    const modeValue = qs('window-display-mode-value');
+    const modeCopy = qs('window-display-mode-copy');
+    if (!viewportValue || !viewportCopy || !targetValue || !targetCopy || !modeValue || !modeCopy) return;
+
+    const metadata = state.desktopMetadata || {};
+    const displayCount = Array.isArray(state.displays) ? state.displays.length : 0;
+    const launchContext = window.desktopApp?.getMetadata ? 'Desktop app' : 'Browser preview';
+    const densityMode = String(qs('pref-display-density')?.value || currentPreferences().display?.densityMode || 'auto')
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+    const orientation = String(qs('pref-orientation')?.value || currentPreferences().display?.orientation || 'auto');
+    const fullscreen = !!qs('pref-fullscreen')?.checked;
+
+    viewportValue.textContent = `${window.innerWidth} × ${window.innerHeight}`;
+    viewportCopy.textContent = displayCount
+      ? `${displayCount} display${displayCount === 1 ? '' : 's'} detected. ${launchContext}.`
+      : `${launchContext}. Display metadata will appear here when the desktop wrapper reports it.`;
+
+    targetValue.textContent = selectedDisplayTargetLabel();
+    targetCopy.textContent = metadata.localBoardUrl
+      ? `Boards on your network can usually reach this install at ${metadata.localBoardUrl}.`
+      : 'Choose which display the packaged app should reopen on.';
+
+    modeValue.textContent = fullscreen ? 'Fullscreen' : 'Windowed';
+    modeCopy.textContent = `${orientation === 'auto' ? 'Auto layout' : `${orientation[0].toUpperCase()}${orientation.slice(1)} layout`} · ${densityMode} density`;
   }
 
   function formatBytes(value) {
@@ -4989,65 +5328,11 @@
   }
 
   function enhanceSettingsSections() {
-    document.querySelectorAll('.settings-section').forEach((section) => {
-      if (section.dataset.enhanced === 'true') return;
-      const heading = section.querySelector(':scope > h3');
-      if (!heading) return;
-      const copy = section.querySelector(':scope > .settings-section-copy');
-      const body = document.createElement('div');
-      body.className = 'settings-section-body';
-
-      let cursor = copy ? copy.nextSibling : heading.nextSibling;
-      while (cursor) {
-        const next = cursor.nextSibling;
-        body.appendChild(cursor);
-        cursor = next;
-      }
-
-      const toggle = document.createElement('button');
-      toggle.type = 'button';
-      toggle.className = 'settings-section-head';
-      toggle.innerHTML = `
-        <span class="settings-section-head-copy">
-          <span class="settings-section-name">${escapeHtml(heading.textContent || '')}</span>
-          ${copy ? `<span class="settings-section-copy">${escapeHtml(copy.textContent || '')}</span>` : ''}
-        </span>
-        <span class="settings-section-toggle-label">
-          <span class="settings-section-toggle-text">Show Details</span>
-          <span class="settings-section-caret">▾</span>
-        </span>
-      `;
-
-      heading.remove();
-      if (copy) copy.remove();
-      section.prepend(body);
-      section.prepend(toggle);
-      section.dataset.enhanced = 'true';
-      section.classList.add('collapsed');
-      toggle.setAttribute('aria-expanded', 'false');
-
-      const updateToggleState = () => {
-        const expanded = !section.classList.contains('collapsed');
-        const textEl = toggle.querySelector('.settings-section-toggle-text');
-        if (textEl) textEl.textContent = expanded ? 'Hide Details' : 'Show Details';
-        toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-      };
-
-      updateToggleState();
-
-      toggle.addEventListener('click', () => {
-        section.classList.toggle('collapsed');
-        updateToggleState();
-      });
-    });
+    setupSettingsNavigation();
   }
 
   function reorderSettingsSections() {
-    const layout = document.querySelector('.settings-layout');
-    const columnsSection = qs('columns-section');
-    const ticketDetailsSection = qs('ticket-details-section');
-    if (!layout || !columnsSection || !ticketDetailsSection) return;
-    layout.insertBefore(columnsSection, ticketDetailsSection);
+    // Left-nav ordering now uses SETTINGS_PANEL_ORDER instead of DOM shuffling.
   }
 
   function enhanceCollapsibleSubsections() {
@@ -5745,6 +6030,7 @@
     qs('pref-column6-visible').checked = prefs.columns.column6?.visible === true;
     renderRushSyncStatus(state.data?.rushSync || {});
     updateRushSyncFieldVisibility();
+    renderWindowDisplayLiveStatus();
     qs('settings-status').textContent = '';
   }
 
@@ -6221,14 +6507,18 @@
     state.sideMediaDataUrl = currentPreferences().brand?.sideMediaDataUrl || '';
     state.themeBackgroundDataUrl = currentPreferences().brand?.backgroundImageDataUrl || '';
     fillSettingsForm(currentPreferences());
+    setActiveSettingsPanel(state.settingsActivePanelId || 'api-section');
     updateAlertRuleVisibility();
     loadApiConfig().catch(() => {
       qs('settings-status').textContent = 'Could not load API settings.';
     });
     loadDesktopMetadata().then(() => {
       updateSharedCalendarHostNote();
+      renderWindowDisplayLiveStatus();
     });
-    loadDetectedDisplays();
+    loadDetectedDisplays().then(() => {
+      renderWindowDisplayLiveStatus();
+    });
     refreshUpdateStatus();
     if (state.updateStatusTimer) clearInterval(state.updateStatusTimer);
     state.updateStatusTimer = setInterval(refreshUpdateStatus, 1500);
@@ -6776,6 +7066,9 @@
     updateBrand(currentPreferences());
     renderBoard(state.data);
     setupPaging();
+    if (qs('settings-drawer')?.classList.contains('open')) {
+      renderWindowDisplayLiveStatus();
+    }
   });
 
   window.addEventListener('pointerdown', unlockAlertAudio, { passive: true });
@@ -6796,6 +7089,9 @@
   qs('pref-shared-calendar-sync-dates').addEventListener('change', () => renderSharedCalendarSyncStatus(state.data?.calendarSync || {}));
   qs('pref-alert-audio-enabled').addEventListener('change', updateAppointmentAudioSettingsVisibility);
   qs('pref-pulse-timing-enabled').addEventListener('change', updatePulseTimingVisibility);
+  ['pref-fullscreen', 'pref-orientation', 'pref-display-target', 'pref-display-density'].forEach((id) => {
+    qs(id).addEventListener('change', renderWindowDisplayLiveStatus);
+  });
   qs('settings-open-browser').addEventListener('click', openInBrowser);
   qs('settings-clear-data').addEventListener('click', clearLocalData);
   qs('settings-check-updates').addEventListener('click', checkForUpdates);

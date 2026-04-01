@@ -2,6 +2,12 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.49
+
+- Reworked the settings drawer into a left-nav/right-content layout so the app’s deeper configuration is easier to scan and navigate.
+- Moved `Window & Display` out of `Brand` into its own top-level operational section with live viewport/target/mode status cards.
+- Made the `Columns` editors collapsible one-by-one so the queue setup no longer opens as one giant wall of controls.
+
 ## v2.1.68-beta.48
 
 - Reapply the saved display target automatically when Windows adds or changes displays, so boards aimed at a TV can move themselves over when the TV powers on after the computer.
