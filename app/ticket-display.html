@@ -2076,6 +2076,26 @@
     background: rgba(18, 31, 49, 0.92);
   }
 
+  #shared-calendar-discover-hosts[data-state="searching"] {
+    border-color: rgba(110, 231, 200, 0.38);
+    background: rgba(18, 31, 49, 0.92);
+    color: #d9fcef;
+    cursor: progress;
+  }
+
+  #shared-calendar-discover-hosts[data-state="found"] {
+    border-color: rgba(110, 231, 200, 0.34);
+    background: rgba(17, 55, 45, 0.82);
+    color: #d9fcef;
+  }
+
+  #shared-calendar-discover-hosts[data-state="empty"],
+  #shared-calendar-discover-hosts[data-state="error"] {
+    border-color: rgba(245, 158, 11, 0.28);
+    background: rgba(68, 33, 14, 0.74);
+    color: #fde68a;
+  }
+
   .settings-sensitive-row .settings-textarea {
     min-height: 44px;
     height: 44px;
@@ -3955,9 +3975,9 @@
                 <span class="settings-help">Use one board as the source of truth, then let other boards follow it over the local network.</span>
               </label>
               <label class="settings-field full" id="shared-calendar-host-url-field">
-                <span class="settings-label">Host board URL</span>
+                <span class="settings-label" id="shared-calendar-host-url-label">Host board URL</span>
                 <input class="settings-input" id="pref-shared-calendar-host-url" placeholder="http://192.168.1.50:54338" />
-                <span class="settings-help">On follower boards, enter the host board's local network URL. The default desktop-app port is usually <code>54338</code>.</span>
+                <span class="settings-help" id="shared-calendar-host-url-help">On follower boards, enter the host board's local network URL. The default desktop-app port is usually <code>54338</code>.</span>
               </label>
               <div class="settings-field full" id="shared-calendar-discovery-field">
                 <span class="settings-label">Find host on the network</span>
@@ -3973,8 +3993,8 @@
                 <span class="settings-check">
                   <input class="settings-checkbox" id="pref-shared-calendar-sync-calendar-blocks" type="checkbox" />
                   <span class="settings-check-copy">
-                    <span class="settings-check-title">Calendar blocks</span>
-                    <span class="settings-help">Shares blocked weekdays and temporary appointment blocks.</span>
+                    <span class="settings-check-title" id="shared-sync-title-calendar-blocks">Calendar blocks</span>
+                    <span class="settings-help" id="shared-sync-help-calendar-blocks">Shares blocked weekdays and temporary appointment blocks.</span>
                   </span>
                 </span>
               </label>
@@ -3982,8 +4002,8 @@
                 <span class="settings-check">
                   <input class="settings-checkbox" id="pref-shared-calendar-sync-appointments" type="checkbox" />
                   <span class="settings-check-copy">
-                    <span class="settings-check-title">Appointment preferences</span>
-                    <span class="settings-help">Shares calendar visibility, week rotation, and appointment notification preferences.</span>
+                    <span class="settings-check-title" id="shared-sync-title-appointments">Appointment preferences</span>
+                    <span class="settings-help" id="shared-sync-help-appointments">Shares calendar visibility, week rotation, and appointment notification preferences.</span>
                   </span>
                 </span>
               </label>
@@ -3991,8 +4011,8 @@
                 <span class="settings-check">
                   <input class="settings-checkbox" id="pref-shared-calendar-sync-brand" type="checkbox" />
                   <span class="settings-check-copy">
-                    <span class="settings-check-title">Branding</span>
-                    <span class="settings-help">Shares logo, header, ticker, background, colours, and side media preferences.</span>
+                    <span class="settings-check-title" id="shared-sync-title-brand">Branding</span>
+                    <span class="settings-help" id="shared-sync-help-brand">Shares logo, header, ticker, background, colours, and side media preferences.</span>
                   </span>
                 </span>
               </label>
@@ -4000,8 +4020,8 @@
                 <span class="settings-check">
                   <input class="settings-checkbox" id="pref-shared-calendar-sync-display" type="checkbox" />
                   <span class="settings-check-copy">
-                    <span class="settings-check-title">Window &amp; display</span>
-                    <span class="settings-help">Shares fullscreen, orientation, display target, and density choices.</span>
+                    <span class="settings-check-title" id="shared-sync-title-display">Window &amp; display</span>
+                    <span class="settings-help" id="shared-sync-help-display">Shares fullscreen, orientation, display target, and density choices.</span>
                   </span>
                 </span>
               </label>
@@ -4009,8 +4029,8 @@
                 <span class="settings-check">
                   <input class="settings-checkbox" id="pref-shared-calendar-sync-ticket-details" type="checkbox" />
                   <span class="settings-check-copy">
-                    <span class="settings-check-title">Ticket details</span>
-                    <span class="settings-help">Shares ticket content visibility, priority behavior, and pulse timing preferences.</span>
+                    <span class="settings-check-title" id="shared-sync-title-ticket-details">Ticket details</span>
+                    <span class="settings-help" id="shared-sync-help-ticket-details">Shares ticket content visibility, priority behavior, and pulse timing preferences.</span>
                   </span>
                 </span>
               </label>
@@ -4018,8 +4038,8 @@
                 <span class="settings-check">
                   <input class="settings-checkbox" id="pref-shared-calendar-sync-columns" type="checkbox" />
                   <span class="settings-check-copy">
-                    <span class="settings-check-title">Columns</span>
-                    <span class="settings-help">Shares queue labels, visibility, refurb behavior, and RepairDesk status mappings.</span>
+                    <span class="settings-check-title" id="shared-sync-title-columns">Columns</span>
+                    <span class="settings-help" id="shared-sync-help-columns">Shares queue labels, visibility, refurb behavior, and RepairDesk status mappings.</span>
                   </span>
                 </span>
               </label>
@@ -4027,8 +4047,8 @@
                 <span class="settings-check">
                   <input class="settings-checkbox" id="pref-shared-calendar-sync-updates" type="checkbox" />
                   <span class="settings-check-copy">
-                    <span class="settings-check-title">Update preferences</span>
-                    <span class="settings-help">Shares whether this board is opted into beta updates.</span>
+                    <span class="settings-check-title" id="shared-sync-title-updates">Update preferences</span>
+                    <span class="settings-help" id="shared-sync-help-updates">Shares whether this board is opted into beta updates.</span>
                   </span>
                 </span>
               </label>
@@ -4890,6 +4910,7 @@
     desktopMetadata: null,
     settingsActivePanelId: 'api-section',
     discoveredSharedHosts: [],
+    sharedHostDiscoveryStatus: 'idle',
   };
 
   const DEFAULT_PAGE_SECONDS = 12;
@@ -5628,6 +5649,7 @@
   function renderDiscoveredSharedHosts() {
     const select = qs('pref-shared-calendar-discovered-host');
     const copy = qs('shared-calendar-discovery-copy');
+    const button = qs('shared-calendar-discover-hosts');
     if (!select || !copy) return;
     const hosts = Array.isArray(state.discoveredSharedHosts) ? state.discoveredSharedHosts : [];
     const currentHostUrl = String(qs('pref-shared-calendar-host-url')?.value || '').trim();
@@ -5639,20 +5661,45 @@
       options.push(`<option value="${escapeHtml(host.hostUrl)}">${escapeHtml(labelParts.join(' · '))}</option>`);
     });
     select.innerHTML = options.join('');
+    select.disabled = hosts.length === 0;
     if (currentHostUrl && hosts.some((host) => host.hostUrl === currentHostUrl)) {
       select.value = currentHostUrl;
     }
-    copy.textContent = hosts.length
-      ? `Found ${hosts.length} host${hosts.length === 1 ? '' : 's'} on the network. Pick one to fill the host URL automatically.`
-      : 'Searches your local network for other boards that are actively hosting shared store settings.';
+    const discoveryState = String(state.sharedHostDiscoveryStatus || 'idle');
+    if (discoveryState === 'searching') {
+      copy.textContent = 'Searching the local network for boards that are actively hosting shared store settings...';
+    } else if (discoveryState === 'error') {
+      copy.textContent = 'Could not search the network right now. You can still paste the host URL manually below.';
+    } else if (discoveryState === 'empty') {
+      copy.textContent = 'No host boards were found on the network. Make sure another board is set to Host mode, then try again or paste its URL manually.';
+    } else if (hosts.length) {
+      copy.textContent = `Found ${hosts.length} host${hosts.length === 1 ? '' : 's'} on the network. Pick one to fill the host URL automatically.`;
+    } else {
+      copy.textContent = 'Searches your local network for other boards that are actively hosting shared store settings.';
+    }
+    if (button) {
+      button.dataset.state = discoveryState;
+      if (discoveryState === 'searching') {
+        button.textContent = 'Searching...';
+      } else if (discoveryState === 'found') {
+        button.textContent = 'Search Again';
+      } else if (discoveryState === 'empty') {
+        button.textContent = 'No Hosts Found';
+      } else if (discoveryState === 'error') {
+        button.textContent = 'Try Search Again';
+      } else {
+        button.textContent = 'Search Network';
+      }
+    }
   }
 
   async function discoverSharedStoreHosts() {
     const button = qs('shared-calendar-discover-hosts');
     const copy = qs('shared-calendar-discovery-copy');
     if (!button || !copy) return;
+    state.sharedHostDiscoveryStatus = 'searching';
+    renderDiscoveredSharedHosts();
     button.disabled = true;
-    copy.textContent = 'Searching the local network for boards hosting shared settings...';
     try {
       const response = await fetch('/api/shared-store-hosts');
       const payload = await response.json();
@@ -5660,13 +5707,49 @@
         throw new Error(payload.error || 'Could not search the network.');
       }
       state.discoveredSharedHosts = Array.isArray(payload.hosts) ? payload.hosts : [];
+      state.sharedHostDiscoveryStatus = state.discoveredSharedHosts.length ? 'found' : 'empty';
       renderDiscoveredSharedHosts();
     } catch (error) {
       state.discoveredSharedHosts = [];
+      state.sharedHostDiscoveryStatus = 'error';
       renderDiscoveredSharedHosts();
-      copy.textContent = error.message || 'Could not search the network.';
     } finally {
       button.disabled = false;
+    }
+  }
+
+  function updateSharedCalendarSyncCopy() {
+    const mode = qs('pref-shared-calendar-mode')?.value || 'local';
+    const copyMap = [
+      ['calendar-blocks', 'blocked weekdays and temporary appointment blocks'],
+      ['appointments', 'calendar visibility, week rotation, and appointment notification preferences'],
+      ['brand', 'logo, header, ticker, background, colours, and side media preferences'],
+      ['display', 'fullscreen, orientation, display target, and density choices'],
+      ['ticket-details', 'ticket content visibility, priority behavior, and pulse timing preferences'],
+      ['columns', 'queue labels, visibility, refurb behavior, and RepairDesk status mappings'],
+      ['updates', 'whether this board is opted into beta updates'],
+    ];
+    const action = mode === 'host'
+      ? { verb: 'Pushes', noun: 'to the other boards' }
+      : mode === 'follow'
+        ? { verb: 'Imports', noun: 'from the host board' }
+        : { verb: 'Keeps', noun: 'local to this board only' };
+
+    copyMap.forEach(([key, description]) => {
+      const help = qs(`shared-sync-help-${key}`);
+      if (!help) return;
+      help.textContent = `${action.verb} ${description} ${action.noun}.`;
+    });
+
+    const hostLabel = qs('shared-calendar-host-url-label');
+    const hostHelp = qs('shared-calendar-host-url-help');
+    if (hostLabel) {
+      hostLabel.textContent = mode === 'follow' ? 'Host board URL (manual fallback)' : 'Host board URL';
+    }
+    if (hostHelp) {
+      hostHelp.innerHTML = mode === 'follow'
+        ? 'Search Network is the easiest way to connect. Keep this field as a manual fallback or troubleshooting target if auto-discovery does not find the host. The default desktop-app port is usually <code>54338</code>.'
+        : 'This field is only used by follower boards. Host boards advertise their own URL below for troubleshooting and manual setup.';
     }
   }
 
@@ -5733,6 +5816,7 @@
     syncFields.forEach((field) => {
       field.hidden = mode === 'local';
     });
+    updateSharedCalendarSyncCopy();
     updateSharedCalendarHostNote();
     renderSharedCalendarSyncStatus(state.data?.calendarSync || {});
   }
