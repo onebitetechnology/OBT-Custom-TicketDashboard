@@ -11,7 +11,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.68-beta.49';
+const APP_VERSION = 'v2.1.68-beta.50';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -74,11 +74,15 @@ const DEFAULT_UI_PREFERENCES = {
     sharedCalendarSync: {
       mode: 'local',
       hostUrl: '',
-      syncBlockedWeekdays: true,
-      syncTemporaryBlockedDates: true,
-      cachedBlocks: {
-        blockedWeekdays: [],
-        temporaryBlockedDates: [],
+      syncCalendarBlocks: true,
+      syncAppointments: false,
+      syncBrand: false,
+      syncDisplay: false,
+      syncTicketDetails: false,
+      syncColumns: false,
+      syncUpdates: false,
+      cachedPreferences: {
+        preferences: null,
         sourceHostUrl: '',
         syncedAt: null,
       },
@@ -599,28 +603,47 @@ function normalizeSharedCalendarHostUrl(rawValue) {
   }
 }
 
-function normalizeSharedCalendarCachedBlocks(saved = {}, defaults = DEFAULT_UI_PREFERENCES.schedule.sharedCalendarSync.cachedBlocks) {
+function normalizeSharedCalendarCachedPreferences(saved = {}, defaults = DEFAULT_UI_PREFERENCES.schedule.sharedCalendarSync.cachedPreferences) {
+  let normalizedPreferences = null;
+  if (saved?.preferences && typeof saved.preferences === 'object') {
+    normalizedPreferences = normalizeUiPreferences(saved.preferences);
+  } else if (saved?.cachedBlocks && typeof saved.cachedBlocks === 'object') {
+    normalizedPreferences = normalizeUiPreferences({
+      schedule: {
+        blockedWeekdays: saved.cachedBlocks.blockedWeekdays || [],
+        temporaryBlockedDates: saved.cachedBlocks.temporaryBlockedDates || [],
+      },
+    });
+  }
   return {
-    blockedWeekdays: normalizeStringArray(saved?.blockedWeekdays, defaults.blockedWeekdays),
-    temporaryBlockedDates: normalizeStringArray(saved?.temporaryBlockedDates, defaults.temporaryBlockedDates),
+    preferences: normalizedPreferences,
     sourceHostUrl: normalizeSharedCalendarHostUrl(saved?.sourceHostUrl || defaults.sourceHostUrl),
     syncedAt: saved?.syncedAt ? String(saved.syncedAt) : defaults.syncedAt,
   };
 }
 
 function normalizeSharedCalendarSync(saved = {}, defaults = DEFAULT_UI_PREFERENCES.schedule.sharedCalendarSync) {
+  const legacySyncCalendarBlocks = saved?.syncCalendarBlocks !== undefined
+    ? !!saved.syncCalendarBlocks
+    : ((saved?.syncBlockedWeekdays !== undefined ? !!saved.syncBlockedWeekdays : false)
+      || (saved?.syncTemporaryBlockedDates !== undefined ? !!saved.syncTemporaryBlockedDates : false)
+      || defaults.syncCalendarBlocks);
   return {
     mode: ['local', 'host', 'follow'].includes(String(saved?.mode || '').toLowerCase())
       ? String(saved.mode).toLowerCase()
       : defaults.mode,
     hostUrl: normalizeSharedCalendarHostUrl(saved?.hostUrl || defaults.hostUrl),
-    syncBlockedWeekdays: saved?.syncBlockedWeekdays !== undefined
-      ? !!saved.syncBlockedWeekdays
-      : defaults.syncBlockedWeekdays,
-    syncTemporaryBlockedDates: saved?.syncTemporaryBlockedDates !== undefined
-      ? !!saved.syncTemporaryBlockedDates
-      : defaults.syncTemporaryBlockedDates,
-    cachedBlocks: normalizeSharedCalendarCachedBlocks(saved?.cachedBlocks, defaults.cachedBlocks),
+    syncCalendarBlocks: legacySyncCalendarBlocks,
+    syncAppointments: saved?.syncAppointments !== undefined ? !!saved.syncAppointments : defaults.syncAppointments,
+    syncBrand: saved?.syncBrand !== undefined ? !!saved.syncBrand : defaults.syncBrand,
+    syncDisplay: saved?.syncDisplay !== undefined ? !!saved.syncDisplay : defaults.syncDisplay,
+    syncTicketDetails: saved?.syncTicketDetails !== undefined ? !!saved.syncTicketDetails : defaults.syncTicketDetails,
+    syncColumns: saved?.syncColumns !== undefined ? !!saved.syncColumns : defaults.syncColumns,
+    syncUpdates: saved?.syncUpdates !== undefined ? !!saved.syncUpdates : defaults.syncUpdates,
+    cachedPreferences: normalizeSharedCalendarCachedPreferences(
+      saved?.cachedPreferences || saved,
+      defaults.cachedPreferences
+    ),
   };
 }
 
@@ -683,8 +706,7 @@ function buildSharedCalendarBlocksPayload(preferences = sessionConfig.uiPreferen
     version: 1,
     exportedAt: new Date().toISOString(),
     appVersion: APP_VERSION,
-    blockedWeekdays: normalizeStringArray(prefs.schedule?.blockedWeekdays, []),
-    temporaryBlockedDates: normalizeStringArray(prefs.schedule?.temporaryBlockedDates, []),
+    preferences: prefs,
   };
 }
 
@@ -1005,11 +1027,11 @@ function rdTicketCounter(apiBase, endpoint, params = {}) {
   });
 }
 
-function persistSharedCalendarCachedBlocksIfNeeded(nextCachedBlocks) {
-  const current = normalizeSharedCalendarCachedBlocks(
-    sessionConfig?.uiPreferences?.schedule?.sharedCalendarSync?.cachedBlocks || {}
+function persistSharedCalendarCachedPreferencesIfNeeded(nextCachedPreferences) {
+  const current = normalizeSharedCalendarCachedPreferences(
+    sessionConfig?.uiPreferences?.schedule?.sharedCalendarSync?.cachedPreferences || {}
   );
-  const next = normalizeSharedCalendarCachedBlocks(nextCachedBlocks || {});
+  const next = normalizeSharedCalendarCachedPreferences(nextCachedPreferences || {});
   if (JSON.stringify(current) === JSON.stringify(next)) return;
   sessionConfig.uiPreferences = normalizeUiPreferences({
     ...sessionConfig.uiPreferences,
@@ -1017,29 +1039,77 @@ function persistSharedCalendarCachedBlocksIfNeeded(nextCachedBlocks) {
       ...(sessionConfig.uiPreferences?.schedule || {}),
       sharedCalendarSync: {
         ...(sessionConfig.uiPreferences?.schedule?.sharedCalendarSync || {}),
-        cachedBlocks: next,
+        cachedPreferences: next,
       },
     },
   });
   saveConfig(sessionConfig);
 }
 
-function applySharedCalendarBlocks(preferences, sharedBlocks, syncSettings) {
+function mergeScheduleBlocks(localSchedule, remoteSchedule) {
+  return {
+    blockedWeekdays: mergeUniqueStrings(localSchedule?.blockedWeekdays, remoteSchedule?.blockedWeekdays),
+    temporaryBlockedDates: mergeUniqueStrings(localSchedule?.temporaryBlockedDates, remoteSchedule?.temporaryBlockedDates),
+  };
+}
+
+function applySharedSettings(preferences, remotePreferences, syncSettings) {
   const prefs = normalizeUiPreferences(preferences || {});
   const nextPrefs = JSON.parse(JSON.stringify(prefs));
-  const shared = normalizeSharedCalendarCachedBlocks(sharedBlocks || {});
-  if (syncSettings?.syncBlockedWeekdays !== false) {
-    nextPrefs.schedule.blockedWeekdays = mergeUniqueStrings(
-      prefs.schedule.blockedWeekdays,
-      shared.blockedWeekdays
-    );
+  const remote = normalizeUiPreferences(remotePreferences || {});
+  const syncCalendarBlocks = syncSettings?.syncCalendarBlocks !== false;
+
+  if (syncSettings?.syncBrand) {
+    nextPrefs.brand = JSON.parse(JSON.stringify(remote.brand));
   }
-  if (syncSettings?.syncTemporaryBlockedDates !== false) {
-    nextPrefs.schedule.temporaryBlockedDates = mergeUniqueStrings(
-      prefs.schedule.temporaryBlockedDates,
-      shared.temporaryBlockedDates
-    );
+
+  if (syncSettings?.syncDisplay) {
+    nextPrefs.display.fullscreen = remote.display.fullscreen;
+    nextPrefs.display.orientation = remote.display.orientation;
+    nextPrefs.display.displayTarget = remote.display.displayTarget;
+    nextPrefs.display.densityMode = remote.display.densityMode;
   }
+
+  if (syncSettings?.syncTicketDetails) {
+    nextPrefs.display.customerNameMode = remote.display.customerNameMode;
+    nextPrefs.display.showAssignedTech = remote.display.showAssignedTech;
+    nextPrefs.display.assigneeFilter = [...remote.display.assigneeFilter];
+    nextPrefs.display.pulseTimingEnabled = remote.display.pulseTimingEnabled;
+    nextPrefs.display.pinPriorityTickets = remote.display.pinPriorityTickets;
+    nextPrefs.display.priorityStrobeEnabled = remote.display.priorityStrobeEnabled;
+    nextPrefs.display.priorityStrobeIntensity = remote.display.priorityStrobeIntensity;
+    nextPrefs.staleRules = JSON.parse(JSON.stringify(remote.staleRules));
+  }
+
+  if (syncSettings?.syncColumns) {
+    nextPrefs.columns = JSON.parse(JSON.stringify(remote.columns));
+  }
+
+  if (syncSettings?.syncUpdates) {
+    nextPrefs.updates = JSON.parse(JSON.stringify(remote.updates));
+  }
+
+  if (syncSettings?.syncAppointments) {
+    nextPrefs.schedule.includedWeekdays = [...remote.schedule.includedWeekdays];
+    nextPrefs.schedule.showCalendar = remote.schedule.showCalendar;
+    nextPrefs.schedule.rotateWeeks = remote.schedule.rotateWeeks;
+    nextPrefs.schedule.currentWeekDurationSeconds = remote.schedule.currentWeekDurationSeconds;
+    nextPrefs.schedule.nextWeekDurationSeconds = remote.schedule.nextWeekDurationSeconds;
+    nextPrefs.schedule.dimPastDays = remote.schedule.dimPastDays;
+    nextPrefs.schedule.defaultLeadMinutes = remote.schedule.defaultLeadMinutes;
+    nextPrefs.schedule.onsiteLeadMinutes = remote.schedule.onsiteLeadMinutes;
+    nextPrefs.schedule.imminentMinutes = remote.schedule.imminentMinutes;
+    nextPrefs.schedule.alertAudioEnabled = remote.schedule.alertAudioEnabled;
+    nextPrefs.schedule.speechVoiceUri = remote.schedule.speechVoiceUri;
+    nextPrefs.schedule.alertAudioRules = JSON.parse(JSON.stringify(remote.schedule.alertAudioRules));
+  }
+
+  if (syncCalendarBlocks) {
+    const mergedBlocks = mergeScheduleBlocks(prefs.schedule, remote.schedule);
+    nextPrefs.schedule.blockedWeekdays = mergedBlocks.blockedWeekdays;
+    nextPrefs.schedule.temporaryBlockedDates = mergedBlocks.temporaryBlockedDates;
+  }
+
   return nextPrefs;
 }
 
@@ -1084,10 +1154,14 @@ async function resolveSharedCalendarPreferences(basePreferences = sessionConfig.
 
   const settingsKey = JSON.stringify({
     hostUrl: syncSettings.hostUrl,
-    syncBlockedWeekdays: !!syncSettings.syncBlockedWeekdays,
-    syncTemporaryBlockedDates: !!syncSettings.syncTemporaryBlockedDates,
-    localBlockedWeekdays: preferences.schedule.blockedWeekdays,
-    localTemporaryBlockedDates: preferences.schedule.temporaryBlockedDates,
+    syncCalendarBlocks: !!syncSettings.syncCalendarBlocks,
+    syncAppointments: !!syncSettings.syncAppointments,
+    syncBrand: !!syncSettings.syncBrand,
+    syncDisplay: !!syncSettings.syncDisplay,
+    syncTicketDetails: !!syncSettings.syncTicketDetails,
+    syncColumns: !!syncSettings.syncColumns,
+    syncUpdates: !!syncSettings.syncUpdates,
+    localPreferences: preferences,
   });
 
   if (
@@ -1102,26 +1176,25 @@ async function resolveSharedCalendarPreferences(basePreferences = sessionConfig.
     };
   }
 
-  const sharedUrl = `${syncSettings.hostUrl}/api/shared-calendar-blocks`;
+  const sharedUrl = `${syncSettings.hostUrl}/api/shared-store-settings`;
   try {
     const response = await fetchJson(sharedUrl, { Accept: 'application/json' });
     const payload = parseJsonSafe(response.body);
     if (response.status !== 200 || !payload || typeof payload !== 'object') {
       throw new Error(`Shared calendar host returned ${response.status || 'an unexpected response'}.`);
     }
-    const sharedBlocks = normalizeSharedCalendarCachedBlocks({
-      blockedWeekdays: payload.blockedWeekdays,
-      temporaryBlockedDates: payload.temporaryBlockedDates,
+    const cachedPreferences = normalizeSharedCalendarCachedPreferences({
+      preferences: payload.preferences || null,
       sourceHostUrl: syncSettings.hostUrl,
       syncedAt: payload.exportedAt || new Date().toISOString(),
     });
-    persistSharedCalendarCachedBlocksIfNeeded(sharedBlocks);
-    const effectivePreferences = applySharedCalendarBlocks(preferences, sharedBlocks, syncSettings);
+    persistSharedCalendarCachedPreferencesIfNeeded(cachedPreferences);
+    const effectivePreferences = applySharedSettings(preferences, cachedPreferences.preferences || {}, syncSettings);
     const status = emptySharedCalendarSyncStatus({
       mode: 'follow',
       connected: true,
       usingCached: false,
-      lastSyncedAt: sharedBlocks.syncedAt,
+      lastSyncedAt: cachedPreferences.syncedAt,
       hostUrl: syncSettings.hostUrl,
       source: 'network',
     });
@@ -1134,14 +1207,14 @@ async function resolveSharedCalendarPreferences(basePreferences = sessionConfig.
     };
     return { preferences: effectivePreferences, status };
   } catch (error) {
-    const cachedBlocks = normalizeSharedCalendarCachedBlocks(syncSettings.cachedBlocks || {});
-    if (cachedBlocks.blockedWeekdays.length || cachedBlocks.temporaryBlockedDates.length) {
-      const effectivePreferences = applySharedCalendarBlocks(preferences, cachedBlocks, syncSettings);
+    const cachedPreferences = normalizeSharedCalendarCachedPreferences(syncSettings.cachedPreferences || {});
+    if (cachedPreferences.preferences) {
+      const effectivePreferences = applySharedSettings(preferences, cachedPreferences.preferences, syncSettings);
       const status = emptySharedCalendarSyncStatus({
         mode: 'follow',
         connected: false,
         usingCached: true,
-        lastSyncedAt: cachedBlocks.syncedAt,
+        lastSyncedAt: cachedPreferences.syncedAt,
         lastError: String(error.message || error || '').trim(),
         hostUrl: syncSettings.hostUrl,
         source: 'cached',
@@ -3816,6 +3889,19 @@ const server = http.createServer(async (req, res) => {
     if (syncSettings.mode !== 'host') {
       res.writeHead(409, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'This board is not configured as a shared calendar host.' }));
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(buildSharedCalendarBlocksPayload(localPreferences)));
+    return;
+  }
+
+  if (pathname === '/api/shared-store-settings' && req.method === 'GET') {
+    const localPreferences = normalizeUiPreferences(sessionConfig.uiPreferences || {});
+    const syncSettings = localPreferences.schedule?.sharedCalendarSync || DEFAULT_UI_PREFERENCES.schedule.sharedCalendarSync;
+    if (syncSettings.mode !== 'host') {
+      res.writeHead(409, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'This board is not configured as a shared settings host.' }));
       return;
     }
     res.writeHead(200, { 'Content-Type': 'application/json' });

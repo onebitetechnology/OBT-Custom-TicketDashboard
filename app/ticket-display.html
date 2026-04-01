@@ -169,8 +169,9 @@
   }
 
   .brand-logo {
-    width: 54px;
     height: 54px;
+    width: auto;
+    max-width: 180px;
     border-radius: 14px;
     object-fit: contain;
     background: rgba(255,255,255,0.06);
@@ -1549,14 +1550,19 @@
   .settings-panel-stage {
     min-width: 0;
     min-height: 0;
-    overflow: auto;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-gutter: stable;
     padding-right: 4px;
     display: grid;
+    overscroll-behavior: contain;
   }
 
   .settings-panel {
     display: none;
     align-content: start;
+    min-height: 0;
   }
 
   .settings-panel.active {
@@ -1593,6 +1599,7 @@
   .settings-panel-body {
     display: grid;
     gap: 14px;
+    min-height: 0;
   }
 
   .settings-live-grid {
@@ -1717,6 +1724,7 @@
     gap: 16px;
     align-items: start;
     flex: 1 1 auto;
+    height: 100%;
     min-height: 0;
     overflow: hidden;
   }
@@ -1738,6 +1746,7 @@
   .brand-subsections {
     display: grid;
     gap: 14px;
+    min-height: 0;
   }
 
   .brand-subsection {
@@ -1964,6 +1973,46 @@
     line-height: 1.5;
   }
 
+  .settings-sensitive-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: start;
+  }
+
+  .settings-sensitive-control {
+    width: 100%;
+  }
+
+  .settings-sensitive-control.masked {
+    -webkit-text-security: disc;
+    filter: blur(5px);
+    color: rgba(236, 245, 255, 0.8);
+    user-select: none;
+    transition: filter 140ms ease;
+  }
+
+  .settings-sensitive-control.masked:focus {
+    filter: blur(0);
+  }
+
+  .settings-sensitive-control.revealed {
+    filter: none;
+    user-select: text;
+  }
+
+  .settings-sensitive-toggle {
+    min-height: 52px;
+    min-width: 54px;
+    padding: 0 14px;
+    align-self: stretch;
+  }
+
+  .settings-sensitive-toggle[data-state="revealed"] {
+    border-color: rgba(110, 231, 200, 0.38);
+    background: rgba(18, 31, 49, 0.92);
+  }
+
   .settings-logo-preview {
     display: flex;
     align-items: center;
@@ -2035,7 +2084,8 @@
   }
 
   .settings-logo-thumb {
-    width: 92px;
+    width: auto;
+    max-width: 180px;
     height: 92px;
     border-radius: 12px;
     object-fit: contain;
@@ -2056,11 +2106,12 @@
 
   .audio-rule-card {
     display: grid;
-    gap: 10px;
-    padding: 12px;
-    border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.1);
-    background: rgba(255,255,255,0.04);
+    gap: 12px;
+    padding: 14px;
+    border-radius: 16px;
+    border: 1px solid rgba(188, 213, 255, 0.12);
+    background: linear-gradient(180deg, rgba(15, 25, 40, 0.92), rgba(10, 18, 29, 0.88));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
   }
 
   .audio-rule-card.collapsed .audio-rule-body {
@@ -2069,54 +2120,72 @@
 
   .audio-rule-head {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    align-items: center;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
     gap: 10px;
   }
 
   .audio-rule-title {
-    flex: 1 1 auto;
     min-width: 0;
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 800;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--soft);
+    letter-spacing: 0.01em;
+    color: #eef7ff;
   }
 
-  .audio-rule-remove-wrap {
-    justify-self: end;
+  .audio-rule-summary {
+    display: grid;
+    gap: 6px;
   }
 
-  .audio-rule-toggle {
-    justify-self: end;
+  .audio-rule-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
-  .audio-rule-remove {
+  .audio-rule-chip {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    width: auto;
-    max-width: max-content;
-    position: relative;
-    z-index: 1;
+    min-height: 26px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(195, 214, 240, 0.14);
+    background: rgba(255,255,255,0.05);
+    color: #c6d7ec;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .audio-rule-actions-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    justify-self: end;
+    flex-wrap: wrap;
   }
 
   .audio-rule-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
   }
 
   .audio-rule-body {
     display: grid;
-    gap: 10px;
+    gap: 12px;
   }
 
   .audio-rule-actions {
     display: flex;
-    justify-content: flex-end;
+    justify-content: flex-start;
     gap: 10px;
+  }
+
+  .audio-rule-remove-wrap {
+    display: inline-flex;
   }
 
   .settings-logo-meta {
@@ -3704,42 +3773,162 @@
     <div class="settings-nav" id="settings-nav"></div>
     <div class="settings-panel-stage" id="settings-panel-stage">
   <div class="settings-section settings-panel" id="api-section">
-    <h3>RepairDesk API</h3>
-    <div class="settings-section-copy">Connection details for the RepairDesk account this board reads from.</div>
-    <div class="settings-grid">
-      <label class="settings-field full">
-        <span class="settings-label">Ticket Counter Display URL</span>
-        <textarea class="settings-textarea" id="ticket-counter-url"></textarea>
-        <span class="settings-help">This powers the main queue feed. In RepairDesk, go to 9 dots &gt; Integrations &gt; Ticket Counter Display, click Copy Display URL, and paste the full URL here.</span>
-      </label>
-      <label class="settings-field full">
-        <span class="settings-label">RepairDesk API key</span>
-        <textarea class="settings-textarea" id="api-key"></textarea>
-        <span class="settings-help">Used for the extra RepairDesk detail lookups that power waiting age, priority detection, and appointment enrichment.</span>
-      </label>
-      <label class="settings-field full">
-        <span class="settings-label">Enhanced RepairDesk Sync</span>
-        <span class="settings-check">
-          <input class="settings-checkbox" id="rush-sync-enabled" type="checkbox" />
-          <span class="settings-check-copy">
-            <span class="settings-check-title">Use a RepairDesk session cookie for true Priority tickets and missing-ticket fallback</span>
-            <span class="settings-help">Optional, but recommended. When the normal Ticket Counter feed leaves tickets out, this authenticated sync helps recover them. If it disconnects, the board falls back gracefully.</span>
-          </span>
-        </span>
-      </label>
-      <div class="settings-field full" id="rush-sync-connect-field">
-        <span class="settings-label">Connection status</span>
-        <div class="settings-sync-status">
-          <span class="settings-status-light" id="rush-sync-status-light" data-state="disabled" aria-hidden="true"></span>
-          <div class="settings-inline-status" id="rush-sync-status-copy">Enhanced RepairDesk Sync is disabled.</div>
+    <h3>Connections &amp; Sync</h3>
+    <div class="settings-section-copy">Store-facing connections, authenticated RepairDesk sync, and optional board-to-board settings sharing all live here.</div>
+    <div class="brand-subsections">
+      <section class="brand-subsection collapsible-subsection">
+        <h4 class="brand-subsection-title">Connections</h4>
+        <p class="brand-subsection-copy">These are the direct RepairDesk inputs this board uses to read queue data and enrich ticket details.</p>
+        <div class="settings-grid">
+          <label class="settings-field full">
+            <span class="settings-label">Ticket Counter Display URL</span>
+            <div class="settings-sensitive-row">
+              <textarea class="settings-textarea settings-sensitive-control" id="ticket-counter-url" data-sensitive-input="ticket-counter-url"></textarea>
+              <button class="pill secondary settings-sensitive-toggle" type="button" data-sensitive-toggle="ticket-counter-url" aria-label="Reveal Ticket Counter Display URL">👁</button>
+            </div>
+            <span class="settings-help">This powers the main queue feed. In RepairDesk, go to 9 dots &gt; Integrations &gt; Ticket Counter Display, click Copy Display URL, and paste the full URL here.</span>
+          </label>
+          <label class="settings-field full">
+            <span class="settings-label">RepairDesk API key</span>
+            <div class="settings-sensitive-row">
+              <textarea class="settings-textarea settings-sensitive-control" id="api-key" data-sensitive-input="api-key"></textarea>
+              <button class="pill secondary settings-sensitive-toggle" type="button" data-sensitive-toggle="api-key" aria-label="Reveal RepairDesk API key">👁</button>
+            </div>
+            <span class="settings-help">Used for the extra RepairDesk detail lookups that power waiting age, priority detection, and appointment enrichment.</span>
+          </label>
         </div>
-        <span class="settings-help">Paste the current RepairDesk session cookie for this machine below. If the sync drops, the board will prompt you to open Settings and paste a fresh cookie.</span>
-      </div>
-      <label class="settings-field full" id="rush-sync-cookie-field">
-        <span class="settings-label">RepairDesk session cookie</span>
-        <textarea class="settings-textarea" id="rush-sync-cookie"></textarea>
-        <span class="settings-help">Paste the full <code>Cookie:</code> value from a logged-in RepairDesk browser session for this store. This is sensitive and should only be used on the local board computer.</span>
-      </label>
+      </section>
+
+      <section class="brand-subsection collapsible-subsection">
+        <h4 class="brand-subsection-title">Sync</h4>
+        <p class="brand-subsection-copy">Connect to RepairDesk for true Priority tickets and optionally share selected settings from one board to the others on your network.</p>
+        <div class="settings-grid">
+          <label class="settings-field full">
+            <span class="settings-label">Enhanced RepairDesk Sync</span>
+            <span class="settings-check">
+              <input class="settings-checkbox" id="rush-sync-enabled" type="checkbox" />
+              <span class="settings-check-copy">
+                <span class="settings-check-title">Use a RepairDesk session cookie for true Priority tickets and missing-ticket fallback</span>
+                <span class="settings-help">Optional, but recommended. When the normal Ticket Counter feed leaves tickets out, this authenticated sync helps recover them. If it disconnects, the board falls back gracefully.</span>
+              </span>
+            </span>
+          </label>
+          <div class="settings-field full" id="rush-sync-connect-field">
+            <span class="settings-label">Enhanced RepairDesk Sync status</span>
+            <div class="settings-sync-status">
+              <span class="settings-status-light" id="rush-sync-status-light" data-state="disabled" aria-hidden="true"></span>
+              <div class="settings-inline-status" id="rush-sync-status-copy">Enhanced RepairDesk Sync is disabled.</div>
+            </div>
+            <span class="settings-help">Paste the current RepairDesk session cookie for this machine below. If the sync drops, the board will prompt you to open Settings and paste a fresh cookie.</span>
+          </div>
+          <label class="settings-field full" id="rush-sync-cookie-field">
+            <span class="settings-label">RepairDesk session cookie</span>
+            <div class="settings-sensitive-row">
+              <textarea class="settings-textarea settings-sensitive-control" id="rush-sync-cookie" data-sensitive-input="rush-sync-cookie"></textarea>
+              <button class="pill secondary settings-sensitive-toggle" type="button" data-sensitive-toggle="rush-sync-cookie" aria-label="Reveal RepairDesk session cookie">👁</button>
+            </div>
+            <span class="settings-help">Paste the full <code>Cookie:</code> value from a logged-in RepairDesk browser session for this store. This is sensitive and should only be used on the local board computer.</span>
+          </label>
+
+          <section class="settings-field full subtle-panel">
+            <span class="settings-label">Shared Store Settings</span>
+            <div class="settings-grid compact-2">
+              <label class="settings-field align-end">
+                <span class="settings-label">Sync mode</span>
+                <select class="settings-input settings-select" id="pref-shared-calendar-mode">
+                  <option value="local">Local only</option>
+                  <option value="host">Host store settings for other boards</option>
+                  <option value="follow">Follow another board on the network</option>
+                </select>
+                <span class="settings-help">Use one board as the source of truth, then let other boards follow it over the local network.</span>
+              </label>
+              <label class="settings-field full" id="shared-calendar-host-url-field">
+                <span class="settings-label">Host board URL</span>
+                <input class="settings-input" id="pref-shared-calendar-host-url" placeholder="http://192.168.1.50:54338" />
+                <span class="settings-help">On follower boards, enter the host board's local network URL. The default desktop-app port is usually <code>54338</code>.</span>
+              </label>
+              <label class="settings-field">
+                <span class="settings-label">Shared settings</span>
+                <span class="settings-check">
+                  <input class="settings-checkbox" id="pref-shared-calendar-sync-calendar-blocks" type="checkbox" />
+                  <span class="settings-check-copy">
+                    <span class="settings-check-title">Calendar blocks</span>
+                    <span class="settings-help">Shares blocked weekdays and temporary appointment blocks.</span>
+                  </span>
+                </span>
+              </label>
+              <label class="settings-field">
+                <span class="settings-label">Shared settings</span>
+                <span class="settings-check">
+                  <input class="settings-checkbox" id="pref-shared-calendar-sync-appointments" type="checkbox" />
+                  <span class="settings-check-copy">
+                    <span class="settings-check-title">Appointment preferences</span>
+                    <span class="settings-help">Shares calendar visibility, week rotation, and appointment notification preferences.</span>
+                  </span>
+                </span>
+              </label>
+              <label class="settings-field">
+                <span class="settings-label">Shared settings</span>
+                <span class="settings-check">
+                  <input class="settings-checkbox" id="pref-shared-calendar-sync-brand" type="checkbox" />
+                  <span class="settings-check-copy">
+                    <span class="settings-check-title">Branding</span>
+                    <span class="settings-help">Shares logo, header, ticker, background, colours, and side media preferences.</span>
+                  </span>
+                </span>
+              </label>
+              <label class="settings-field">
+                <span class="settings-label">Shared settings</span>
+                <span class="settings-check">
+                  <input class="settings-checkbox" id="pref-shared-calendar-sync-display" type="checkbox" />
+                  <span class="settings-check-copy">
+                    <span class="settings-check-title">Window &amp; display</span>
+                    <span class="settings-help">Shares fullscreen, orientation, display target, and density choices.</span>
+                  </span>
+                </span>
+              </label>
+              <label class="settings-field">
+                <span class="settings-label">Shared settings</span>
+                <span class="settings-check">
+                  <input class="settings-checkbox" id="pref-shared-calendar-sync-ticket-details" type="checkbox" />
+                  <span class="settings-check-copy">
+                    <span class="settings-check-title">Ticket details</span>
+                    <span class="settings-help">Shares ticket content visibility, priority behavior, and pulse timing preferences.</span>
+                  </span>
+                </span>
+              </label>
+              <label class="settings-field">
+                <span class="settings-label">Shared settings</span>
+                <span class="settings-check">
+                  <input class="settings-checkbox" id="pref-shared-calendar-sync-columns" type="checkbox" />
+                  <span class="settings-check-copy">
+                    <span class="settings-check-title">Columns</span>
+                    <span class="settings-help">Shares queue labels, visibility, refurb behavior, and RepairDesk status mappings.</span>
+                  </span>
+                </span>
+              </label>
+              <label class="settings-field">
+                <span class="settings-label">Shared settings</span>
+                <span class="settings-check">
+                  <input class="settings-checkbox" id="pref-shared-calendar-sync-updates" type="checkbox" />
+                  <span class="settings-check-copy">
+                    <span class="settings-check-title">Update preferences</span>
+                    <span class="settings-help">Shares whether this board is opted into beta updates.</span>
+                  </span>
+                </span>
+              </label>
+              <div class="settings-field full">
+                <span class="settings-label">Connection status</span>
+                <div class="settings-sync-status">
+                  <span class="settings-status-light" id="shared-calendar-status-light" data-state="disabled" aria-hidden="true"></span>
+                  <div class="settings-inline-status" id="shared-calendar-status-copy">Shared settings are local to this board.</div>
+                </div>
+                <span class="settings-help" id="shared-calendar-host-note">Use one board as the host, then point the other boards at that machine’s network URL.</span>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
     </div>
   </div>
   <div class="settings-section settings-panel" id="brand-section">
@@ -4073,53 +4262,6 @@
             <textarea class="settings-textarea" id="pref-temporary-blocked-dates" placeholder="March 24&#10;March 25&#10;2026-03-30"></textarea>
             <span class="settings-help">Enter one specific blocked date per line. Formats like <code>March 24</code>, <code>Mar 24</code>, <code>3/24</code>, or <code>2026-03-24</code> all work. Month/day entries are treated as this year.</span>
           </label>
-          <section class="settings-field full subtle-panel">
-            <span class="settings-label">Shared Calendar Blocks</span>
-            <div class="settings-grid compact-2">
-              <label class="settings-field align-end">
-                <span class="settings-label">Sync mode</span>
-                <select class="settings-input settings-select" id="pref-shared-calendar-mode">
-                  <option value="local">Local only</option>
-                  <option value="host">Host this store's shared calendar blocks</option>
-                  <option value="follow">Follow another board on the network</option>
-                </select>
-                <span class="settings-help">Use this if you want one board to control blocked appointment days for the other TVs in the store.</span>
-              </label>
-              <label class="settings-field full" id="shared-calendar-host-url-field">
-                <span class="settings-label">Host board URL</span>
-                <input class="settings-input" id="pref-shared-calendar-host-url" placeholder="http://192.168.1.50:54338" />
-                <span class="settings-help">On follower boards, enter the host board's local network URL. The default desktop-app port is usually <code>54338</code>.</span>
-              </label>
-              <label class="settings-field">
-                <span class="settings-label">Sync blocked weekdays</span>
-                <span class="settings-check">
-                  <input class="settings-checkbox" id="pref-shared-calendar-sync-weekdays" type="checkbox" />
-                  <span class="settings-check-copy">
-                    <span class="settings-check-title">Include recurring blocked days</span>
-                    <span class="settings-help">Follower boards merge the host's blocked weekdays with their own local list.</span>
-                  </span>
-                </span>
-              </label>
-              <label class="settings-field">
-                <span class="settings-label">Sync temporary blocked dates</span>
-                <span class="settings-check">
-                  <input class="settings-checkbox" id="pref-shared-calendar-sync-dates" type="checkbox" />
-                  <span class="settings-check-copy">
-                    <span class="settings-check-title">Include one-off blocked dates</span>
-                    <span class="settings-help">Follower boards merge the host's temporary blocked dates with their own local list.</span>
-                  </span>
-                </span>
-              </label>
-              <div class="settings-field full">
-                <span class="settings-label">Connection status</span>
-                <div class="settings-sync-status">
-                  <span class="settings-status-light" id="shared-calendar-status-light" data-state="disabled" aria-hidden="true"></span>
-                  <div class="settings-inline-status" id="shared-calendar-status-copy">Shared calendar blocks are local to this board.</div>
-                </div>
-                <span class="settings-help" id="shared-calendar-host-note">If this board is the host, followers can point at this machine's local network address on port <code>54338</code>.</span>
-              </div>
-            </div>
-          </section>
           <label class="settings-field full">
             <span class="settings-label">Calendar day styling</span>
             <span class="settings-check">
@@ -4377,9 +4519,8 @@
       </section>
     </div>
   </div>
-  <div class="settings-section settings-panel" id="updates-section">
+  <div class="settings-section settings-panel" id="updates-section" data-nav-copy="Update channel, manual checks, release notes, and local maintenance tools.">
     <h3>Updates &amp; Maintenance</h3>
-    <div class="settings-section-copy">Keep this board current with the same compact update card style used in the PC AutoSpec app.</div>
     <div class="update-card">
       <div class="update-meta">
         <div class="update-meta-row">
@@ -4576,11 +4717,15 @@
         sharedCalendarSync: {
           mode: 'local',
           hostUrl: '',
-          syncBlockedWeekdays: true,
-          syncTemporaryBlockedDates: true,
-          cachedBlocks: {
-            blockedWeekdays: [],
-            temporaryBlockedDates: [],
+          syncCalendarBlocks: true,
+          syncAppointments: false,
+          syncBrand: false,
+          syncDisplay: false,
+          syncTicketDetails: false,
+          syncColumns: false,
+          syncUpdates: false,
+          cachedPreferences: {
+            preferences: null,
             sourceHostUrl: '',
             syncedAt: null,
           },
@@ -4801,13 +4946,26 @@
     const safeRules = rules.length ? rules : defaultAlertAudioRulesFromPreferences(currentPreferences().schedule || {});
     return safeRules.map((rule, index) => {
       const normalized = normalizeAlertAudioRule(rule);
+      const matcherHidden = normalized.matchMode !== 'service_contains';
+      const summaryChips = [];
+      summaryChips.push(matcherHidden ? 'all services' : `service: ${normalized.serviceMatcher || '...'}`);
+      summaryChips.push(`${normalized.leadMinutes} min lead`);
+      summaryChips.push(normalized.cooldownSeconds == null ? 'one-time' : `${normalized.cooldownSeconds}s repeat`);
+      summaryChips.push(normalized.mode);
       return `
         <div class="audio-rule-card collapsed" data-alert-rule-index="${index}">
           <div class="audio-rule-head">
-            <div class="audio-rule-title">${escapeHtml(alertRuleTitle(normalized, index))}</div>
-            <button class="pill audio-rule-toggle" type="button" data-toggle-alert-rule="${index}">Edit</button>
-            <div class="audio-rule-remove-wrap">
-              <button class="pill audio-rule-remove" type="button" data-remove-alert-rule="${index}">Remove</button>
+            <div class="audio-rule-summary">
+              <div class="audio-rule-title">${escapeHtml(alertRuleTitle(normalized, index))}</div>
+              <div class="audio-rule-chips">
+                ${summaryChips.map((chip) => `<span class="audio-rule-chip">${escapeHtml(chip)}</span>`).join('')}
+              </div>
+            </div>
+            <div class="audio-rule-actions-row">
+              <button class="pill audio-rule-toggle" type="button" data-toggle-alert-rule="${index}">Edit</button>
+              <div class="audio-rule-remove-wrap">
+                <button class="pill audio-rule-remove" type="button" data-remove-alert-rule="${index}">Remove</button>
+              </div>
             </div>
           </div>
           <div class="audio-rule-body">
@@ -4836,7 +4994,7 @@
                   <option value="both" ${normalized.mode === 'both' ? 'selected' : ''}>Chime and spoken message</option>
                 </select>
               </label>
-              <label class="settings-field" ${normalized.matchMode === 'service_contains' ? '' : 'hidden'}>
+              <label class="settings-field" ${matcherHidden ? 'hidden' : ''}>
                 <span class="settings-label">Service type contains</span>
                 <input class="settings-input" data-alert-field="serviceMatcher" data-alert-index="${index}" value="${escapeHtml(normalized.serviceMatcher)}" />
               </label>
@@ -4933,7 +5091,7 @@
     const list = qs('settings-nav-list');
     panels.forEach((panel) => {
       const title = panel.querySelector(':scope > h3')?.textContent?.trim() || panel.id;
-      const copy = panel.querySelector(':scope > .settings-section-copy')?.textContent?.trim() || '';
+      const copy = panel.dataset.navCopy || panel.querySelector(':scope > .settings-section-copy')?.textContent?.trim() || '';
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'settings-nav-button';
@@ -5199,21 +5357,21 @@
   function sharedCalendarSyncStatusText(status = {}, mode = 'local') {
     const normalizedMode = String(mode || status.mode || 'local').toLowerCase();
     if (normalizedMode === 'host') {
-      return 'This board is hosting shared calendar blocks for other boards on the network.';
+      return 'This board is hosting shared store settings for other boards on the network.';
     }
     if (normalizedMode !== 'follow') {
-      return 'Shared calendar blocks are local to this board.';
+      return 'Shared settings are local to this board.';
     }
     if (status.connected) {
       const syncedAt = status.lastSyncedAt
         ? ` Last synced ${new Date(status.lastSyncedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`
         : '';
-      return `Connected to the shared calendar host.${syncedAt}`;
+      return `Connected to the shared settings host.${syncedAt}`;
     }
     if (status.usingCached) {
-      return `The host is unavailable right now, so this board is using the last synced blocked dates.${status.lastError ? ` ${status.lastError}` : ''}`;
+      return `The host is unavailable right now, so this board is using the last synced shared settings.${status.lastError ? ` ${status.lastError}` : ''}`;
     }
-    return `This board could not reach the shared calendar host yet.${status.lastError ? ` ${status.lastError}` : ''}`;
+    return `This board could not reach the shared settings host yet.${status.lastError ? ` ${status.lastError}` : ''}`;
   }
 
   function renderSharedCalendarSyncStatus(status = {}) {
@@ -5244,31 +5402,65 @@
       const primaryUrl = networkBoardUrls[0] || localBoardUrl || `http://<this-board-ip>:${preferredPort}`;
       const extraUrls = networkBoardUrls.slice(1).map((url) => `<code>${escapeHtml(url)}</code>`).join(', ');
       noteEl.innerHTML = extraUrls
-        ? `Followers can point to <code>${escapeHtml(primaryUrl)}</code>. Other detected board URLs: ${extraUrls}.`
+        ? `Follower boards can point to <code>${escapeHtml(primaryUrl)}</code>. Other detected board URLs: ${extraUrls}.`
         : `Followers can point to <code>${escapeHtml(primaryUrl)}</code>.`;
       return;
     }
 
     if (mode === 'follow') {
       noteEl.innerHTML = hostUrl
-        ? `This board will poll <code>${escapeHtml(hostUrl)}</code> and merge the shared blocked dates into its local calendar settings.`
+        ? `This board will poll <code>${escapeHtml(hostUrl)}</code> and merge the selected shared settings into its local board configuration.`
         : `Enter the host board's local network URL, for example <code>http://192.168.1.50:${preferredPort}</code>.`;
       return;
     }
 
-    noteEl.textContent = 'Leave this on Local only if this board should keep its own blocked dates without syncing them to or from the other TVs.';
+    noteEl.textContent = 'Leave this on Local only if this board should keep all settings private to this machine without syncing them to or from the other TVs.';
   }
 
   function updateSharedCalendarSyncFieldVisibility() {
     const mode = qs('pref-shared-calendar-mode')?.value || 'local';
     const hostUrlField = qs('shared-calendar-host-url-field');
-    const syncWeekdays = qs('pref-shared-calendar-sync-weekdays')?.closest('.settings-field');
-    const syncDates = qs('pref-shared-calendar-sync-dates')?.closest('.settings-field');
+    const syncFields = [
+      qs('pref-shared-calendar-sync-calendar-blocks')?.closest('.settings-field'),
+      qs('pref-shared-calendar-sync-appointments')?.closest('.settings-field'),
+      qs('pref-shared-calendar-sync-brand')?.closest('.settings-field'),
+      qs('pref-shared-calendar-sync-display')?.closest('.settings-field'),
+      qs('pref-shared-calendar-sync-ticket-details')?.closest('.settings-field'),
+      qs('pref-shared-calendar-sync-columns')?.closest('.settings-field'),
+      qs('pref-shared-calendar-sync-updates')?.closest('.settings-field'),
+    ].filter(Boolean);
     if (hostUrlField) hostUrlField.hidden = mode !== 'follow';
-    if (syncWeekdays) syncWeekdays.hidden = mode !== 'follow';
-    if (syncDates) syncDates.hidden = mode !== 'follow';
+    syncFields.forEach((field) => {
+      field.hidden = mode === 'local';
+    });
     updateSharedCalendarHostNote();
     renderSharedCalendarSyncStatus(state.data?.calendarSync || {});
+  }
+
+  const sensitiveFieldState = {
+    'ticket-counter-url': false,
+    'api-key': false,
+    'rush-sync-cookie': false,
+  };
+
+  function applySensitiveFieldMasking() {
+    Object.entries(sensitiveFieldState).forEach(([fieldId, revealed]) => {
+      const input = document.querySelector(`[data-sensitive-input="${fieldId}"]`);
+      const button = document.querySelector(`[data-sensitive-toggle="${fieldId}"]`);
+      if (!input || !button) return;
+      input.classList.toggle('masked', !revealed);
+      input.classList.toggle('revealed', revealed);
+      button.dataset.state = revealed ? 'revealed' : 'masked';
+      button.textContent = revealed ? '🙈' : '👁';
+      button.title = revealed ? 'Hide value' : 'Reveal value';
+    });
+  }
+
+  function resetSensitiveFieldMasking() {
+    Object.keys(sensitiveFieldState).forEach((fieldId) => {
+      sensitiveFieldState[fieldId] = false;
+    });
+    applySensitiveFieldMasking();
   }
 
   function updateAppointmentAudioSettingsVisibility() {
@@ -5383,7 +5575,23 @@
       updateToggleState();
 
       toggle.addEventListener('click', () => {
-        section.classList.toggle('collapsed');
+        const shouldExpand = section.classList.contains('collapsed');
+        if (shouldExpand) {
+          const group = section.closest('.brand-subsections, .settings-grid');
+          if (group) {
+            group.querySelectorAll(':scope > .collapsible-subsection').forEach((sibling) => {
+              if (sibling === section) return;
+              sibling.classList.add('collapsed');
+              const siblingToggle = sibling.querySelector(':scope > .subsection-head');
+              const siblingText = siblingToggle?.querySelector('.settings-section-toggle-text');
+              if (siblingText) siblingText.textContent = 'Show Details';
+              if (siblingToggle) siblingToggle.setAttribute('aria-expanded', 'false');
+            });
+          }
+          section.classList.remove('collapsed');
+        } else {
+          section.classList.add('collapsed');
+        }
         updateToggleState();
       });
     });
@@ -5469,8 +5677,9 @@
   function applyLogoPreviewSize(sizeLike) {
     const size = normalizedLogoSize(sizeLike);
     const previewEl = qs('pref-brand-logo-preview');
-    previewEl.style.width = `${size}px`;
     previewEl.style.height = `${size}px`;
+    previewEl.style.width = 'auto';
+    previewEl.style.maxWidth = `${Math.max(size * 2, size)}px`;
   }
 
   function applyThemePreferences(preferences) {
@@ -5501,8 +5710,9 @@
     const logo = String(brand.logoDataUrl || '').trim();
     const logoSize = normalizedLogoSize(brand.logoSize || 72);
     const logoEl = qs('brand-logo');
-    logoEl.style.width = `${logoSize}px`;
     logoEl.style.height = `${logoSize}px`;
+    logoEl.style.width = 'auto';
+    logoEl.style.maxWidth = `${Math.max(logoSize * 2, logoSize)}px`;
     if (logo) {
       logoEl.src = logo;
       logoEl.classList.add('visible');
@@ -5975,8 +6185,13 @@
     qs('pref-temporary-blocked-dates').value = (prefs.schedule.temporaryBlockedDates || []).join('\n');
     qs('pref-shared-calendar-mode').value = prefs.schedule?.sharedCalendarSync?.mode || 'local';
     qs('pref-shared-calendar-host-url').value = prefs.schedule?.sharedCalendarSync?.hostUrl || '';
-    qs('pref-shared-calendar-sync-weekdays').checked = prefs.schedule?.sharedCalendarSync?.syncBlockedWeekdays !== false;
-    qs('pref-shared-calendar-sync-dates').checked = prefs.schedule?.sharedCalendarSync?.syncTemporaryBlockedDates !== false;
+    qs('pref-shared-calendar-sync-calendar-blocks').checked = prefs.schedule?.sharedCalendarSync?.syncCalendarBlocks !== false;
+    qs('pref-shared-calendar-sync-appointments').checked = !!prefs.schedule?.sharedCalendarSync?.syncAppointments;
+    qs('pref-shared-calendar-sync-brand').checked = !!prefs.schedule?.sharedCalendarSync?.syncBrand;
+    qs('pref-shared-calendar-sync-display').checked = !!prefs.schedule?.sharedCalendarSync?.syncDisplay;
+    qs('pref-shared-calendar-sync-ticket-details').checked = !!prefs.schedule?.sharedCalendarSync?.syncTicketDetails;
+    qs('pref-shared-calendar-sync-columns').checked = !!prefs.schedule?.sharedCalendarSync?.syncColumns;
+    qs('pref-shared-calendar-sync-updates').checked = !!prefs.schedule?.sharedCalendarSync?.syncUpdates;
     qs('pref-dim-past-days').checked = prefs.schedule.dimPastDays !== false;
     qs('pref-default-lead').value = prefs.schedule.defaultLeadMinutes ?? 45;
     qs('pref-onsite-lead').value = prefs.schedule.onsiteLeadMinutes ?? 60;
@@ -6030,6 +6245,7 @@
     qs('pref-column6-visible').checked = prefs.columns.column6?.visible === true;
     renderRushSyncStatus(state.data?.rushSync || {});
     updateRushSyncFieldVisibility();
+    resetSensitiveFieldMasking();
     renderWindowDisplayLiveStatus();
     qs('settings-status').textContent = '';
   }
@@ -6089,11 +6305,15 @@
         sharedCalendarSync: {
           mode: qs('pref-shared-calendar-mode').value || 'local',
           hostUrl: qs('pref-shared-calendar-host-url').value || '',
-          syncBlockedWeekdays: qs('pref-shared-calendar-sync-weekdays').checked,
-          syncTemporaryBlockedDates: qs('pref-shared-calendar-sync-dates').checked,
-          cachedBlocks: currentPreferences().schedule?.sharedCalendarSync?.cachedBlocks || {
-            blockedWeekdays: [],
-            temporaryBlockedDates: [],
+          syncCalendarBlocks: qs('pref-shared-calendar-sync-calendar-blocks').checked,
+          syncAppointments: qs('pref-shared-calendar-sync-appointments').checked,
+          syncBrand: qs('pref-shared-calendar-sync-brand').checked,
+          syncDisplay: qs('pref-shared-calendar-sync-display').checked,
+          syncTicketDetails: qs('pref-shared-calendar-sync-ticket-details').checked,
+          syncColumns: qs('pref-shared-calendar-sync-columns').checked,
+          syncUpdates: qs('pref-shared-calendar-sync-updates').checked,
+          cachedPreferences: currentPreferences().schedule?.sharedCalendarSync?.cachedPreferences || {
+            preferences: null,
             sourceHostUrl: '',
             syncedAt: null,
           },
@@ -6220,6 +6440,7 @@
     qs('rush-sync-enabled').checked = !!payload.rushSyncEnabled;
     qs('rush-sync-cookie').value = payload.rushSyncCookie || '';
     updateRushSyncFieldVisibility();
+    applySensitiveFieldMasking();
     return payload;
   }
 
@@ -7085,10 +7306,27 @@
   qs('rush-sync-enabled').addEventListener('change', updateRushSyncFieldVisibility);
   qs('pref-shared-calendar-mode').addEventListener('change', updateSharedCalendarSyncFieldVisibility);
   qs('pref-shared-calendar-host-url').addEventListener('input', updateSharedCalendarHostNote);
-  qs('pref-shared-calendar-sync-weekdays').addEventListener('change', () => renderSharedCalendarSyncStatus(state.data?.calendarSync || {}));
-  qs('pref-shared-calendar-sync-dates').addEventListener('change', () => renderSharedCalendarSyncStatus(state.data?.calendarSync || {}));
+  [
+    'pref-shared-calendar-sync-calendar-blocks',
+    'pref-shared-calendar-sync-appointments',
+    'pref-shared-calendar-sync-brand',
+    'pref-shared-calendar-sync-display',
+    'pref-shared-calendar-sync-ticket-details',
+    'pref-shared-calendar-sync-columns',
+    'pref-shared-calendar-sync-updates',
+  ].forEach((id) => {
+    qs(id).addEventListener('change', () => renderSharedCalendarSyncStatus(state.data?.calendarSync || {}));
+  });
   qs('pref-alert-audio-enabled').addEventListener('change', updateAppointmentAudioSettingsVisibility);
   qs('pref-pulse-timing-enabled').addEventListener('change', updatePulseTimingVisibility);
+  document.querySelectorAll('[data-sensitive-toggle]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const fieldId = button.dataset.sensitiveToggle;
+      if (!fieldId) return;
+      sensitiveFieldState[fieldId] = !sensitiveFieldState[fieldId];
+      applySensitiveFieldMasking();
+    });
+  });
   ['pref-fullscreen', 'pref-orientation', 'pref-display-target', 'pref-display-density'].forEach((id) => {
     qs(id).addEventListener('change', renderWindowDisplayLiveStatus);
   });

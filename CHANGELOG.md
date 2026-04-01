@@ -2,6 +2,15 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.50
+
+- Hid sensitive connection values like the Ticket Counter URL, RepairDesk API key, and RepairDesk session cookie behind reveal buttons by default.
+- Finished the `Connections & Sync` migration by removing the old duplicate calendar-sync block from `Appointments` and expanding shared sync to selectable settings categories.
+- Made collapsible subsections behave like an accordion so opening one closes its siblings within the same settings group.
+- Cleaned up the `Appointment Notifications > Alert Rules` cards with clearer summaries, chips, and action layout.
+- Let logos keep non-square aspect ratios in both the settings preview and the live top bar.
+- Removed the old AutoSpec reference copy from `Updates & Maintenance`.
+
 ## v2.1.68-beta.49
 
 - Reworked the settings drawer into a left-nav/right-content layout so the app’s deeper configuration is easier to scan and navigate.
