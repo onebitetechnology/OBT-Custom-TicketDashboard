@@ -8,10 +8,11 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.68-beta.51';
+const APP_VERSION = 'v2.1.68-beta.55';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -26,6 +27,8 @@ const TICKET_META_CACHE_TTL_MS = 60 * 1000;
 const RUSH_SYNC_CACHE_TTL_MS = 45 * 1000;
 const RUSH_SYNC_MAX_PAGES = 10;
 const SHARED_CALENDAR_SYNC_CACHE_TTL_MS = 60 * 1000;
+const SHARED_HOST_DISCOVERY_CACHE_TTL_MS = 30 * 1000;
+const BOARD_COLUMN_KEYS = ['readyToStart', 'inProgress', 'needsAttention', 'waiting', 'qualityControl', 'column6'];
 const DEFAULT_UI_PREFERENCES = {
   brand: {
     title: 'Current Repair Queue',
@@ -73,6 +76,7 @@ const DEFAULT_UI_PREFERENCES = {
     temporaryBlockedDates: [],
     sharedCalendarSync: {
       mode: 'local',
+      boardName: '',
       hostUrl: '',
       syncCalendarBlocks: true,
       syncAppointments: false,
@@ -110,6 +114,14 @@ const DEFAULT_UI_PREFERENCES = {
     qualityControl: { days: 0, hours: 1 },
   },
   columns: {
+    appearance: {
+      headerLayout: 'auto',
+      headerTitleScalePercent: 100,
+      headerCountScalePercent: 100,
+      headerTextColor: '#f3f8ff',
+      headerSurfaceColor: '#ffffff',
+      headerSurfaceOpacityPercent: 10,
+    },
     readyToStart: {
       label: 'Ready to start',
       visible: true,
@@ -294,6 +306,41 @@ function normalizeColumnConfig(savedColumn, fallbackColumn) {
     refurbRotateSeconds: Math.max(
       5,
       Number(savedColumn?.refurbRotateSeconds ?? fallbackColumn?.refurbRotateSeconds ?? 12) || 12
+    ),
+  };
+}
+
+function normalizeColumnAppearance(savedAppearance = {}, fallbackAppearance = DEFAULT_UI_PREFERENCES.columns.appearance) {
+  const headerLayout = ['auto', 'inline', 'stacked'].includes(String(savedAppearance?.headerLayout || '').toLowerCase())
+    ? String(savedAppearance.headerLayout).toLowerCase()
+    : fallbackAppearance.headerLayout;
+  return {
+    headerLayout,
+    headerTitleScalePercent: normalizePercent(
+      savedAppearance?.headerTitleScalePercent,
+      fallbackAppearance.headerTitleScalePercent,
+      70,
+      140
+    ),
+    headerCountScalePercent: normalizePercent(
+      savedAppearance?.headerCountScalePercent,
+      fallbackAppearance.headerCountScalePercent,
+      70,
+      140
+    ),
+    headerTextColor: normalizeHexColor(
+      savedAppearance?.headerTextColor,
+      fallbackAppearance.headerTextColor
+    ),
+    headerSurfaceColor: normalizeHexColor(
+      savedAppearance?.headerSurfaceColor,
+      fallbackAppearance.headerSurfaceColor
+    ),
+    headerSurfaceOpacityPercent: normalizePercent(
+      savedAppearance?.headerSurfaceOpacityPercent,
+      fallbackAppearance.headerSurfaceOpacityPercent,
+      0,
+      35
     ),
   };
 }
@@ -528,6 +575,7 @@ function normalizeUiPreferences(savedPrefs = {}) {
       qualityControl: normalizeDurationRule(savedPrefs?.staleRules?.qualityControl, DEFAULT_UI_PREFERENCES.staleRules.qualityControl, savedPrefs?.staleRules?.qualityControlHours, 'hours'),
     },
     columns: {
+      appearance: normalizeColumnAppearance(savedPrefs?.columns?.appearance, DEFAULT_UI_PREFERENCES.columns.appearance),
       readyToStart: normalizeColumnConfig(savedPrefs?.columns?.readyToStart, DEFAULT_UI_PREFERENCES.columns.readyToStart),
       inProgress: normalizeColumnConfig(savedPrefs?.columns?.inProgress, DEFAULT_UI_PREFERENCES.columns.inProgress),
       needsAttention: normalizeColumnConfig(savedPrefs?.columns?.needsAttention, DEFAULT_UI_PREFERENCES.columns.needsAttention),
@@ -632,6 +680,7 @@ function normalizeSharedCalendarSync(saved = {}, defaults = DEFAULT_UI_PREFERENC
     mode: ['local', 'host', 'follow'].includes(String(saved?.mode || '').toLowerCase())
       ? String(saved.mode).toLowerCase()
       : defaults.mode,
+    boardName: String(saved?.boardName || defaults.boardName || '').trim().slice(0, 80),
     hostUrl: normalizeSharedCalendarHostUrl(saved?.hostUrl || defaults.hostUrl),
     syncCalendarBlocks: legacySyncCalendarBlocks,
     syncAppointments: saved?.syncAppointments !== undefined ? !!saved.syncAppointments : defaults.syncAppointments,
@@ -644,6 +693,48 @@ function normalizeSharedCalendarSync(saved = {}, defaults = DEFAULT_UI_PREFERENC
       saved?.cachedPreferences || saved,
       defaults.cachedPreferences
     ),
+  };
+}
+
+function sharedStoreBoardName(preferences = sessionConfig.uiPreferences) {
+  const prefs = normalizeUiPreferences(preferences || {});
+  const explicit = String(prefs?.schedule?.sharedCalendarSync?.boardName || '').trim();
+  if (explicit) return explicit;
+  const brandTitle = String(prefs?.brand?.title || '').trim();
+  if (brandTitle) return brandTitle;
+  return os.hostname();
+}
+
+function getLanBoardUrls() {
+  const seen = new Set();
+  const urls = [];
+  const interfaces = os.networkInterfaces?.() || {};
+  Object.values(interfaces).forEach((entries) => {
+    (entries || []).forEach((entry) => {
+      if (!entry || entry.internal || entry.family !== 'IPv4') return;
+      const host = String(entry.address || '').trim();
+      if (!host) return;
+      const url = `http://${host}:${PORT}`;
+      if (seen.has(url)) return;
+      seen.add(url);
+      urls.push(url);
+    });
+  });
+  return urls;
+}
+
+function buildSharedStoreHostInfo(preferences = sessionConfig.uiPreferences) {
+  const prefs = normalizeUiPreferences(preferences || {});
+  return {
+    version: 1,
+    appVersion: APP_VERSION,
+    exportedAt: new Date().toISOString(),
+    boardName: sharedStoreBoardName(prefs),
+    brandTitle: String(prefs?.brand?.title || '').trim(),
+    hostMode: prefs?.schedule?.sharedCalendarSync?.mode === 'host',
+    urls: getLanBoardUrls(),
+    port: PORT,
+    hostname: os.hostname(),
   };
 }
 
@@ -706,6 +797,7 @@ function buildSharedCalendarBlocksPayload(preferences = sessionConfig.uiPreferen
     version: 1,
     exportedAt: new Date().toISOString(),
     appVersion: APP_VERSION,
+    boardName: sharedStoreBoardName(prefs),
     preferences: prefs,
   };
 }
@@ -740,6 +832,10 @@ let sharedCalendarSyncCache = {
   settingsKey: '',
   effectivePreferences: null,
   status: emptySharedCalendarSyncStatus(),
+};
+let sharedHostDiscoveryCache = {
+  scannedAt: 0,
+  hosts: [],
 };
 
 function restartServerProcess() {
@@ -983,6 +1079,104 @@ function fetchJson(fullUrl, headers = {}) {
       reject(new Error('Request timed out'));
     });
   });
+}
+
+function fetchJsonWithTimeout(fullUrl, headers = {}, timeoutMs = 20000) {
+  return new Promise((resolve, reject) => {
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(fullUrl);
+    } catch (error) {
+      reject(error);
+      return;
+    }
+    const client = parsedUrl.protocol === 'http:' ? http : https;
+    const req = client.get(parsedUrl, { headers }, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => resolve({ status: res.statusCode, body: data }));
+    });
+    req.on('error', reject);
+    req.setTimeout(timeoutMs, () => {
+      req.destroy();
+      reject(new Error('Request timed out'));
+    });
+  });
+}
+
+function candidateSharedHostUrls() {
+  const candidates = new Set();
+  const ports = Array.from(new Set([PORT, 54338])).filter(Boolean);
+  const interfaces = os.networkInterfaces?.() || {};
+  Object.values(interfaces).forEach((entries) => {
+    (entries || []).forEach((entry) => {
+      if (!entry || entry.internal || entry.family !== 'IPv4') return;
+      const host = String(entry.address || '').trim();
+      if (!host) return;
+      const octets = host.split('.');
+      if (octets.length !== 4) return;
+      const prefix = octets.slice(0, 3).join('.');
+      for (let i = 1; i <= 254; i += 1) {
+        const candidateHost = `${prefix}.${i}`;
+        ports.forEach((port) => {
+          candidates.add(`http://${candidateHost}:${port}`);
+        });
+      }
+    });
+  });
+  getLanBoardUrls().forEach((url) => candidates.delete(url));
+  return Array.from(candidates);
+}
+
+async function discoverSharedStoreHosts() {
+  if ((Date.now() - Number(sharedHostDiscoveryCache.scannedAt || 0)) < SHARED_HOST_DISCOVERY_CACHE_TTL_MS) {
+    return sharedHostDiscoveryCache.hosts;
+  }
+
+  const urls = candidateSharedHostUrls();
+  const hosts = [];
+  const concurrency = 24;
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < urls.length) {
+      const index = cursor;
+      cursor += 1;
+      const baseUrl = urls[index];
+      try {
+        const response = await fetchJsonWithTimeout(`${baseUrl}/api/shared-store-host-info`, { Accept: 'application/json' }, 900);
+        const payload = parseJsonSafe(response.body);
+        if (response.status !== 200 || !payload || typeof payload !== 'object' || payload.hostMode !== true) continue;
+        const discoveredUrl = normalizeSharedCalendarHostUrl(payload.primaryUrl || baseUrl);
+        if (!discoveredUrl) continue;
+        hosts.push({
+          boardName: String(payload.boardName || payload.brandTitle || discoveredUrl).trim() || discoveredUrl,
+          hostUrl: discoveredUrl,
+          appVersion: String(payload.appVersion || '').trim(),
+          hostname: String(payload.hostname || '').trim(),
+        });
+      } catch (_) {
+        // Ignore non-hosts and offline addresses during discovery.
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, urls.length || 1) }, () => worker()));
+  const deduped = [];
+  const seen = new Set();
+  hosts
+    .sort((left, right) => String(left.boardName || '').localeCompare(String(right.boardName || '')))
+    .forEach((host) => {
+      const key = `${host.hostUrl}|${host.boardName}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      deduped.push(host);
+    });
+  sharedHostDiscoveryCache = {
+    scannedAt: Date.now(),
+    hosts: deduped,
+  };
+  return deduped;
 }
 
 function rdWeb(baseOrigin, endpoint, params = {}, cookie = '') {
@@ -2052,7 +2246,8 @@ function matchesConfiguredStatus(status, configuredStatuses = []) {
 }
 
 function findMatchingColumnForStatus(status, columns = {}) {
-  for (const column of Object.values(columns)) {
+  for (const columnKey of BOARD_COLUMN_KEYS) {
+    const column = columns?.[columnKey];
     if (matchesConfiguredStatus(status, column?.statuses || [])) {
       return column;
     }
@@ -2094,7 +2289,7 @@ function mergeTicketCounterRowsWithRushSyncFallback(ticketsRaw, rushSyncRows = [
   }
 
   const preferences = normalizeUiPreferences(uiPreferences);
-  const configuredStatuses = Object.values(preferences.columns)
+  const configuredStatuses = BOARD_COLUMN_KEYS.map((columnKey) => preferences.columns?.[columnKey])
     .flatMap((column) => Array.isArray(column?.statuses) ? column.statuses : [])
     .map((status) => normalizeStatusMatchValue(status))
     .filter(Boolean);
@@ -2176,7 +2371,9 @@ function normalizeTicketCounterPayload(
   const rawCounts = Array.isArray(ticketsData?.total_res) ? ticketsData.total_res : [];
   const statusCountMap = Object.create(null);
   const groupedByOrder = new Map();
-  const visibleColumns = Object.values(preferences.columns).filter((column) => column.visible !== false);
+  const visibleColumns = BOARD_COLUMN_KEYS
+    .map((columnKey) => preferences.columns?.[columnKey])
+    .filter((column) => column?.visible !== false);
   const rawStatusLabels = ticketsRaw?.status_label && typeof ticketsRaw.status_label === 'object'
     ? ticketsRaw.status_label
     : {};
@@ -3873,6 +4070,10 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       const payload = JSON.parse(body);
       sessionConfig.uiPreferences = normalizeUiPreferences(payload || {});
+      sharedHostDiscoveryCache = {
+        scannedAt: 0,
+        hosts: [],
+      };
       saveConfig(sessionConfig);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true, preferences: sessionConfig.uiPreferences }));
@@ -3896,6 +4097,23 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (pathname === '/api/shared-store-host-info' && req.method === 'GET') {
+    const localPreferences = normalizeUiPreferences(sessionConfig.uiPreferences || {});
+    const syncSettings = localPreferences.schedule?.sharedCalendarSync || DEFAULT_UI_PREFERENCES.schedule.sharedCalendarSync;
+    if (syncSettings.mode !== 'host') {
+      res.writeHead(409, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'This board is not configured as a shared settings host.' }));
+      return;
+    }
+    const info = buildSharedStoreHostInfo(localPreferences);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      ...info,
+      primaryUrl: info.urls[0] || '',
+    }));
+    return;
+  }
+
   if (pathname === '/api/shared-store-settings' && req.method === 'GET') {
     const localPreferences = normalizeUiPreferences(sessionConfig.uiPreferences || {});
     const syncSettings = localPreferences.schedule?.sharedCalendarSync || DEFAULT_UI_PREFERENCES.schedule.sharedCalendarSync;
@@ -3906,6 +4124,22 @@ const server = http.createServer(async (req, res) => {
     }
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(buildSharedCalendarBlocksPayload(localPreferences)));
+    return;
+  }
+
+  if (pathname === '/api/shared-store-hosts' && req.method === 'GET') {
+    try {
+      const hosts = await discoverSharedStoreHosts();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        version: 1,
+        scannedAt: new Date().toISOString(),
+        hosts,
+      }));
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: error.message || 'Could not scan for shared settings hosts.' }));
+    }
     return;
   }
 
