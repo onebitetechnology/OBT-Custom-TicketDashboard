@@ -70,7 +70,19 @@ echo
 echo "Running preflight checks before release..."
 bash ./preflight.sh
 
-git add .
+UNTRACKED_FILES=()
+while IFS= read -r file; do
+  [[ -z "$file" ]] && continue
+  UNTRACKED_FILES+=("$file")
+done < <(git ls-files --others --exclude-standard)
+if [[ "${#UNTRACKED_FILES[@]}" -gt 0 ]]; then
+  echo "Release aborted because untracked files are present."
+  echo "Review these files and either delete them, add them to .gitignore, or stage the intentional ones manually before rerunning:"
+  printf '  %s\n' "${UNTRACKED_FILES[@]}"
+  exit 1
+fi
+
+git add -u
 git commit -m "$MESSAGE"
 git push
 git tag "$TAG"

@@ -58,6 +58,18 @@ for forbidden in app/config.json app/invoice-detail-cache.json app/ticket-meta-c
   fi
 done
 
+echo "Checking repo tree for likely sensitive support/debug artifacts"
+while IFS= read -r artifact; do
+  [[ -z "$artifact" ]] && continue
+  fail "Sensitive artifact present in repo tree: ${artifact#./}"
+done < <(
+  find "$REPO_DIR" \
+    \( -path "$REPO_DIR/.git" -o -path "$REPO_DIR/node_modules" -o -path "$REPO_DIR/dist" -o -path "$REPO_DIR/out" -o -path "$REPO_DIR/release" \) -prune \
+    -o -type f \
+    \( -name 'support-bundle-*.json' -o -name '*.har' -o -name '*.http' -o -name '*.secrets.json' \) \
+    -print
+)
+
 echo "Checking for known shop-specific hardcoded endpoints"
 if rg -n --hidden --glob '!dist/**' --glob '!node_modules/**' 'obtadmin\.repairdesk\.co' "$REPO_DIR" >/dev/null 2>&1; then
   fail "Found hardcoded One Bite RepairDesk endpoint in source."
