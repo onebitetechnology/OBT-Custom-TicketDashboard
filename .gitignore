@@ -10,3 +10,7 @@ pnpm-debug.log*
 app/config.json
 app/invoice-detail-cache.json
 app/ticket-meta-cache.json
+support-bundle*.json
+*.har
+*.http
+*.secrets.json

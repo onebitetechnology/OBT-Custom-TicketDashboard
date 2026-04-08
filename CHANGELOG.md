@@ -2,6 +2,12 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.59
+
+- Hardened the release process so accidental support bundles, HAR files, and other sensitive debug artifacts are less likely to be committed or shipped.
+- Updated the release script to stop on unexpected untracked files instead of staging everything blindly.
+- Expanded repo ignore and preflight checks to catch likely sensitive support/debug exports before release.
+
 ## v2.1.68-beta.58
 
 - Fixed the settings drawer so long sections scroll reliably on cramped displays, with the bottom Save/Close actions staying reachable instead of disappearing below the viewport.
