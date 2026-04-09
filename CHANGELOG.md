@@ -2,6 +2,17 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.61
+
+- Added a live RepairDesk API health check in `Connections & Sync` so boards can warn when an API key is saved but not actually working for the current store.
+- The status panel now distinguishes between a missing key and a failing/misconfigured key, which should make appointment fallback issues much easier to diagnose.
+
+## v2.1.68-beta.60
+
+- Paused board auto-refresh while Settings is open so the drawer no longer gets disrupted by the countdown hitting zero mid-edit.
+- Stopped settings forms from being repopulated underneath an active edit session, which should make saved preferences stick more reliably.
+- Broadened scheduled appointment fallback scanning so older and on-site appointments are more likely to appear even when Ticket Counter omits them.
+
 ## v2.1.68-beta.59
 
 - Hardened the release process so accidental support bundles, HAR files, and other sensitive debug artifacts are less likely to be committed or shipped.

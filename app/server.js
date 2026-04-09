@@ -12,7 +12,7 @@ const os = require('os');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.68-beta.59';
+const APP_VERSION = 'v2.1.68-beta.61';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -28,6 +28,7 @@ const RUSH_SYNC_CACHE_TTL_MS = 45 * 1000;
 const RUSH_SYNC_MAX_PAGES = 10;
 const SHARED_CALENDAR_SYNC_CACHE_TTL_MS = 60 * 1000;
 const SHARED_HOST_DISCOVERY_CACHE_TTL_MS = 30 * 1000;
+const API_HEALTH_CACHE_TTL_MS = 60 * 1000;
 const BOARD_COLUMN_KEYS = ['readyToStart', 'inProgress', 'needsAttention', 'waiting', 'qualityControl', 'column6'];
 const DEFAULT_UI_PREFERENCES = {
   brand: {
@@ -612,6 +613,69 @@ function getConfiguredApiKey() {
   return String(sessionConfig?.apiKey || '').trim();
 }
 
+function apiKeyFingerprint(apiKey = '') {
+  const normalized = String(apiKey || '').trim();
+  if (!normalized) return '';
+  return `${normalized.length}:${normalized.slice(0, 4)}:${normalized.slice(-4)}`;
+}
+
+async function checkRepairDeskApiHealth(options = {}) {
+  const forceFresh = !!options.forceFresh;
+  const apiKey = getConfiguredApiKey();
+  if (!apiKey) {
+    return {
+      configured: false,
+      working: false,
+      checkedAt: null,
+      lastError: 'RepairDesk API key is missing.',
+    };
+  }
+
+  const keyFingerprint = apiKeyFingerprint(apiKey);
+  const now = Date.now();
+  if (!forceFresh && apiHealthCache.checkedAt && apiHealthCache.keyFingerprint === keyFingerprint && (now - apiHealthCache.checkedAt) < API_HEALTH_CACHE_TTL_MS) {
+    return {
+      configured: true,
+      working: !!apiHealthCache.working,
+      checkedAt: apiHealthCache.checkedAt,
+      lastError: String(apiHealthCache.lastError || ''),
+    };
+  }
+
+  try {
+    const response = await rdPublic('tickets', { pagesize: 1, page: 0 });
+    const raw = parseJsonSafe(response.body);
+    const working = response.status === 200 && !!raw && typeof raw === 'object' && Array.isArray(raw?.data?.ticketData);
+    const lastError = working ? '' : `RepairDesk returned ${response.status || 'an invalid response'} while testing the public API key.`;
+    apiHealthCache = {
+      checkedAt: now,
+      keyFingerprint,
+      working,
+      lastError,
+    };
+    return {
+      configured: true,
+      working,
+      checkedAt: now,
+      lastError,
+    };
+  } catch (error) {
+    const lastError = error?.message || 'Could not reach the RepairDesk public API.';
+    apiHealthCache = {
+      checkedAt: now,
+      keyFingerprint,
+      working: false,
+      lastError,
+    };
+    return {
+      configured: true,
+      working: false,
+      checkedAt: now,
+      lastError,
+    };
+  }
+}
+
 function parseTicketCounterDisplayUrl(rawValue) {
   const raw = String(rawValue || '').trim();
   if (!raw) return { displayUrl: '', apiBase: '', token: '' };
@@ -819,6 +883,12 @@ function getTicketCounterConnection() {
 }
 
 let sessionConfig = loadConfig();
+let apiHealthCache = {
+  checkedAt: 0,
+  keyFingerprint: '',
+  working: false,
+  lastError: '',
+};
 let rushSyncCache = {
   fetchedAt: 0,
   origin: '',
@@ -2126,9 +2196,9 @@ function startOfCurrentWeekMonday(now = new Date()) {
 }
 
 async function fetchScheduledAppointmentFallbackRows(existingOrderIds = new Set(), options = {}) {
-  const maxPages = Math.max(1, Number(options.maxPages || 6) || 6);
-  const maxCandidates = Math.max(1, Number(options.maxCandidates || 120) || 120);
-  const lookbackDays = Math.max(1, Number(options.lookbackDays || 90) || 90);
+  const maxPages = Math.max(1, Number(options.maxPages || 12) || 12);
+  const maxCandidates = Math.max(1, Number(options.maxCandidates || 300) || 300);
+  const lookbackDays = Math.max(1, Number(options.lookbackDays || 365) || 365);
   const calendarWindowDays = Math.max(7, Number(options.calendarWindowDays || 21) || 21);
   const lookbackCutoffUnix = Math.floor((Date.now() - (lookbackDays * 86400 * 1000)) / 1000);
   const monday = startOfCurrentWeekMonday(new Date());
@@ -2148,7 +2218,16 @@ async function fetchScheduledAppointmentFallbackRows(existingOrderIds = new Set(
       const orderId = String(summary?.order_id || '').trim();
       if (!orderId || existingOrderIds.has(orderId)) return false;
       const createdAt = Number(summary?.created_date || 0) || 0;
-      return !createdAt || createdAt >= lookbackCutoffUnix;
+      const summaryText = [
+        summary?.repair_type,
+        summary?.status,
+        summary?.device,
+        summary?.issue,
+        summary?.item_name,
+        summary?.name,
+      ].filter(Boolean).join(', ');
+      const looksScheduled = /scheduled|appointment|tech support|on[\s-]?site|remote support|house ?call|consultation/i.test(summaryText);
+      return looksScheduled || !createdAt || createdAt >= lookbackCutoffUnix;
     })
     .sort((a, b) => (Number(b?.created_date || 0) || 0) - (Number(a?.created_date || 0) || 0))
     .slice(0, maxCandidates);
@@ -4155,10 +4234,12 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (pathname === '/api/config/status') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
     const ticketCounterConnection = getTicketCounterConnection();
+    const apiHealth = await checkRepairDeskApiHealth();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       hasApiKey: !!sessionConfig.apiKey,
+      apiHealth,
       hasTicketCounterToken: !!ticketCounterConnection.token,
       hasTicketCounterDisplayUrl: !!ticketCounterConnection.displayUrl,
       rushSync: rushSyncCache.status,

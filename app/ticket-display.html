@@ -3934,6 +3934,14 @@
             </div>
             <span class="settings-help">Used for the extra RepairDesk detail lookups that power waiting age, priority detection, and appointment enrichment.</span>
           </label>
+          <div class="settings-field full">
+            <span class="settings-label">RepairDesk API status</span>
+            <div class="settings-sync-status">
+              <span class="settings-status-light" id="api-health-status-light" data-state="disabled" aria-hidden="true"></span>
+              <div class="settings-inline-status" id="api-health-status-copy">Checking RepairDesk API key…</div>
+            </div>
+            <span class="settings-help">Warns if this board has a saved API key that is missing, invalid, or pointed at the wrong store.</span>
+          </div>
           <label class="settings-field full">
             <span class="settings-label">Enhanced RepairDesk Connection</span>
             <span class="settings-check">
@@ -4921,6 +4929,8 @@
     settingsActivePanelId: 'api-section',
     discoveredSharedHosts: [],
     sharedHostDiscoveryStatus: 'idle',
+    settingsOpen: false,
+    refreshPausedForSettings: false,
   };
 
   const DEFAULT_PAGE_SECONDS = 12;
@@ -5044,6 +5054,10 @@
         column6: { label: 'Column 6', visible: false, refurbMode: 'all', refurbRotateSeconds: 12, statuses: [] },
       },
     };
+  }
+
+  function isSettingsOpen() {
+    return !!state.settingsOpen;
   }
 
   function parseLines(value) {
@@ -5599,6 +5613,50 @@
       statusLight.dataset.state = !status.enabled
         ? 'disabled'
         : (status.connected ? 'connected' : 'warning');
+    }
+  }
+
+  function apiHealthStatusText(apiHealth = {}) {
+    if (!apiHealth.configured) return 'RepairDesk API key is missing. Appointment enrichment and ticket detail lookups will be limited until you add one.';
+    if (apiHealth.working) {
+      const checkedAt = apiHealth.checkedAt
+        ? ` Last checked ${new Date(apiHealth.checkedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`
+        : '';
+      return `RepairDesk API key is working for this board.${checkedAt}`;
+    }
+    return `RepairDesk API key is saved, but the public API lookup is failing.${apiHealth.lastError ? ` ${apiHealth.lastError}` : ''}`;
+  }
+
+  function renderApiHealthStatus(apiHealth = {}) {
+    const statusEl = qs('api-health-status-copy');
+    const statusLight = qs('api-health-status-light');
+    if (statusEl) {
+      statusEl.textContent = apiHealthStatusText(apiHealth);
+    }
+    if (statusLight) {
+      statusLight.dataset.state = !apiHealth.configured
+        ? 'disabled'
+        : (apiHealth.working ? 'connected' : 'warning');
+    }
+  }
+
+  async function refreshConnectionHealthStatus() {
+    try {
+      const response = await fetch('/api/config/status', { cache: 'no-store' });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || 'Could not load connection status.');
+      }
+      renderApiHealthStatus(payload.apiHealth || {});
+      renderRushSyncStatus(payload.rushSync || {});
+      renderSharedCalendarSyncStatus(payload.calendarSync || {});
+    } catch (error) {
+      renderApiHealthStatus({
+        configured: !!qs('api-key')?.value,
+        working: false,
+        checkedAt: null,
+        lastError: error.message || 'Could not load connection status.',
+      });
     }
   }
 
@@ -7228,6 +7286,7 @@
 
   function openSettings() {
     const drawer = qs('settings-drawer');
+    state.settingsOpen = true;
     drawer.classList.add('open');
     drawer.scrollTop = 0;
     window.scrollTo(0, 0);
@@ -7242,6 +7301,7 @@
     loadApiConfig().catch(() => {
       qs('settings-status').textContent = 'Could not load API settings.';
     });
+    refreshConnectionHealthStatus();
     loadDesktopMetadata().then(() => {
       updateSharedCalendarHostNote();
       renderWindowDisplayLiveStatus();
@@ -7252,6 +7312,7 @@
     refreshUpdateStatus();
     if (state.updateStatusTimer) clearInterval(state.updateStatusTimer);
     state.updateStatusTimer = setInterval(refreshUpdateStatus, 1500);
+    pauseBoardRefreshForSettings();
     requestAnimationFrame(() => {
       drawer.scrollTop = 0;
       drawer.querySelector('.settings-head')?.scrollIntoView?.({ block: 'start' });
@@ -7502,7 +7563,7 @@
     updateBrand(state.data.uiPreferences);
     applyPreferenceLabels(state.data.uiPreferences);
     applyDisplayPreferences(state.data.uiPreferences);
-    if (!state.settingsLoaded) {
+    if (!state.settingsLoaded && !isSettingsOpen()) {
       fillSettingsForm(state.data.uiPreferences);
       state.settingsLoaded = true;
     }
@@ -7587,7 +7648,13 @@
         const refreshedStatus = await window.desktopApp.refreshUpdateConfig();
         renderUpdateStatus(refreshedStatus || {});
       }
-      state.settingsLoaded = false;
+      await refreshConnectionHealthStatus();
+      if (state.data) {
+        state.data = {
+          ...state.data,
+          uiPreferences: payload.preferences,
+        };
+      }
       qs('settings-status').textContent = 'Saved. Refreshing display...';
       const nextDisplay = payload.preferences.display || nextPreferences.display || {};
       const displayChanged = !!window.desktopApp?.applyWindowPreferences && (
@@ -7600,6 +7667,7 @@
       }
       await loadFeed();
       fillSettingsForm(payload.preferences);
+      state.settingsLoaded = true;
       qs('settings-status').textContent = 'Saved.';
     } catch (error) {
       qs('settings-status').textContent = error.message || 'Could not save settings.';
@@ -7743,11 +7811,34 @@
   }
 
   function closeSettings() {
+    state.settingsOpen = false;
     qs('settings-drawer').classList.remove('open');
     if (state.updateStatusTimer) {
       clearInterval(state.updateStatusTimer);
       state.updateStatusTimer = null;
     }
+    resumeBoardRefreshAfterSettings();
+  }
+
+  function pauseBoardRefreshForSettings() {
+    state.refreshPausedForSettings = true;
+    if (state.refreshTimer) {
+      clearInterval(state.refreshTimer);
+      state.refreshTimer = null;
+    }
+    if (state.refreshCountdownTimer) {
+      clearInterval(state.refreshCountdownTimer);
+      state.refreshCountdownTimer = null;
+    }
+    qs('refresh-countdown-pill').textContent = 'Refresh paused';
+  }
+
+  function resumeBoardRefreshAfterSettings() {
+    if (!state.refreshPausedForSettings) return;
+    state.refreshPausedForSettings = false;
+    if (!state.data) return;
+    setupRefresh();
+    loadFeed();
   }
 
   function setupPaging() {
@@ -7763,6 +7854,10 @@
   function setupRefresh() {
     if (state.refreshTimer) clearInterval(state.refreshTimer);
     if (state.refreshCountdownTimer) clearInterval(state.refreshCountdownTimer);
+    if (state.refreshPausedForSettings || isSettingsOpen()) {
+      qs('refresh-countdown-pill').textContent = 'Refresh paused';
+      return;
+    }
     const minutes = Math.max(1, Number(state.data?.refreshMinutes || 1));
     const intervalMs = minutes * 60 * 1000;
     state.nextRefreshAt = Date.now() + intervalMs;
