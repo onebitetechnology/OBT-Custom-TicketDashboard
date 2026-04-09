@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.64
+
+- Reverted the unshipped `beta.62` / `beta.63` appointment-logic experiments so the next build stays aligned with the currently stable `beta.61` behavior.
+- Added a clearer Ticket Counter setup reminder in `Connections & Sync` explaining that relevant active statuses must stay enabled in the original RepairDesk Ticket Counter Display for tickets to show up reliably on the board.
+
 ## v2.1.68-beta.61
 
 - Added a live RepairDesk API health check in `Connections & Sync` so boards can warn when an API key is saved but not actually working for the current store.

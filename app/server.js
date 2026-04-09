@@ -12,7 +12,7 @@ const os = require('os');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.68-beta.61';
+const APP_VERSION = 'v2.1.68-beta.64';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -2204,7 +2204,6 @@ async function fetchScheduledAppointmentFallbackRows(existingOrderIds = new Set(
   const monday = startOfCurrentWeekMonday(new Date());
   const windowStartMs = monday.getTime();
   const windowEndMs = windowStartMs + (calendarWindowDays * 24 * 60 * 60 * 1000);
-
   const publicTickets = await fetchPaginated(
     'tickets',
     {},
