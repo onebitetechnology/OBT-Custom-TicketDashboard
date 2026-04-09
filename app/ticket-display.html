@@ -153,7 +153,7 @@
 
   .topbar-head {
     display: grid;
-    grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, auto);
+    grid-template-columns: minmax(0, 1fr) auto auto;
     align-items: center;
     gap: 12px;
   }
@@ -170,7 +170,7 @@
   .brand {
     flex: 0 1 auto;
     min-width: 0;
-    max-width: min(38vw, 340px);
+    max-width: min(48vw, 560px);
   }
 
   .brand-logo {
@@ -246,6 +246,7 @@
     justify-content: flex-start;
     min-width: 0;
     overflow: hidden;
+    align-items: center;
   }
 
   .headline .title {
@@ -320,9 +321,9 @@
   }
 
   .headline-pills .pill {
-    flex: 1 1 0;
-    min-width: 0;
-    max-width: none;
+    flex: 0 1 auto;
+    min-width: fit-content;
+    max-width: min(18vw, 220px);
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: clamp(11px, calc(0.5vw + 10px), calc(16px * var(--theme-text-scale)));
@@ -3029,7 +3030,7 @@
   }
 
   body.force-vertical .topbar-head {
-    grid-template-columns: minmax(88px, auto) minmax(0, 1fr) minmax(0, auto);
+    grid-template-columns: minmax(0, 1fr) auto auto;
     gap: 6px;
   }
 
@@ -3080,6 +3081,7 @@
   body.force-vertical #oldest-priority-pill {
     font-size: 9px;
     padding: 4px 7px;
+    max-width: 92px;
   }
 
   body.force-vertical .status-row {
@@ -3326,6 +3328,7 @@
   body.compact-display #oldest-priority-pill {
     font-size: 12px;
     padding: 8px 10px;
+    max-width: 150px;
   }
 
   body.compact-display .meta {
@@ -3531,6 +3534,7 @@
   body.extra-compact-display #oldest-priority-pill {
     font-size: 11px;
     padding: 7px 9px;
+    max-width: 120px;
   }
 
   body.extra-compact-display .meta {
@@ -7145,15 +7149,22 @@
 
   function renderSummary(data) {
     const compact = useCompactTopbarSummaryLabels();
+    const openCount = data?.totals?.tickets ?? 0;
+    const boardCardCount = data?.totals?.boardTickets ?? openCount;
+    const regularAgeLabel = data?.totals?.oldestRegularReadyLabel || (data?.totals?.oldestRegularReadyDays == null ? '--' : (data.totals.oldestRegularReadyDays + 'd'));
+    const priorityAgeLabel = data?.totals?.oldestPriorityReadyLabel || (data?.totals?.oldestPriorityReadyDays == null ? 'None' : (data.totals.oldestPriorityReadyDays + 'd'));
     qs('open-tickets-pill').textContent = compact
-      ? ('Open ' + data.totals.tickets)
-      : ('Open Tickets ' + data.totals.tickets);
+      ? ('Open ' + openCount)
+      : ('Open Tickets ' + openCount);
     qs('oldest-regular-pill').textContent = compact
-      ? ('Regular ' + (data.totals.oldestRegularReadyDays == null ? '--' : (data.totals.oldestRegularReadyDays + 'd')))
-      : ('Oldest Regular Ticket ' + (data.totals.oldestRegularReadyDays == null ? '--' : (data.totals.oldestRegularReadyDays + 'd')));
+      ? ('Regular ' + regularAgeLabel)
+      : ('Oldest Regular Ticket ' + regularAgeLabel);
     qs('oldest-priority-pill').textContent = compact
-      ? ('Priority ' + (data.totals.oldestPriorityReadyDays == null ? 'None' : (data.totals.oldestPriorityReadyDays + 'd')))
-      : ('Oldest Priority Ticket ' + (data.totals.oldestPriorityReadyDays == null ? 'None' : (data.totals.oldestPriorityReadyDays + 'd')));
+      ? ('Priority ' + priorityAgeLabel)
+      : ('Oldest Priority Ticket ' + priorityAgeLabel);
+    qs('open-tickets-pill').title = openCount === boardCardCount
+      ? `${openCount} active tickets in the current Ticket Counter feed`
+      : `${openCount} active Ticket Counter rows; ${boardCardCount} merged ticket cards on this board`;
   }
 
   function renderStatuses(data) {

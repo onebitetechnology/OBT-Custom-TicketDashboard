@@ -12,7 +12,7 @@ const os = require('os');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.68-beta.64';
+const APP_VERSION = 'v2.1.68-beta.66';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -2321,6 +2321,19 @@ function compareWithPinnedPriority(preferences, left, right) {
   return pinnedPrioritySortValue(left) - pinnedPrioritySortValue(right);
 }
 
+function ticketCreatedAgeHours(ticket) {
+  const createdAt = Number(ticket?.createdAt || 0) || null;
+  if (!createdAt) return null;
+  return Math.max(0, Math.floor((Date.now() - (createdAt * 1000)) / (1000 * 60 * 60)));
+}
+
+function formatAgeSummary(ageHours) {
+  if (ageHours == null) return null;
+  if (ageHours < 1) return '<1h';
+  if (ageHours < 24) return `${ageHours}h`;
+  return `${Math.floor(ageHours / 24)}d`;
+}
+
 function normalizeStatusMatchValue(value) {
   return String(value || '').trim().toLowerCase();
 }
@@ -2908,6 +2921,15 @@ function normalizeTicketCounterPayload(
     [preferences.columns.column6.label]: column6Queue.length,
   };
 
+  const queueTickets = [
+    ...readyQueue,
+    ...inProgressQueue,
+    ...needsAttentionQueue,
+    ...waitingQueue,
+    ...qualityControlQueue,
+    ...column6Queue,
+  ];
+
   const columnTicketIds = new Set([
     ...readyQueue.map((ticket) => ticket.orderId),
     ...inProgressQueue.map((ticket) => ticket.orderId),
@@ -2918,16 +2940,26 @@ function normalizeTicketCounterPayload(
     ...allTickets.filter((ticket) => isCalendarAppointmentTicket(ticket, preferences)).map((ticket) => ticket.orderId),
   ]);
   const tickets = allTickets.filter((ticket) => !columnTicketIds.has(ticket.orderId));
-  const oldestRegularReadyTicket = readyQueue.find((ticket) => ticket.customerName !== 'Walk-in Customer') || null;
-  const activePriorityTickets = [...readyQueue, ...inProgressQueue]
+  const oldestRegularQueueTicket = queueTickets
+    .filter((ticket) => !ticket.isPriorityTicket && ticket.customerName !== 'Walk-in Customer')
+    .sort((a, b) => {
+      const ageDiff = (ticketCreatedAgeHours(b) ?? -1) - (ticketCreatedAgeHours(a) ?? -1);
+      if (ageDiff !== 0) return ageDiff;
+      return Number(a.orderId || 0) - Number(b.orderId || 0);
+    })[0] || null;
+  const oldestRegularQueueAgeHours = ticketCreatedAgeHours(oldestRegularQueueTicket);
+  const activePriorityTickets = queueTickets
     .filter((ticket) => ticket.isPriorityTicket && ticket.customerName !== 'Walk-in Customer')
     .sort((a, b) => {
-      if ((b.waitingDays ?? -1) !== (a.waitingDays ?? -1)) {
-        return (b.waitingDays ?? -1) - (a.waitingDays ?? -1);
+      const ageDiff = (ticketCreatedAgeHours(b) ?? -1) - (ticketCreatedAgeHours(a) ?? -1);
+      if (ageDiff !== 0) {
+        return ageDiff;
       }
       return Number(a.orderId || 0) - Number(b.orderId || 0);
     });
   const oldestPriorityReadyTicket = activePriorityTickets[0] || null;
+  const oldestPriorityQueueAgeHours = ticketCreatedAgeHours(oldestPriorityReadyTicket);
+  const openTicketFeedCount = Object.values(statusCountMap).reduce((sum, count) => sum + (Number(count) || 0), 0) || rawTickets.length;
 
   return {
     fetchedAt: new Date().toISOString(),
@@ -2962,9 +2994,12 @@ function normalizeTicketCounterPayload(
     statusColors,
     assignees: availableAssignees,
     totals: {
-      tickets: allTickets.length,
-      oldestRegularReadyDays: oldestRegularReadyTicket?.waitingDays ?? null,
-      oldestPriorityReadyDays: oldestPriorityReadyTicket?.waitingDays ?? null,
+      tickets: openTicketFeedCount,
+      boardTickets: allTickets.length,
+      oldestRegularReadyDays: oldestRegularQueueAgeHours == null ? null : Math.floor(oldestRegularQueueAgeHours / 24),
+      oldestPriorityReadyDays: oldestPriorityQueueAgeHours == null ? null : Math.floor(oldestPriorityQueueAgeHours / 24),
+      oldestRegularReadyLabel: formatAgeSummary(oldestRegularQueueAgeHours),
+      oldestPriorityReadyLabel: formatAgeSummary(oldestPriorityQueueAgeHours),
       uncategorizedTickets: tickets.length,
       issues: rawTickets.length,
       unassigned: allTickets.filter((ticket) => ticket.assigneeName === 'Unassigned').length,
