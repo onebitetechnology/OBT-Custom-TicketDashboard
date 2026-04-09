@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.67
+
+- Reworked the settings drawer shell so long expanded sections scroll inside the visible container instead of falling underneath the footer actions.
+- Added a true saving state for Settings so the form locks briefly while save/refresh finishes, preventing late refreshes from wiping out a second round of edits.
+
 ## v2.1.68-beta.66
 
 - Tightened the topbar badge layout so the `Open Tickets`, `Oldest Regular Ticket`, and `Oldest Priority Ticket` pills size more like real badges instead of stretching across the row and crowding the board title.
