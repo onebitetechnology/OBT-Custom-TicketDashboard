@@ -2,6 +2,16 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.66
+
+- Tightened the topbar badge layout so the `Open Tickets`, `Oldest Regular Ticket`, and `Oldest Priority Ticket` pills size more like real badges instead of stretching across the row and crowding the board title.
+- Updated the topbar totals so `Open Tickets` reflects the active Ticket Counter feed total, and the oldest regular/priority badges now use clearer age summaries instead of misleading `0d` values.
+
+## v2.1.68-beta.65
+
+- Added a clickable `Open One Bite Ticket Display.command` helper to the macOS DMG so manual installs can run the quarantine-removal workaround more easily before first launch.
+- This is a convenience path for the current unsigned Mac builds; proper Apple signing and notarization are still the long-term fix.
+
 ## v2.1.68-beta.64
 
 - Reverted the unshipped `beta.62` / `beta.63` appointment-logic experiments so the next build stays aligned with the currently stable `beta.61` behavior.

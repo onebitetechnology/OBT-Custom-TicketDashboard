@@ -1,6 +1,6 @@
 {
   "name": "onebite-ticket-display-desktop",
-  "version": "2.1.68-beta.64",
+  "version": "2.1.68-beta.66",
   "description": "Installable desktop wrapper for the One Bite ticket display",
   "main": "main.js",
   "author": "One Bite Technology",
@@ -61,6 +61,26 @@
         "zip"
       ],
       "artifactName": "OneBiteTicketDisplay-${version}-${arch}.${ext}"
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 140,
+          "y": 220
+        },
+        {
+          "x": 400,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        },
+        {
+          "x": 270,
+          "y": 380,
+          "type": "file",
+          "path": "build/Open One Bite Ticket Display.command"
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
