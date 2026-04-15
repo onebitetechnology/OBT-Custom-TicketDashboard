@@ -408,6 +408,56 @@
     transition: opacity 320ms ease;
   }
 
+  .schedule-strip.stacked-weeks {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    padding: 0;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .schedule-week-stack {
+    background: #020508;
+    border: 1px solid rgba(110, 231, 200, 0.18);
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(18px);
+    padding: 14px;
+    display: grid;
+    gap: 10px;
+  }
+
+  .schedule-week-stack-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 0 2px;
+  }
+
+  .schedule-week-stack-title {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #effff6;
+  }
+
+  .schedule-week-stack-sub {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: #9de7bf;
+  }
+
+  .schedule-week-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+  }
+
   .schedule-strip.fading {
     opacity: 0.2;
   }
@@ -2607,7 +2657,8 @@
 
   @media (max-width: 1400px) {
     .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .schedule-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .schedule-strip,
+    .schedule-week-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   }
 
   @media (max-width: 1200px) {
@@ -2623,6 +2674,7 @@
     .topbar,
     .status-row,
     .schedule-strip,
+    .schedule-week-stack,
     .board,
     .footer {
       border-radius: 18px;
@@ -2662,7 +2714,8 @@
       font-size: 20px;
     }
 
-    .schedule-strip {
+    .schedule-strip,
+    .schedule-week-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
@@ -2715,6 +2768,7 @@
     .topbar,
     .status-row,
     .schedule-strip,
+    .schedule-week-stack,
     .board,
     .footer,
     .ready-queue {
@@ -3524,6 +3578,7 @@
   body.extra-compact-display .topbar,
   body.extra-compact-display .status-row,
   body.extra-compact-display .schedule-strip,
+  body.extra-compact-display .schedule-week-stack,
   body.extra-compact-display .board,
   body.extra-compact-display .footer,
   body.extra-compact-display .ready-queue {
@@ -3598,6 +3653,29 @@
   body.extra-compact-display .schedule-strip {
     padding: 8px;
     gap: 6px;
+  }
+
+  body.extra-compact-display .schedule-strip.stacked-weeks {
+    padding: 0;
+    gap: 8px;
+  }
+
+  body.extra-compact-display .schedule-week-stack {
+    padding: 8px;
+    gap: 6px;
+    border-radius: 14px;
+  }
+
+  body.extra-compact-display .schedule-week-grid {
+    gap: 6px;
+  }
+
+  body.extra-compact-display .schedule-week-stack-title {
+    font-size: 11px;
+  }
+
+  body.extra-compact-display .schedule-week-stack-sub {
+    font-size: 8px;
   }
 
   body.extra-compact-display .schedule-day {
@@ -4456,12 +4534,22 @@
               </span>
             </span>
           </label>
-          <label class="settings-field">
+          <label class="settings-field full">
+            <span class="settings-label">Two-week layout</span>
+            <span class="settings-check">
+              <input class="settings-checkbox" id="pref-stack-weeks" type="checkbox" />
+              <span class="settings-check-copy">
+                <span class="settings-check-title">Show next week underneath this week</span>
+                <span class="settings-help">Stacks both weeks in the appointment panel instead of fading between them.</span>
+              </span>
+            </span>
+          </label>
+          <label class="settings-field" id="pref-current-week-duration-field">
             <span class="settings-label">Show this week for duration (seconds)</span>
             <input class="settings-input" id="pref-current-week-duration-seconds" type="number" min="5" step="1" />
             <span class="settings-help">How long the calendar stays on this week before switching.</span>
           </label>
-          <label class="settings-field">
+          <label class="settings-field" id="pref-next-week-duration-field">
             <span class="settings-label">Show next week for duration (seconds)</span>
             <input class="settings-input" id="pref-next-week-duration-seconds" type="number" min="5" step="1" />
             <span class="settings-help">How long the calendar stays on next week before switching back.</span>
@@ -4470,6 +4558,16 @@
             <span class="settings-label">Blocked Days</span>
             <div class="weekday-grid" id="pref-blocked-weekdays"></div>
             <span class="settings-help">Blocked days stay visible in the calendar but show as off limits.</span>
+          </label>
+          <label class="settings-field full">
+            <span class="settings-label">Today</span>
+            <span class="settings-check">
+              <input class="settings-checkbox" id="pref-block-today" type="checkbox" />
+              <span class="settings-check-copy">
+                <span class="settings-check-title">Block today for new appointments</span>
+                <span class="settings-help">Keeps today visibly blocked off on the calendar while still showing any appointments that are already booked today.</span>
+              </span>
+            </span>
           </label>
           <label class="settings-field full">
             <span class="settings-label">Temporary appointment blocks</span>
@@ -5001,6 +5099,8 @@
         },
         showCalendar: true,
         rotateWeeks: false,
+        stackWeeks: false,
+        blockToday: false,
         currentWeekDurationSeconds: 20,
         nextWeekDurationSeconds: 5,
         dimPastDays: true,
@@ -6740,6 +6840,8 @@
     qs('pref-included-weekdays').innerHTML = checkboxGroupMarkup('included-weekdays', prefs.schedule.includedWeekdays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']);
     qs('pref-show-calendar').checked = prefs.schedule.showCalendar !== false;
     qs('pref-rotate-weeks').checked = !!prefs.schedule.rotateWeeks;
+    qs('pref-stack-weeks').checked = !!prefs.schedule.stackWeeks;
+    qs('pref-block-today').checked = !!prefs.schedule.blockToday;
     qs('pref-current-week-duration-seconds').value = prefs.schedule.currentWeekDurationSeconds ?? 20;
     qs('pref-next-week-duration-seconds').value = prefs.schedule.nextWeekDurationSeconds ?? 5;
     qs('pref-blocked-weekdays').innerHTML = checkboxGroupMarkup('blocked-weekdays', prefs.schedule.blockedWeekdays || []);
@@ -6762,6 +6864,7 @@
     populateSpeechVoiceOptions(prefs.schedule?.speechVoiceUri || '');
     renderAlertAudioRules(alertAudioRulesFromPreferences(prefs.schedule || {}));
     updateAppointmentAudioSettingsVisibility();
+    updateCalendarWeekModeVisibility();
     updatePulseTimingVisibility();
     renderSharedCalendarSyncStatus(state.data?.calendarSync || {});
     updateSharedCalendarSyncFieldVisibility();
@@ -6859,6 +6962,8 @@
         includedWeekdays: selectedCheckboxDays('included-weekdays'),
         showCalendar: qs('pref-show-calendar').checked,
         rotateWeeks: qs('pref-rotate-weeks').checked,
+        stackWeeks: qs('pref-stack-weeks').checked,
+        blockToday: qs('pref-block-today').checked,
         currentWeekDurationSeconds: Math.max(5, Number(qs('pref-current-week-duration-seconds').value || 20) || 20),
         nextWeekDurationSeconds: Math.max(5, Number(qs('pref-next-week-duration-seconds').value || 5) || 5),
         blockedWeekdays: selectedCheckboxDays('blocked-weekdays'),
@@ -7191,24 +7296,33 @@
     qs('status-row').style.display = 'none';
   }
 
+  function updateCalendarWeekModeVisibility() {
+    const rotateWeeks = !!qs('pref-rotate-weeks')?.checked;
+    const stackWeeks = !!qs('pref-stack-weeks')?.checked;
+    const hideRotationDurations = !rotateWeeks || stackWeeks;
+    const currentField = qs('pref-current-week-duration-field');
+    const nextField = qs('pref-next-week-duration-field');
+    if (currentField) currentField.hidden = hideRotationDurations;
+    if (nextField) nextField.hidden = hideRotationDurations;
+  }
+
   function currentCalendarDays(data) {
-    const rotateWeeks = !!data?.uiPreferences?.schedule?.rotateWeeks;
+    const schedulePrefs = data?.uiPreferences?.schedule || {};
+    const rotateWeeks = !!schedulePrefs.rotateWeeks && !schedulePrefs.stackWeeks;
     const useNextWeek = rotateWeeks && state.calendarWeekOffset === 1;
     return useNextWeek ? (data.nextScheduledCalendar || []) : (data.scheduledCalendar || []);
   }
 
   function currentCalendarTitle(data) {
-    const rotateWeeks = !!data?.uiPreferences?.schedule?.rotateWeeks;
+    const schedulePrefs = data?.uiPreferences?.schedule || {};
+    if (schedulePrefs.stackWeeks) return "This & Next Week's Appointments";
+    const rotateWeeks = !!schedulePrefs.rotateWeeks;
     const useNextWeek = rotateWeeks && state.calendarWeekOffset === 1;
     return useNextWeek ? "Next Week's Appointments" : "This Week's Appointments";
   }
 
-  function renderSchedule(data) {
-    const days = currentCalendarDays(data);
-    const todayIso = localDateKey(effectiveNow());
-    qs('schedule-panel-title').textContent = currentCalendarTitle(data);
-    qs('schedule-panel-sub').textContent = days.length ? `${days.length} day view` : 'No included weekdays selected';
-    qs('schedule-strip').innerHTML = days.map((day) => `
+  function scheduleDayMarkup(day, data, todayIso) {
+    return `
       <article class="schedule-day${day.blocked ? ' blocked' : ''}${data.uiPreferences?.schedule?.dimPastDays !== false && day.iso < todayIso ? ' past-day' : ''}">
         <div class="schedule-head">
           <div class="schedule-label">${escapeHtml(formatScheduleDayLabel(day.label, day.iso))}</div>
@@ -7231,13 +7345,49 @@
           }).join('') : `<div class="schedule-empty">${day.blocked ? escapeHtml(day.blockedReason || 'Blocked for appointments') : 'No appointments'}</div>`}
         </div>
       </article>
-    `).join('');
+    `;
+  }
+
+  function renderSchedule(data) {
+    const schedulePrefs = data?.uiPreferences?.schedule || {};
+    const stackWeeks = !!schedulePrefs.stackWeeks;
+    const days = currentCalendarDays(data);
+    const todayIso = localDateKey(effectiveNow());
+    qs('schedule-panel-title').textContent = currentCalendarTitle(data);
+    qs('schedule-panel-sub').textContent = stackWeeks
+      ? 'This week on top, next week underneath'
+      : (days.length ? `${days.length} day view` : 'No included weekdays selected');
+    const strip = qs('schedule-strip');
+    strip.classList.toggle('stacked-weeks', stackWeeks);
+    if (stackWeeks) {
+      const thisWeek = data.scheduledCalendar || [];
+      const nextWeek = data.nextScheduledCalendar || [];
+      strip.innerHTML = [
+        { title: 'This Week', sub: thisWeek.length ? `${thisWeek.length} day view` : 'No included weekdays selected', days: thisWeek },
+        { title: 'Next Week', sub: nextWeek.length ? `${nextWeek.length} day view` : 'No included weekdays selected', days: nextWeek },
+      ].map((week) => `
+        <section class="schedule-week-stack">
+          <div class="schedule-week-stack-head">
+            <h3 class="schedule-week-stack-title">${escapeHtml(week.title)}</h3>
+            <div class="schedule-week-stack-sub">${escapeHtml(week.sub)}</div>
+          </div>
+          <div class="schedule-week-grid">
+            ${week.days.map((day) => scheduleDayMarkup(day, data, todayIso)).join('')}
+          </div>
+        </section>
+      `).join('');
+      maybePlayAppointmentAlert(data);
+      return;
+    }
+    strip.innerHTML = days.map((day) => scheduleDayMarkup(day, data, todayIso)).join('');
     maybePlayAppointmentAlert(data);
   }
 
   function calendarRotationConfigKey(schedulePrefs = {}) {
     return JSON.stringify({
       rotateWeeks: !!schedulePrefs.rotateWeeks,
+      stackWeeks: !!schedulePrefs.stackWeeks,
+      blockToday: !!schedulePrefs.blockToday,
       currentWeekDurationSeconds: Math.max(5, Number(schedulePrefs.currentWeekDurationSeconds || 20) || 20),
       nextWeekDurationSeconds: Math.max(5, Number(schedulePrefs.nextWeekDurationSeconds || 5) || 5),
       showCalendar: schedulePrefs.showCalendar !== false,
@@ -7261,7 +7411,7 @@
   function setupCalendarRotation() {
     const schedulePrefs = state.data?.uiPreferences?.schedule || {};
     const nextConfigKey = calendarRotationConfigKey(schedulePrefs);
-    const rotateWeeks = !!schedulePrefs.rotateWeeks;
+    const rotateWeeks = !!schedulePrefs.rotateWeeks && !schedulePrefs.stackWeeks;
 
     if (!rotateWeeks) {
       clearCalendarRotationTimers();
@@ -8003,6 +8153,8 @@
     qs(id).addEventListener('change', () => renderSharedCalendarSyncStatus(state.data?.calendarSync || {}));
   });
   qs('pref-alert-audio-enabled').addEventListener('change', updateAppointmentAudioSettingsVisibility);
+  qs('pref-rotate-weeks').addEventListener('change', updateCalendarWeekModeVisibility);
+  qs('pref-stack-weeks').addEventListener('change', updateCalendarWeekModeVisibility);
   qs('pref-pulse-timing-enabled').addEventListener('change', updatePulseTimingVisibility);
   document.querySelectorAll('[data-sensitive-toggle]').forEach((button) => {
     button.addEventListener('click', () => {
