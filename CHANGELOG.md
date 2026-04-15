@@ -2,6 +2,16 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.69
+
+- Added a `Block today for new appointments` calendar preference so today can show as off-limits while still displaying any appointments already booked on it.
+- Synced the new `block today` flag through shared calendar-block settings so host/follower boards stay aligned.
+
+## v2.1.68-beta.68
+
+- Added a stacked two-week appointment layout option so next week can appear underneath this week instead of only using the fade rotation mode.
+- Carried the new stacked-week appointment preference through saved settings and shared appointment sync.
+
 ## v2.1.68-beta.67
 
 - Reworked the settings drawer shell so long expanded sections scroll inside the visible container instead of falling underneath the footer actions.

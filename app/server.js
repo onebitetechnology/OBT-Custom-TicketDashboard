@@ -12,7 +12,7 @@ const os = require('os');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.68-beta.67';
+const APP_VERSION = 'v2.1.68-beta.69';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -74,6 +74,7 @@ const DEFAULT_UI_PREFERENCES = {
   schedule: {
     includedWeekdays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
     blockedWeekdays: ['Monday'],
+    blockToday: false,
     temporaryBlockedDates: [],
     sharedCalendarSync: {
       mode: 'local',
@@ -94,6 +95,7 @@ const DEFAULT_UI_PREFERENCES = {
     },
     showCalendar: true,
     rotateWeeks: false,
+    stackWeeks: false,
     currentWeekDurationSeconds: 20,
     nextWeekDurationSeconds: 5,
     dimPastDays: true,
@@ -537,10 +539,12 @@ function normalizeUiPreferences(savedPrefs = {}) {
     schedule: {
       includedWeekdays: normalizeStringArray(savedPrefs?.schedule?.includedWeekdays, DEFAULT_UI_PREFERENCES.schedule.includedWeekdays),
       blockedWeekdays: normalizeStringArray(savedPrefs?.schedule?.blockedWeekdays, DEFAULT_UI_PREFERENCES.schedule.blockedWeekdays),
+      blockToday: savedPrefs?.schedule?.blockToday !== undefined ? !!savedPrefs.schedule.blockToday : DEFAULT_UI_PREFERENCES.schedule.blockToday,
       temporaryBlockedDates: normalizeStringArray(savedPrefs?.schedule?.temporaryBlockedDates, DEFAULT_UI_PREFERENCES.schedule.temporaryBlockedDates),
       sharedCalendarSync: normalizeSharedCalendarSync(savedPrefs?.schedule?.sharedCalendarSync, DEFAULT_UI_PREFERENCES.schedule.sharedCalendarSync),
       showCalendar: savedPrefs?.schedule?.showCalendar !== undefined ? !!savedPrefs.schedule.showCalendar : DEFAULT_UI_PREFERENCES.schedule.showCalendar,
       rotateWeeks: savedPrefs?.schedule?.rotateWeeks !== undefined ? !!savedPrefs.schedule.rotateWeeks : DEFAULT_UI_PREFERENCES.schedule.rotateWeeks,
+      stackWeeks: savedPrefs?.schedule?.stackWeeks !== undefined ? !!savedPrefs.schedule.stackWeeks : DEFAULT_UI_PREFERENCES.schedule.stackWeeks,
       currentWeekDurationSeconds: Math.max(
         5,
         Number(savedPrefs?.schedule?.currentWeekDurationSeconds ?? savedPrefs?.schedule?.rotateIntervalSeconds ?? DEFAULT_UI_PREFERENCES.schedule.currentWeekDurationSeconds)
@@ -1357,6 +1361,8 @@ function applySharedSettings(preferences, remotePreferences, syncSettings) {
     nextPrefs.schedule.includedWeekdays = [...remote.schedule.includedWeekdays];
     nextPrefs.schedule.showCalendar = remote.schedule.showCalendar;
     nextPrefs.schedule.rotateWeeks = remote.schedule.rotateWeeks;
+    nextPrefs.schedule.stackWeeks = remote.schedule.stackWeeks;
+    nextPrefs.schedule.blockToday = remote.schedule.blockToday;
     nextPrefs.schedule.currentWeekDurationSeconds = remote.schedule.currentWeekDurationSeconds;
     nextPrefs.schedule.nextWeekDurationSeconds = remote.schedule.nextWeekDurationSeconds;
     nextPrefs.schedule.dimPastDays = remote.schedule.dimPastDays;
@@ -1372,6 +1378,7 @@ function applySharedSettings(preferences, remotePreferences, syncSettings) {
     const mergedBlocks = mergeScheduleBlocks(prefs.schedule, remote.schedule);
     nextPrefs.schedule.blockedWeekdays = mergedBlocks.blockedWeekdays;
     nextPrefs.schedule.temporaryBlockedDates = mergedBlocks.temporaryBlockedDates;
+    nextPrefs.schedule.blockToday = !!remote.schedule.blockToday;
   }
 
   return nextPrefs;
@@ -2889,12 +2896,16 @@ function normalizeTicketCounterPayload(
       const date = new Date(monday);
       date.setDate(monday.getDate() + weekdayIndex + (weekOffset * 7));
       const iso = date.toISOString().slice(0, 10);
+      const isToday = iso === localDateKey(new Date());
       const temporaryBlockedLabel = matchingTemporaryBlockLabel(date, preferences.schedule.temporaryBlockedDates);
+      const blockedForToday = weekOffset === 0 && !!preferences.schedule.blockToday && isToday;
       return {
         label,
         iso,
-        blocked: preferences.schedule.blockedWeekdays.includes(label) || !!temporaryBlockedLabel,
-        blockedReason: temporaryBlockedLabel ? `Temporarily blocked (${temporaryBlockedLabel})` : '',
+        blocked: preferences.schedule.blockedWeekdays.includes(label) || !!temporaryBlockedLabel || blockedForToday,
+        blockedReason: temporaryBlockedLabel
+          ? `Temporarily blocked (${temporaryBlockedLabel})`
+          : (blockedForToday ? 'Today is blocked for new appointments' : ''),
         appointments: allTickets
           .filter((ticket) => isCalendarAppointmentTicket(ticket, preferences))
           .filter((ticket) => localDateKeyFromTimestamp(ticket.dueAt) === iso)
