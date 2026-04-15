@@ -12,7 +12,7 @@ const os = require('os');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.68-beta.69';
+const APP_VERSION = 'v2.1.68-beta.70';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -2896,7 +2896,7 @@ function normalizeTicketCounterPayload(
       const date = new Date(monday);
       date.setDate(monday.getDate() + weekdayIndex + (weekOffset * 7));
       const iso = date.toISOString().slice(0, 10);
-      const isToday = iso === localDateKey(new Date());
+      const isToday = iso === localDateKeyFromTimestamp(Date.now());
       const temporaryBlockedLabel = matchingTemporaryBlockLabel(date, preferences.schedule.temporaryBlockedDates);
       const blockedForToday = weekOffset === 0 && !!preferences.schedule.blockToday && isToday;
       return {

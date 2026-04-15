@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.70
+
+- Fixed a server-side calendar crash in the new `Block today for new appointments` logic so the board no longer dies while building appointment data.
+- Kept the new `block today` preference and shared-sync support intact after correcting the server date helper.
+
 ## v2.1.68-beta.69
 
 - Added a `Block today for new appointments` calendar preference so today can show as off-limits while still displaying any appointments already booked on it.
