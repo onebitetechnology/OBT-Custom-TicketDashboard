@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.71
+
+- Tightened the stacked two-week appointment layout so each week stays in a compact five-day strip instead of inheriting the wider 3-column wrap used by the single-week responsive layout.
+- Reduced stacked-week appointment card sizing so the two-week view uses space more like two slim calendar rows and less like two oversized mini-calendars.
+
 ## v2.1.68-beta.70
 
 - Fixed a server-side calendar crash in the new `Block today for new appointments` logic so the board no longer dies while building appointment data.
