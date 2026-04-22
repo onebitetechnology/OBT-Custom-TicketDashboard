@@ -2,6 +2,15 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.73
+
+- Fixed the stacked two-week appointment view so the two week blocks always stack vertically instead of occasionally laying out side-by-side on some desktop displays.
+
+## v2.1.68-beta.72
+
+- Added a `Ticket Details` preference to make ticket IDs clickable so workstation users can open the matching RepairDesk ticket in their browser.
+- Derived the RepairDesk ticket link from the saved Ticket Counter Display URL and carried the internal RepairDesk ticket ID through the existing ticket metadata cache so the feature works across different stores without another URL field.
+
 ## v2.1.68-beta.71
 
 - Tightened the stacked two-week appointment layout so each week stays in a compact five-day strip instead of inheriting the wider 3-column wrap used by the single-week responsive layout.

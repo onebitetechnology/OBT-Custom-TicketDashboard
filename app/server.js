@@ -12,7 +12,7 @@ const os = require('os');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.68-beta.71';
+const APP_VERSION = 'v2.1.68-beta.73';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -22,7 +22,7 @@ const CATEGORY_RULES_PATH = path.join(DATA_DIR, 'category-rules.json');
 const CONSIGNMENT_RULES_PATH = path.join(DATA_DIR, 'consignment-rules.json');
 const INVOICE_DETAIL_CACHE_PATH = path.join(DATA_DIR, 'invoice-detail-cache.json');
 const TICKET_META_CACHE_PATH = path.join(DATA_DIR, 'ticket-meta-cache.json');
-const TICKET_META_CACHE_VERSION = 5;
+const TICKET_META_CACHE_VERSION = 6;
 const TICKET_META_CACHE_TTL_MS = 60 * 1000;
 const RUSH_SYNC_CACHE_TTL_MS = 45 * 1000;
 const RUSH_SYNC_MAX_PAGES = 10;
@@ -60,6 +60,7 @@ const DEFAULT_UI_PREFERENCES = {
     displayTarget: 'current',
     densityMode: 'auto',
     customerNameMode: 'first_name_only',
+    openTicketIdLinks: false,
     showAssignedTech: true,
     hideRefurbs: false,
     assigneeFilter: [],
@@ -511,6 +512,9 @@ function normalizeUiPreferences(savedPrefs = {}) {
       customerNameMode: ['full_name', 'first_name_only', 'hide'].includes(String(savedPrefs?.display?.customerNameMode || '').toLowerCase())
         ? String(savedPrefs.display.customerNameMode).toLowerCase()
         : DEFAULT_UI_PREFERENCES.display.customerNameMode,
+      openTicketIdLinks: savedPrefs?.display?.openTicketIdLinks !== undefined
+        ? !!savedPrefs.display.openTicketIdLinks
+        : DEFAULT_UI_PREFERENCES.display.openTicketIdLinks,
       showAssignedTech: savedPrefs?.display?.showAssignedTech !== undefined
         ? !!savedPrefs.display.showAssignedTech
         : DEFAULT_UI_PREFERENCES.display.showAssignedTech,
@@ -1719,6 +1723,7 @@ async function fetchTicketMetaByOrderId(orderId, options = {}) {
     !forceFresh &&
     ticketMetaCacheByOrderId[key] &&
     typeof ticketMetaCacheByOrderId[key] === 'object' &&
+    Object.prototype.hasOwnProperty.call(ticketMetaCacheByOrderId[key], 'internalTicketId') &&
     Object.prototype.hasOwnProperty.call(ticketMetaCacheByOrderId[key], 'serviceName') &&
     Object.prototype.hasOwnProperty.call(ticketMetaCacheByOrderId[key], 'serviceSearchText') &&
     Object.prototype.hasOwnProperty.call(ticketMetaCacheByOrderId[key], 'dueAt') &&
@@ -1775,6 +1780,7 @@ async function fetchTicketMetaByOrderId(orderId, options = {}) {
   const meta = {
     metaVersion: TICKET_META_CACHE_VERSION,
     fetchedAt: Date.now(),
+    internalTicketId: String(detail?.summary?.id || lookup?.summary?.id || '').trim(),
     createdAt: Number(detail?.summary?.created_date || lookup?.summary?.created_date || 0) || null,
     updatedAt: Number(detail?.summary?.modified_on || 0) || null,
     repairCategory,
@@ -1892,6 +1898,7 @@ function matchingTemporaryBlockLabel(date, blockedDates = []) {
 
 function emptyTicketMeta() {
   return {
+    internalTicketId: '',
     createdAt: null,
     updatedAt: null,
     repairCategory: '',
@@ -2512,6 +2519,7 @@ function normalizeTicketCounterPayload(
     if (!entry) {
       entry = {
         orderId,
+        internalTicketId: String(ticketMetaByOrderId[orderId]?.internalTicketId || '').trim(),
         status,
         customerName: buildCustomerDisplayName(ticket, preferences),
         organization: '',
@@ -2576,6 +2584,9 @@ function normalizeTicketCounterPayload(
     }
     if (!entry.dueAt && Number(ticketMetaByOrderId[orderId]?.dueAt || 0)) {
       entry.dueAt = Number(ticketMetaByOrderId[orderId].dueAt) || null;
+    }
+    if (!entry.internalTicketId && ticketMetaByOrderId[orderId]?.internalTicketId) {
+      entry.internalTicketId = String(ticketMetaByOrderId[orderId].internalTicketId || '').trim();
     }
     if (entry.assigneeName === 'Unassigned' && ticket?.assignee_name) {
       entry.assigneeName = decodeHtml(ticket.assignee_name);
@@ -2647,6 +2658,7 @@ function normalizeTicketCounterPayload(
         : null;
       return {
         orderId: ticket.orderId,
+        internalTicketId: ticket.internalTicketId,
         customerName: ticket.customerName,
         assigneeName: ticket.assigneeName,
         devices: ticket.devices,
@@ -2681,6 +2693,7 @@ function normalizeTicketCounterPayload(
         : null;
       return {
       orderId: ticket.orderId,
+      internalTicketId: ticket.internalTicketId,
       status: ticket.status,
       statusColor: ticket.statusColor,
       customerName: ticket.customerName,
@@ -2723,6 +2736,7 @@ function normalizeTicketCounterPayload(
       const lastTouchedAt = Number(ticket.updatedAt || ticket.createdAt || 0) || null;
       return {
       orderId: ticket.orderId,
+      internalTicketId: ticket.internalTicketId,
       status: ticket.status,
       statusColor: ticket.statusColor,
       customerName: ticket.customerName,
@@ -2769,6 +2783,7 @@ function normalizeTicketCounterPayload(
         : durationRuleToHours(preferences.staleRules.waitingForParts);
       return {
         orderId: ticket.orderId,
+        internalTicketId: ticket.internalTicketId,
         status: ticket.status,
         statusColor: ticket.statusColor,
         customerName: ticket.customerName,
@@ -2810,6 +2825,7 @@ function normalizeTicketCounterPayload(
       const lastTouchedAt = Number(ticket.updatedAt || ticket.createdAt || 0) || null;
       return {
         orderId: ticket.orderId,
+        internalTicketId: ticket.internalTicketId,
         status: ticket.status,
         statusColor: ticket.statusColor,
         customerName: ticket.customerName,
@@ -2851,6 +2867,7 @@ function normalizeTicketCounterPayload(
       const lastTouchedAt = Number(ticket.updatedAt || ticket.createdAt || 0) || null;
       return {
         orderId: ticket.orderId,
+        internalTicketId: ticket.internalTicketId,
         status: ticket.status,
         statusColor: ticket.statusColor,
         customerName: ticket.customerName,

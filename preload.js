@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('desktopApp', {
   listDisplays: () => ipcRenderer.invoke('app:list-displays'),
   applyWindowPreferences: (preferences) => ipcRenderer.invoke('window:apply-preferences', preferences),
   openInBrowser: () => ipcRenderer.invoke('app:open-in-browser'),
+  openExternalUrl: (url) => ipcRenderer.invoke('app:open-external-url', url),
   openFeatureRequest: () => ipcRenderer.invoke('app:open-feature-request'),
   clearLocalData: () => ipcRenderer.invoke('app:clear-local-data'),
   getUpdateStatus: () => ipcRenderer.invoke('updates:get-status'),
