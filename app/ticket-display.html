@@ -414,7 +414,9 @@
     box-shadow: none;
     backdrop-filter: none;
     padding: 0;
-    grid-template-columns: minmax(0, 1fr);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
     gap: 12px;
   }
 
@@ -464,6 +466,8 @@
   }
 
   .schedule-strip.stacked-weeks .schedule-week-stack {
+    width: 100%;
+    min-width: 0;
     padding: 12px;
     gap: 8px;
   }
@@ -1083,6 +1087,29 @@
     font-family: var(--mono);
     color: var(--text);
     white-space: nowrap;
+  }
+
+  .queue-ticket-link {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.14em;
+  }
+
+  .queue-ticket-link:hover,
+  .queue-ticket-link:focus-visible {
+    color: var(--accent);
+  }
+
+  .queue-ticket-link:focus-visible {
+    outline: 2px solid rgba(110, 231, 200, 0.55);
+    outline-offset: 4px;
+    border-radius: 6px;
   }
 
   .queue-top-main {
@@ -4730,6 +4757,16 @@
             </span>
           </label>
           <label class="settings-field full">
+            <span class="settings-label">Ticket ID links</span>
+            <span class="settings-check">
+              <input class="settings-checkbox" id="pref-open-ticket-id-links" type="checkbox" />
+              <span class="settings-check-copy">
+                <span class="settings-check-title">Make ticket IDs clickable</span>
+                <span class="settings-help">When enabled, clicking a ticket ID opens that RepairDesk ticket in your browser using this board’s saved Ticket Counter store URL.</span>
+              </span>
+            </span>
+          </label>
+          <label class="settings-field full">
             <span class="settings-label">Assigned tech filter</span>
             <div class="weekday-grid" id="pref-assignee-filter"></div>
             <span class="settings-help">Select one or more techs to show only their tickets. Leave everything unchecked to show all techs.</span>
@@ -5097,6 +5134,7 @@
     alertAudioContext: null,
     rushSyncDismissedKey: '',
     desktopMetadata: null,
+    apiConfig: null,
     settingsActivePanelId: 'api-section',
     discoveredSharedHosts: [],
     sharedHostDiscoveryStatus: 'idle',
@@ -5226,6 +5264,18 @@
         waiting: { label: 'Waiting', visible: true, refurbMode: 'all', refurbRotateSeconds: 12, statuses: [] },
         qualityControl: { label: 'Quality Control', visible: true, refurbMode: 'all', refurbRotateSeconds: 12, statuses: [] },
         column6: { label: 'Column 6', visible: false, refurbMode: 'all', refurbRotateSeconds: 12, statuses: [] },
+      },
+      display: {
+        openTicketIdLinks: false,
+        showAssignedTech: true,
+      },
+      columns: {
+        readyToStart: { label: 'Ready to start' },
+        inProgress: { label: 'In Progress' },
+        needsAttention: { label: 'Needs Attention' },
+        waiting: { label: 'Waiting' },
+        qualityControl: { label: 'Quality Control' },
+        column6: { label: 'Column 6' },
       },
     };
   }
@@ -6881,6 +6931,7 @@
     setDisplayTargetOptions(prefs.display?.displayTarget || 'current');
     qs('pref-display-density').value = prefs.display?.densityMode || 'auto';
     qs('pref-customer-name-mode').value = prefs.display?.customerNameMode || 'first_name_only';
+    qs('pref-open-ticket-id-links').checked = !!prefs.display?.openTicketIdLinks;
     qs('pref-show-assigned-tech').checked = prefs.display?.showAssignedTech !== false;
     qs('pref-assignee-filter').innerHTML = assigneeFilterMarkup(prefs.display?.assigneeFilter || []);
     qs('pref-pulse-timing-enabled').checked = prefs.display?.pulseTimingEnabled !== false;
@@ -6999,6 +7050,7 @@
         displayTarget: qs('pref-display-target').value || 'current',
         densityMode: qs('pref-display-density').value || 'auto',
         customerNameMode: qs('pref-customer-name-mode').value || 'first_name_only',
+        openTicketIdLinks: qs('pref-open-ticket-id-links').checked,
         showAssignedTech: qs('pref-show-assigned-tech').checked,
         assigneeFilter: selectedAssignees(),
         pulseTimingEnabled: qs('pref-pulse-timing-enabled').checked,
@@ -7181,6 +7233,7 @@
   async function loadApiConfig() {
     const response = await fetch('/api/config');
     const payload = await response.json();
+    state.apiConfig = payload;
     qs('api-key').value = payload.apiKey || '';
     qs('ticket-counter-url').value = payload.ticketCounterDisplayUrl || '';
     qs('rush-sync-enabled').checked = !!payload.rushSyncEnabled;
@@ -7191,20 +7244,22 @@
   }
 
   async function saveApiConfig() {
+    const nextConfig = {
+      apiKey: qs('api-key').value,
+      ticketCounterDisplayUrl: qs('ticket-counter-url').value,
+      rushSyncEnabled: qs('rush-sync-enabled').checked,
+      rushSyncCookie: qs('rush-sync-cookie').value,
+    };
     const response = await fetch('/api/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        apiKey: qs('api-key').value,
-        ticketCounterDisplayUrl: qs('ticket-counter-url').value,
-        rushSyncEnabled: qs('rush-sync-enabled').checked,
-        rushSyncCookie: qs('rush-sync-cookie').value,
-      }),
+      body: JSON.stringify(nextConfig),
     });
     const payload = await response.json();
     if (!response.ok) {
       throw new Error(payload.error || 'Could not save API settings');
     }
+    state.apiConfig = nextConfig;
   }
 
   function openWelcomeModal(prefill = {}) {
@@ -7614,8 +7669,45 @@
     qs('page-dots').innerHTML = '';
   }
 
+  function repairDeskBaseUrl() {
+    const displayUrlCandidates = [
+      String(params().get('displayUrl') || '').trim(),
+      String(state.apiConfig?.ticketCounterDisplayUrl || '').trim(),
+      String(qs('ticket-counter-url')?.value || '').trim(),
+    ].filter(Boolean);
+    for (const rawUrl of displayUrlCandidates) {
+      try {
+        const parsed = new URL(rawUrl);
+        return `${parsed.protocol}//${parsed.host}`;
+      } catch (_) {
+        continue;
+      }
+    }
+    return '';
+  }
+
+  function repairDeskTicketUrl(ticket) {
+    if (!currentPreferences().display?.openTicketIdLinks) return '';
+    const internalTicketId = String(ticket?.internalTicketId || '').trim();
+    if (!internalTicketId) return '';
+    const baseUrl = repairDeskBaseUrl();
+    if (!baseUrl) return '';
+    return `${baseUrl}/index.php?r=ticket/view&id=${encodeURIComponent(internalTicketId)}`;
+  }
+
+  async function openRepairDeskTicket(url) {
+    const targetUrl = String(url || '').trim();
+    if (!targetUrl) return;
+    if (window.desktopApp?.openExternalUrl) {
+      await window.desktopApp.openExternalUrl(targetUrl);
+      return;
+    }
+    window.open(targetUrl, '_blank', 'noopener,noreferrer');
+  }
+
   function queueCardMarkup(ticket, fallbackStatus, staleClass) {
     const showAssignedTech = currentPreferences().display?.showAssignedTech !== false;
+    const ticketUrl = repairDeskTicketUrl(ticket);
     const priorityBadge = ticket.isRushJob
       ? '<span class="queue-flag rush">Priority</span>'
       : (ticket.isPriorityTicket ? '<span class="queue-flag priority">Priority</span>' : '');
@@ -7623,7 +7715,9 @@
       <article class="queue-item${staleClass ? ' ' + staleClass : ''}">
         <div class="queue-top">
           <div class="queue-top-main">
-            <div class="queue-ticket">T-${escapeHtml(ticket.orderId)}</div>
+            ${ticketUrl
+              ? `<button class="queue-ticket queue-ticket-link" type="button" data-ticket-url="${escapeHtml(ticketUrl)}" aria-label="Open RepairDesk ticket T-${escapeHtml(ticket.orderId)}">T-${escapeHtml(ticket.orderId)}</button>`
+              : `<div class="queue-ticket">T-${escapeHtml(ticket.orderId)}</div>`}
             ${priorityBadge}
           </div>
           <div class="wait-box ${waitingToneClass(ticket.waitingDays)}">${waitingBadge(ticket.waitingDays, ticket.waitingHours)}</div>
@@ -8152,6 +8246,19 @@
     refreshUpdateStatusAndPopup();
     state.updatePromptTimer = setInterval(refreshUpdateStatusAndPopup, 15000);
   }
+
+  document.addEventListener('click', async (event) => {
+    const trigger = event.target instanceof Element ? event.target.closest('[data-ticket-url]') : null;
+    if (!trigger) return;
+    event.preventDefault();
+    const ticketUrl = String(trigger.getAttribute('data-ticket-url') || '').trim();
+    if (!ticketUrl) return;
+    try {
+      await openRepairDeskTicket(ticketUrl);
+    } catch (error) {
+      qs('settings-status').textContent = error?.message || 'Could not open that RepairDesk ticket.';
+    }
+  });
 
   window.addEventListener('resize', () => {
     if (!state.data) return;

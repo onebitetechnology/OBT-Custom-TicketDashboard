@@ -739,6 +739,23 @@ ipcMain.handle('app:open-in-browser', async () => {
   await shell.openExternal(targetUrl);
   return { ok: true, url: targetUrl };
 });
+ipcMain.handle('app:open-external-url', async (_, rawUrl) => {
+  const targetUrl = String(rawUrl || '').trim();
+  if (!targetUrl) {
+    throw new Error('No URL was provided.');
+  }
+  let parsed;
+  try {
+    parsed = new URL(targetUrl);
+  } catch (_) {
+    throw new Error('That ticket link is not valid.');
+  }
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new Error('Only web links can be opened from the board.');
+  }
+  await shell.openExternal(parsed.toString());
+  return { ok: true, url: parsed.toString() };
+});
 ipcMain.handle('app:list-displays', () => {
   const primaryId = screen.getPrimaryDisplay().id;
   return screen.getAllDisplays().map((display, index) => ({
