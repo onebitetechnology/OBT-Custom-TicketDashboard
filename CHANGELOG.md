@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.74
+
+- Fixed appointment audio alerts on days marked as blocked, including `Block today for new appointments`, so existing appointments can still announce.
+- Kept appointment audio alert settings local to each board when shared appointment preferences sync from a host.
+
 ## v2.1.68-beta.73
 
 - Fixed the stacked two-week appointment view so the two week blocks always stack vertically instead of occasionally laying out side-by-side on some desktop displays.

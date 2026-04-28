@@ -1373,9 +1373,6 @@ function applySharedSettings(preferences, remotePreferences, syncSettings) {
     nextPrefs.schedule.defaultLeadMinutes = remote.schedule.defaultLeadMinutes;
     nextPrefs.schedule.onsiteLeadMinutes = remote.schedule.onsiteLeadMinutes;
     nextPrefs.schedule.imminentMinutes = remote.schedule.imminentMinutes;
-    nextPrefs.schedule.alertAudioEnabled = remote.schedule.alertAudioEnabled;
-    nextPrefs.schedule.speechVoiceUri = remote.schedule.speechVoiceUri;
-    nextPrefs.schedule.alertAudioRules = JSON.parse(JSON.stringify(remote.schedule.alertAudioRules));
   }
 
   if (syncCalendarBlocks) {

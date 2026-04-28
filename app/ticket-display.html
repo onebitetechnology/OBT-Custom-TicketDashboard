@@ -4199,7 +4199,7 @@
                   <input class="settings-checkbox" id="pref-shared-calendar-sync-appointments" type="checkbox" />
                   <span class="settings-check-copy">
                     <span class="settings-check-title" id="shared-sync-title-appointments">Appointment preferences</span>
-                    <span class="settings-help" id="shared-sync-help-appointments">Shares calendar visibility, week rotation, and appointment notification preferences.</span>
+                    <span class="settings-help" id="shared-sync-help-appointments">Shares calendar visibility and week rotation. Audio alerts stay local to this board.</span>
                   </span>
                 </span>
               </label>
@@ -6816,7 +6816,6 @@
     const rules = alertAudioRulesFromPreferences(data?.uiPreferences?.schedule || currentPreferences().schedule || {});
     const candidates = [];
     days.forEach((day) => {
-      if (day.blocked) return;
       (day.appointments || []).forEach((appointment) => {
         const urgency = appointmentUrgencyMeta(appointment.dueAt || appointment.dueOn, appointment.device || '');
         if (!urgency.className) return;
