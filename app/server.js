@@ -2172,12 +2172,17 @@ function buildCustomerName(ticket) {
   return organization || 'Walk-in Customer';
 }
 
+function buildCustomerPersonName(ticket) {
+  return [ticket?.first_name, ticket?.last_name]
+    .map((part) => decodeHtml(part).trim())
+    .filter(Boolean)
+    .join(' ')
+    .trim() || 'Walk-in Customer';
+}
+
 function buildDisplayFirstName(ticket) {
-  const organization = decodeHtml(ticket?.orgonization || ticket?.organization || '').trim();
   const lastName = decodeHtml(ticket?.last_name || '').trim();
   const firstName = decodeHtml(ticket?.first_name || '').trim();
-  if (organization) return 'Business Customer';
-  if (/^\(.*\)$/.test(lastName)) return 'Business Customer';
   if (/^walk[\s-]*in$/i.test(firstName)) return 'Walk-in Customer';
   if (firstName) return firstName;
   return 'Walk-in Customer';
@@ -2296,7 +2301,7 @@ async function fetchScheduledAppointmentFallbackRows(existingOrderIds = new Set(
 function buildCustomerDisplayName(ticket, preferences = DEFAULT_UI_PREFERENCES) {
   const mode = String(preferences?.display?.customerNameMode || DEFAULT_UI_PREFERENCES.display.customerNameMode).toLowerCase();
   if (mode === 'hide') return 'Customer';
-  if (mode === 'full_name') return buildCustomerName(ticket);
+  if (mode === 'full_name') return buildCustomerPersonName(ticket);
   return buildDisplayFirstName(ticket);
 }
 
