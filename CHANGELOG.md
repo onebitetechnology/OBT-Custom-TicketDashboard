@@ -2,10 +2,15 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
-## v2.1.68-beta.74
+## v2.1.68-beta.75
 
 - Fixed appointment audio alerts on days marked as blocked, including `Block today for new appointments`, so existing appointments can still announce.
 - Kept appointment audio alert settings local to each board when shared appointment preferences sync from a host.
+- Fixed customer display names so RepairDesk organization fields no longer replace the customer's entered name with `Business Customer` or the organization name.
+
+## v2.1.68-beta.74
+
+- Prepared the appointment audio alert locality fix for beta release.
 
 ## v2.1.68-beta.73
 
