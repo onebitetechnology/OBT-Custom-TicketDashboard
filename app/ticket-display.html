@@ -5141,6 +5141,7 @@
     settingsOpen: false,
     refreshPausedForSettings: false,
     settingsSaving: false,
+    savedPreferences: null,
   };
 
   const DEFAULT_PAGE_SECONDS = 12;
@@ -5164,7 +5165,7 @@
   }
 
   function currentPreferences() {
-    return state.data?.uiPreferences || {
+    return state.data?.uiPreferences || state.savedPreferences || {
       schedule: {
         includedWeekdays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
         blockedWeekdays: ['Monday'],
@@ -5277,7 +5278,18 @@
         qualityControl: { label: 'Quality Control' },
         column6: { label: 'Column 6' },
       },
-    };
+      };
+  }
+
+  async function loadSavedPreferences(options = {}) {
+    if (state.savedPreferences && !options.force) return state.savedPreferences;
+    const response = await fetch('/api/preferences');
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error || 'Could not load saved display settings');
+    }
+    state.savedPreferences = payload;
+    return payload;
   }
 
   function isSettingsOpen() {
@@ -7592,15 +7604,23 @@
       });
   }
 
-  function openSettings() {
+  async function openSettings() {
     const drawer = qs('settings-drawer');
     state.settingsOpen = true;
     setSettingsSaving(false);
     drawer.classList.add('open');
+    qs('settings-status').textContent = '';
     drawer.scrollTop = 0;
     window.scrollTo(0, 0);
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
+    try {
+      await loadSavedPreferences({ force: !state.data });
+    } catch (error) {
+      if (!state.data) {
+        qs('settings-status').textContent = error.message || 'Could not load saved display settings.';
+      }
+    }
     state.logoDataUrl = currentPreferences().brand?.logoDataUrl || '';
     state.sideMediaDataUrl = currentPreferences().brand?.sideMediaDataUrl || '';
     state.themeBackgroundDataUrl = currentPreferences().brand?.backgroundImageDataUrl || '';
@@ -7908,6 +7928,7 @@
 
   function renderAll() {
     if (!state.data) return;
+    state.savedPreferences = state.data.uiPreferences || state.savedPreferences;
     updateBrand(state.data.uiPreferences);
     applyPreferenceLabels(state.data.uiPreferences);
     applyDisplayPreferences(state.data.uiPreferences);
@@ -7962,6 +7983,7 @@
         throw new Error(payload.error || 'Request failed');
       }
       state.data = payload;
+      state.savedPreferences = payload.uiPreferences || state.savedPreferences;
       renderAll();
       setupPaging();
       setupRefresh();
@@ -7979,6 +8001,9 @@
     try {
       setSettingsSaving(true);
       qs('settings-status').textContent = 'Saving...';
+      if (!state.data) {
+        await loadSavedPreferences({ force: true });
+      }
       const previousDisplay = currentPreferences().display || { fullscreen: false, orientation: 'auto', displayTarget: 'current' };
       state.logoDataUrl = await readSelectedLogo();
       state.sideMediaDataUrl = await readSelectedSideMedia();
@@ -8005,6 +8030,7 @@
           uiPreferences: payload.preferences,
         };
       }
+      state.savedPreferences = payload.preferences;
       qs('settings-status').textContent = 'Saved. Refreshing display...';
       const nextDisplay = payload.preferences.display || nextPreferences.display || {};
       const displayChanged = !!window.desktopApp?.applyWindowPreferences && (
@@ -8432,6 +8458,7 @@
   qs('page-title').textContent = pageTitle();
   startClock();
   startUpdatePromptPolling();
+  loadSavedPreferences().catch(() => {});
   loadFeed();
 </script>
 </body>
