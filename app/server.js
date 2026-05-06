@@ -12,12 +12,14 @@ const os = require('os');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.68-beta.73';
+const APP_VERSION = 'v2.1.68-beta.76';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
 const DATA_DIR = process.env.APP_DATA_DIR || __dirname;
 const CONFIG_PATH = path.join(DATA_DIR, 'config.json');
+const CONFIG_BACKUP_DIR = path.join(DATA_DIR, 'config-backups');
+const MAX_CONFIG_BACKUPS = 20;
 const CATEGORY_RULES_PATH = path.join(DATA_DIR, 'category-rules.json');
 const CONSIGNMENT_RULES_PATH = path.join(DATA_DIR, 'consignment-rules.json');
 const INVOICE_DETAIL_CACHE_PATH = path.join(DATA_DIR, 'invoice-detail-cache.json');
@@ -608,9 +610,56 @@ function normalizeAppConfig(saved = {}) {
   };
 }
 
+function configBackupTimestamp(date = new Date()) {
+  const pad = (value) => String(value).padStart(2, '0');
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+    '-',
+    pad(date.getHours()),
+    pad(date.getMinutes()),
+    pad(date.getSeconds()),
+  ].join('');
+}
+
+function pruneConfigBackups() {
+  try {
+    if (!fs.existsSync(CONFIG_BACKUP_DIR)) return;
+    const backups = fs.readdirSync(CONFIG_BACKUP_DIR)
+      .filter((fileName) => /^config-\d{8}-\d{6}\.json$/i.test(fileName))
+      .map((fileName) => ({
+        fileName,
+        path: path.join(CONFIG_BACKUP_DIR, fileName),
+        mtimeMs: fs.statSync(path.join(CONFIG_BACKUP_DIR, fileName)).mtimeMs,
+      }))
+      .sort((a, b) => b.mtimeMs - a.mtimeMs);
+    backups.slice(MAX_CONFIG_BACKUPS).forEach((backup) => {
+      fs.rmSync(backup.path, { force: true });
+    });
+  } catch (error) {
+    console.log('[CONFIG] Could not prune config backups:', error.message);
+  }
+}
+
+function backupExistingConfig() {
+  try {
+    if (!fs.existsSync(CONFIG_PATH)) return;
+    fs.mkdirSync(CONFIG_BACKUP_DIR, { recursive: true });
+    const backupPath = path.join(CONFIG_BACKUP_DIR, `config-${configBackupTimestamp()}.json`);
+    fs.copyFileSync(CONFIG_PATH, backupPath);
+    pruneConfigBackups();
+  } catch (error) {
+    console.log('[CONFIG] Could not back up config.json:', error.message);
+  }
+}
+
 function saveConfig(config) {
   try {
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf8');
+    backupExistingConfig();
+    const tempPath = `${CONFIG_PATH}.tmp`;
+    fs.writeFileSync(tempPath, JSON.stringify(config, null, 2), 'utf8');
+    fs.renameSync(tempPath, CONFIG_PATH);
     console.log('[CONFIG] Tokens saved to config.json');
   } catch (e) {
     console.log('[CONFIG] Could not save config.json:', e.message);
