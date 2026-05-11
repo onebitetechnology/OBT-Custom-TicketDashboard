@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.77
+
+- Fixed the Settings drawer layout so both the left navigation and selected settings panel can scroll at constrained TV resolutions.
+- Aligned the in-app board version label with the packaged release version.
+
 ## v2.1.68-beta.76
 
 - Fixed appointment audio alerts on days marked as blocked, including `Block today for new appointments`, so existing appointments can still announce.
