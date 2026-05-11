@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.78
+
+- Restyled Settings scrollbars for dark mode and tightened panel sizing so expanded sections stay inside the drawer.
+- Aligned the in-app board version label with the packaged release version.
+
 ## v2.1.68-beta.77
 
 - Fixed the Settings drawer layout so both the left navigation and selected settings panel can scroll at constrained TV resolutions.

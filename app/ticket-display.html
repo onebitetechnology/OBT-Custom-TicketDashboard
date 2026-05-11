@@ -1670,6 +1670,42 @@
     overflow-x: hidden;
   }
 
+  .settings-nav,
+  .settings-panel-stage,
+  .settings-textarea {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(122, 215, 255, 0.5) rgba(8, 17, 29, 0.64);
+  }
+
+  .settings-nav::-webkit-scrollbar,
+  .settings-panel-stage::-webkit-scrollbar,
+  .settings-textarea::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  .settings-nav::-webkit-scrollbar-track,
+  .settings-panel-stage::-webkit-scrollbar-track,
+  .settings-textarea::-webkit-scrollbar-track {
+    background: rgba(8, 17, 29, 0.64);
+    border: 1px solid rgba(203, 224, 255, 0.08);
+    border-radius: 999px;
+  }
+
+  .settings-nav::-webkit-scrollbar-thumb,
+  .settings-panel-stage::-webkit-scrollbar-thumb,
+  .settings-textarea::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(122, 215, 255, 0.72), rgba(110, 231, 200, 0.5));
+    border: 3px solid rgba(8, 17, 29, 0.64);
+    border-radius: 999px;
+  }
+
+  .settings-nav::-webkit-scrollbar-thumb:hover,
+  .settings-panel-stage::-webkit-scrollbar-thumb:hover,
+  .settings-textarea::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(167, 226, 255, 0.86), rgba(144, 244, 218, 0.72));
+  }
+
   .settings-nav-card {
     border: 1px solid rgba(207, 224, 255, 0.14);
     border-radius: 18px;
@@ -1742,7 +1778,7 @@
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-gutter: stable;
-    padding-right: 4px;
+    padding-right: 10px;
     display: grid;
     overscroll-behavior: contain;
     padding-bottom: 16px;
@@ -1752,6 +1788,10 @@
     display: none;
     align-content: start;
     min-height: 0;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
     padding-bottom: 8px;
   }
 
@@ -1797,6 +1837,8 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 12px;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .settings-live-card {
@@ -1806,6 +1848,8 @@
     background: rgba(7, 16, 28, 0.54);
     display: grid;
     gap: 4px;
+    min-width: 0;
+    overflow: hidden;
   }
 
   .settings-live-label {
@@ -1923,6 +1967,8 @@
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .settings-grid.compact-2 {
@@ -1937,6 +1983,8 @@
     display: grid;
     gap: 14px;
     min-height: 0;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .brand-subsection {
@@ -1945,6 +1993,9 @@
     padding: 16px;
     background: rgba(7, 16, 28, 0.5);
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   .brand-subsection-title {
@@ -2006,6 +2057,8 @@
     display: grid;
     gap: 14px;
     padding-top: 14px;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .collapsible-subsection.collapsed .subsection-body {
@@ -2019,6 +2072,8 @@
   .settings-field {
     display: grid;
     gap: 6px;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .settings-field.align-end {
@@ -2100,6 +2155,8 @@
   .settings-input,
   .settings-textarea {
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
     border-radius: 12px;
     border: 1px solid rgba(203, 224, 255, 0.16);
     background: rgba(8, 17, 29, 0.86);
@@ -2139,6 +2196,8 @@
     grid-template-columns: auto minmax(94px, 1fr) auto;
     gap: 10px;
     align-items: center;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .settings-color-control .settings-input[type="color"] {
@@ -2194,6 +2253,8 @@
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 8px;
     align-items: center;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .settings-sensitive-control {
@@ -2280,6 +2341,9 @@
     border-radius: 10px;
     border: 1px solid rgba(255,255,255,0.12);
     background: rgba(255,255,255,0.04);
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   .settings-theme-preview {
@@ -2314,6 +2378,9 @@
     border-radius: 10px;
     border: 1px solid rgba(255,255,255,0.12);
     background: rgba(255,255,255,0.04);
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   .settings-media-stage {
@@ -2468,12 +2535,16 @@
   .settings-check {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 10px;
     min-height: 44px;
     padding: 12px 14px;
     border-radius: 12px;
     border: 1px solid rgba(203, 224, 255, 0.16);
     background: rgba(8, 17, 29, 0.82);
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   .settings-checkbox {
@@ -2487,6 +2558,7 @@
   .settings-check-copy {
     display: grid;
     gap: 2px;
+    flex: 1 1 220px;
     min-width: 0;
   }
 
