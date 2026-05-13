@@ -527,6 +527,14 @@ function reapplySavedWindowPreferences() {
   applyWindowPreferences(preferences);
 }
 
+function scheduleStartupDisplayReapply() {
+  [1200, 5000, 15000, 30000].forEach((delayMs) => {
+    setTimeout(() => {
+      reapplySavedWindowPreferences();
+    }, delayMs);
+  });
+}
+
 function scheduleReapplyWindowPreferences(delayMs = 1200) {
   if (!mainWindow) return;
   if (displayReapplyTimer) clearTimeout(displayReapplyTimer);
@@ -721,14 +729,18 @@ function setupAutoUpdates() {
   }, BACKGROUND_UPDATE_CHECK_MS);
 }
 
-ipcMain.handle('app:get-metadata', () => ({
-  version: app.getVersion(),
-  userDataPath: getDataDir(),
-  appPath: getBundledAppDir(),
-  isPackaged: app.isPackaged,
-  preferredServerPort: PREFERRED_SERVER_PORT,
-  ...getLocalBoardUrls(),
-}));
+ipcMain.handle('app:get-metadata', () => {
+  const currentDisplay = mainWindow ? screen.getDisplayMatching(mainWindow.getBounds()) : null;
+  return {
+    version: app.getVersion(),
+    userDataPath: getDataDir(),
+    appPath: getBundledAppDir(),
+    isPackaged: app.isPackaged,
+    preferredServerPort: PREFERRED_SERVER_PORT,
+    currentDisplayId: currentDisplay ? Number(currentDisplay.id) : null,
+    ...getLocalBoardUrls(),
+  };
+});
 
 ipcMain.handle('window:apply-preferences', (_, preferences) => applyWindowPreferences(preferences || {}));
 ipcMain.handle('app:open-in-browser', async () => {
@@ -758,6 +770,7 @@ ipcMain.handle('app:open-external-url', async (_, rawUrl) => {
 });
 ipcMain.handle('app:list-displays', () => {
   const primaryId = screen.getPrimaryDisplay().id;
+  const currentDisplayId = mainWindow ? screen.getDisplayMatching(mainWindow.getBounds()).id : null;
   return screen.getAllDisplays().map((display, index) => ({
     id: Number(display.id),
     scaleFactor: Number(display.scaleFactor || 1),
@@ -766,6 +779,7 @@ ipcMain.handle('app:list-displays', () => {
     width: Number(display.size?.width || Math.round((display.bounds.width || 0) * Number(display.scaleFactor || 1))),
     height: Number(display.size?.height || Math.round((display.bounds.height || 0) * Number(display.scaleFactor || 1))),
     isPrimary: Number(display.id) === primaryId,
+    isCurrent: currentDisplayId != null && Number(display.id) === Number(currentDisplayId),
     label: (() => {
       const scaleFactor = Number(display.scaleFactor || 1);
       const logicalWidth = Number(display.bounds.width || 0);
@@ -886,6 +900,7 @@ app.whenReady().then(async () => {
   try {
     await startBundledServer();
     await createMainWindow();
+    scheduleStartupDisplayReapply();
     setupAutoUpdates();
     screen.on('display-added', () => scheduleReapplyWindowPreferences());
     screen.on('display-removed', () => scheduleReapplyWindowPreferences());

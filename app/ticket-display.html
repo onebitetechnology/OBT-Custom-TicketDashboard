@@ -1343,8 +1343,8 @@
     left: 50%;
     transform: translateX(-50%);
     width: min(1400px, calc(100vw - 24px));
-    height: min(920px, calc(100dvh - 24px));
-    max-height: calc(100dvh - 24px);
+    height: calc(100dvh - 24px);
+    max-height: 920px;
     box-sizing: border-box;
     background: rgba(14, 20, 32, 0.985);
     border: 1px solid rgba(255,255,255,0.14);
@@ -1661,6 +1661,8 @@
 
   .settings-nav {
     min-width: 0;
+    height: 100%;
+    max-height: 100%;
     display: grid;
     align-content: start;
     gap: 14px;
@@ -1775,6 +1777,8 @@
   .settings-panel-stage {
     min-width: 0;
     min-height: 0;
+    height: 100%;
+    max-height: 100%;
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-gutter: stable;
@@ -1959,6 +1963,7 @@
     gap: 16px;
     align-items: stretch;
     height: 100%;
+    max-height: 100%;
     min-height: 0;
     overflow: hidden;
   }
@@ -2406,6 +2411,35 @@
   .settings-media-thumb.visible,
   .settings-media-video.visible {
     display: block;
+  }
+
+  .settings-audio-preview {
+    display: grid;
+    gap: 8px;
+    min-height: 98px;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.04);
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .settings-audio-status {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(110, 231, 200, 0.18);
+    background: rgba(110, 231, 200, 0.08);
+    color: #bff9e7;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
 
   .settings-logo-thumb {
@@ -3188,6 +3222,7 @@
       top: 12px;
       left: 50%;
       transform: translateX(-50%);
+      height: calc(100dvh - 24px);
       max-height: calc(100dvh - 24px);
       padding: 12px;
     }
@@ -4557,6 +4592,43 @@
           </label>
         </div>
       </section>
+
+      <section class="brand-subsection collapsible-subsection">
+        <h4 class="brand-subsection-title">Ambient Audio</h4>
+        <p class="brand-subsection-copy">Loop a local audio file on this board for showroom music or advertising. This stays local to this machine.</p>
+        <div class="settings-grid compact-2">
+          <label class="settings-field full">
+            <span class="settings-label">Current audio file</span>
+            <div class="settings-audio-preview">
+              <span class="settings-audio-status" id="pref-ambient-audio-status">Disabled</span>
+              <div class="settings-logo-meta">
+                <div class="settings-logo-name" id="pref-ambient-audio-name">No ambient audio uploaded</div>
+                <div class="settings-logo-note" id="pref-ambient-audio-note">Upload an MP3, M4A, WAV, or OGG file to loop on this display.</div>
+              </div>
+            </div>
+          </label>
+          <label class="settings-field full">
+            <span class="settings-label">Ambient audio</span>
+            <span class="settings-check">
+              <input class="settings-checkbox" id="pref-ambient-audio-enabled" type="checkbox" />
+              <span class="settings-check-copy">
+                <span class="settings-check-title">Enable looping ambient audio</span>
+                <span class="settings-help">Playback may begin after the first click if the TV browser blocks automatic audio.</span>
+              </span>
+            </span>
+          </label>
+          <label class="settings-field align-end">
+            <span class="settings-label">Audio upload</span>
+            <input class="settings-input" id="pref-ambient-audio-file" type="file" accept="audio/*" />
+            <span class="settings-help">Use a compressed audio file when possible. The file is saved locally with this board’s preferences.</span>
+          </label>
+          <label class="settings-field">
+            <span class="settings-label">Volume (%)</span>
+            <input class="settings-input" id="pref-ambient-audio-volume" type="number" min="0" max="100" step="1" />
+            <span class="settings-help">Controls only the ambient loop, separate from appointment reminder volume.</span>
+          </label>
+        </div>
+      </section>
     </div>
   </div>
   <div class="settings-section settings-panel" id="window-display-section">
@@ -5178,6 +5250,8 @@
   </div>
 </div>
 
+<audio id="ambient-audio" loop preload="auto"></audio>
+
 <script>
   const APP_VERSION = '__APP_VERSION__';
   const state = {
@@ -5199,6 +5273,9 @@
     logoDataUrl: '',
     sideMediaDataUrl: '',
     themeBackgroundDataUrl: '',
+    ambientAudioDataUrl: '',
+    ambientAudioFileName: '',
+    ambientAudioPlayBlocked: false,
     displays: [],
     updateStatusTimer: null,
     updatePromptTimer: null,
@@ -5311,6 +5388,12 @@
         accentColor: '#6ee7c8',
         textScalePercent: 100,
       },
+      ambientAudio: {
+        enabled: false,
+        audioDataUrl: '',
+        fileName: '',
+        volumePercent: 35,
+      },
       display: {
         fullscreen: false,
         orientation: 'auto',
@@ -5366,6 +5449,7 @@
       throw new Error(payload.error || 'Could not load saved display settings');
     }
     state.savedPreferences = payload;
+    applyAmbientAudioPreferences(payload);
     return payload;
   }
 
@@ -5601,13 +5685,13 @@
   function setDisplayTargetOptions(selectedValue = 'current') {
     const select = qs('pref-display-target');
     const staticOptions = [
-      { value: 'current', label: 'Current display' },
+      { value: 'current', label: 'Current window display' },
       { value: 'primary', label: 'Primary display' },
       { value: 'secondary', label: 'Secondary display' },
     ];
     const detectedOptions = (state.displays || []).map((display) => ({
       value: `display:${display.id}`,
-      label: display.label,
+      label: display.isCurrent ? `${display.label} (current)` : display.label,
     }));
     const options = [...staticOptions, ...detectedOptions];
     select.innerHTML = options.map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`).join('');
@@ -5683,8 +5767,16 @@
 
   function selectedDisplayTargetLabel() {
     const select = qs('pref-display-target');
-    if (!select) return 'Current display';
-    return select.options[select.selectedIndex]?.textContent || 'Current display';
+    if (!select) return 'Current window display';
+    return select.options[select.selectedIndex]?.textContent || 'Current window display';
+  }
+
+  function displayTargetForSave() {
+    const rawTarget = String(qs('pref-display-target')?.value || 'current').trim().toLowerCase() || 'current';
+    if (rawTarget !== 'current') return rawTarget;
+    const currentDisplayId = Number(state.desktopMetadata?.currentDisplayId || 0)
+      || Number((state.displays || []).find((display) => display.isCurrent)?.id || 0);
+    return currentDisplayId ? `display:${currentDisplayId}` : rawTarget;
   }
 
   function renderWindowDisplayLiveStatus() {
@@ -5722,7 +5814,7 @@
       }
       if (displayTarget === 'primary') return displays.find((display) => display.isPrimary) || displays[0];
       if (displayTarget === 'secondary') return displays.find((display) => !display.isPrimary) || displays.find((display) => display.isPrimary) || displays[0];
-      return null;
+      return displays.find((display) => display.isCurrent) || null;
     })();
 
     viewportValue.textContent = `${window.innerWidth} × ${window.innerHeight}`;
@@ -6419,6 +6511,12 @@
     return Math.max(85, Math.min(130, percent));
   }
 
+  function normalizedAmbientAudioVolume(value) {
+    const percent = Number(value);
+    if (!Number.isFinite(percent)) return 35;
+    return Math.max(0, Math.min(100, percent));
+  }
+
   function normalizedThemeColor(value, fallback) {
     const raw = String(value || '').trim();
     return /^#[0-9a-f]{6}$/i.test(raw) ? raw.toLowerCase() : fallback;
@@ -6624,6 +6722,37 @@
     imageEl.classList.add('visible');
   }
 
+  function applyAmbientAudioPreferences(preferences) {
+    const audioEl = qs('ambient-audio');
+    if (!audioEl) return;
+    const ambient = preferences?.ambientAudio || currentPreferences().ambientAudio || {};
+    const audioDataUrl = String(ambient.audioDataUrl || '').trim();
+    const enabled = !!ambient.enabled && !!audioDataUrl;
+    audioEl.volume = normalizedAmbientAudioVolume(ambient.volumePercent ?? 35) / 100;
+
+    if (!enabled) {
+      audioEl.pause();
+      audioEl.removeAttribute('src');
+      audioEl.load();
+      state.ambientAudioPlayBlocked = false;
+      return;
+    }
+
+    audioEl.loop = true;
+    if (audioEl.getAttribute('src') !== audioDataUrl) {
+      audioEl.setAttribute('src', audioDataUrl);
+      audioEl.load();
+    }
+
+    audioEl.play()
+      .then(() => {
+        state.ambientAudioPlayBlocked = false;
+      })
+      .catch(() => {
+        state.ambientAudioPlayBlocked = true;
+      });
+  }
+
   function setLogoPreview(logoDataUrl, labelText = '') {
     const previewEl = qs('pref-brand-logo-preview');
     const nameEl = qs('pref-brand-logo-name');
@@ -6699,6 +6828,23 @@
     previewEl.classList.remove('visible');
     nameEl.textContent = 'No custom background image uploaded';
     noteEl.textContent = 'Upload a background image to preview how the board backdrop will look for this shop.';
+  }
+
+  function setAmbientAudioPreview(audioDataUrl, fileName = '', enabled = false) {
+    const nameEl = qs('pref-ambient-audio-name');
+    const noteEl = qs('pref-ambient-audio-note');
+    const statusEl = qs('pref-ambient-audio-status');
+    const hasAudio = !!String(audioDataUrl || '').trim();
+    statusEl.textContent = enabled && hasAudio ? 'Loop enabled' : 'Disabled';
+    if (hasAudio) {
+      nameEl.textContent = fileName || 'Stored audio file';
+      noteEl.textContent = enabled
+        ? 'This audio file will loop on this display after settings are saved.'
+        : 'This audio file is saved locally but looping is currently turned off.';
+      return;
+    }
+    nameEl.textContent = 'No ambient audio uploaded';
+    noteEl.textContent = 'Upload an MP3, M4A, WAV, or OGG file to loop on this display.';
   }
 
   function cardTone(status) {
@@ -6832,8 +6978,12 @@
 
   function unlockAlertAudio() {
     const context = ensureAlertAudioContext();
-    if (!context || context.state !== 'suspended') return;
-    context.resume().catch(() => {});
+    if (context && context.state === 'suspended') {
+      context.resume().catch(() => {});
+    }
+    if (state.ambientAudioPlayBlocked) {
+      applyAmbientAudioPreferences(currentPreferences());
+    }
   }
 
   function playAppointmentChime() {
@@ -6997,6 +7147,15 @@
       prefs.brand?.sideMediaDataUrl || '',
       prefs.brand?.sideMediaDataUrl ? `Stored ${detectSideMediaType(prefs.brand?.sideMediaDataUrl || '')}` : ''
     );
+    state.ambientAudioDataUrl = prefs.ambientAudio?.audioDataUrl || '';
+    state.ambientAudioFileName = prefs.ambientAudio?.fileName || '';
+    qs('pref-ambient-audio-enabled').checked = !!prefs.ambientAudio?.enabled;
+    qs('pref-ambient-audio-volume').value = normalizedAmbientAudioVolume(prefs.ambientAudio?.volumePercent ?? 35);
+    setAmbientAudioPreview(
+      prefs.ambientAudio?.audioDataUrl || '',
+      prefs.ambientAudio?.fileName || '',
+      !!prefs.ambientAudio?.enabled
+    );
     qs('pref-brand-background-image-enabled').checked = !!prefs.brand?.backgroundImageEnabled;
     qs('pref-brand-background-image-opacity').value = prefs.brand?.backgroundImageOpacityPercent ?? 42;
     qs('pref-brand-background-start').value = prefs.brand?.backgroundColorStart || '#08111f';
@@ -7132,10 +7291,16 @@
         accentColor: normalizedThemeColor(qs('pref-brand-accent-color').value, currentPreferences().brand?.accentColor || '#6ee7c8'),
         textScalePercent: normalizedThemeTextScale(qs('pref-brand-text-scale').value || currentPreferences().brand?.textScalePercent || 100),
       },
+      ambientAudio: {
+        enabled: qs('pref-ambient-audio-enabled').checked,
+        audioDataUrl: state.ambientAudioDataUrl || currentPreferences().ambientAudio?.audioDataUrl || '',
+        fileName: state.ambientAudioFileName || currentPreferences().ambientAudio?.fileName || '',
+        volumePercent: normalizedAmbientAudioVolume(qs('pref-ambient-audio-volume').value),
+      },
       display: {
         fullscreen: qs('pref-fullscreen').checked,
         orientation: qs('pref-orientation').value || 'auto',
-        displayTarget: qs('pref-display-target').value || 'current',
+        displayTarget: displayTargetForSave(),
         densityMode: qs('pref-display-density').value || 'auto',
         customerNameMode: qs('pref-customer-name-mode').value || 'first_name_only',
         openTicketIdLinks: qs('pref-open-ticket-id-links').checked,
@@ -7454,6 +7619,25 @@
     });
   }
 
+  function readSelectedAmbientAudio() {
+    const file = qs('pref-ambient-audio-file').files && qs('pref-ambient-audio-file').files[0];
+    if (!file) {
+      return Promise.resolve({
+        audioDataUrl: state.ambientAudioDataUrl || currentPreferences().ambientAudio?.audioDataUrl || '',
+        fileName: state.ambientAudioFileName || currentPreferences().ambientAudio?.fileName || '',
+      });
+    }
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve({
+        audioDataUrl: String(reader.result || ''),
+        fileName: String(file.name || '').trim(),
+      });
+      reader.onerror = () => reject(new Error('Could not read ambient audio file'));
+      reader.readAsDataURL(file);
+    });
+  }
+
   function totalPages() {
     if (!state.data || !state.data.tickets.length) return 1;
     return Math.max(1, Math.ceil(state.data.tickets.length / cardsPerPage()));
@@ -7701,6 +7885,8 @@
     state.logoDataUrl = currentPreferences().brand?.logoDataUrl || '';
     state.sideMediaDataUrl = currentPreferences().brand?.sideMediaDataUrl || '';
     state.themeBackgroundDataUrl = currentPreferences().brand?.backgroundImageDataUrl || '';
+    state.ambientAudioDataUrl = currentPreferences().ambientAudio?.audioDataUrl || '';
+    state.ambientAudioFileName = currentPreferences().ambientAudio?.fileName || '';
     fillSettingsForm(currentPreferences());
     setActiveSettingsPanel(state.settingsActivePanelId || 'api-section');
     updateAlertRuleVisibility();
@@ -8007,6 +8193,7 @@
     if (!state.data) return;
     state.savedPreferences = state.data.uiPreferences || state.savedPreferences;
     updateBrand(state.data.uiPreferences);
+    applyAmbientAudioPreferences(state.data.uiPreferences);
     applyPreferenceLabels(state.data.uiPreferences);
     applyDisplayPreferences(state.data.uiPreferences);
     if (!state.settingsLoaded && !isSettingsOpen()) {
@@ -8085,6 +8272,9 @@
       state.logoDataUrl = await readSelectedLogo();
       state.sideMediaDataUrl = await readSelectedSideMedia();
       state.themeBackgroundDataUrl = await readSelectedThemeBackground();
+      const ambientAudio = await readSelectedAmbientAudio();
+      state.ambientAudioDataUrl = ambientAudio.audioDataUrl;
+      state.ambientAudioFileName = ambientAudio.fileName;
       const nextPreferences = collectSettingsForm();
       await saveApiConfig();
       const response = await fetch('/api/preferences', {
@@ -8108,6 +8298,7 @@
         };
       }
       state.savedPreferences = payload.preferences;
+      applyAmbientAudioPreferences(payload.preferences);
       qs('settings-status').textContent = 'Saved. Refreshing display...';
       const nextDisplay = payload.preferences.display || nextPreferences.display || {};
       const displayChanged = !!window.desktopApp?.applyWindowPreferences && (
@@ -8509,6 +8700,43 @@
       setSideMediaPreview(existing, existing ? `Stored ${detectSideMediaType(existing)}` : '');
     };
     reader.readAsDataURL(file);
+  });
+  qs('pref-ambient-audio-file').addEventListener('change', () => {
+    const file = qs('pref-ambient-audio-file').files && qs('pref-ambient-audio-file').files[0];
+    if (!file) {
+      const existing = currentPreferences().ambientAudio?.audioDataUrl || '';
+      state.ambientAudioDataUrl = existing;
+      state.ambientAudioFileName = currentPreferences().ambientAudio?.fileName || '';
+      setAmbientAudioPreview(
+        existing,
+        currentPreferences().ambientAudio?.fileName || '',
+        !!currentPreferences().ambientAudio?.enabled
+      );
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || '');
+      state.ambientAudioDataUrl = result;
+      state.ambientAudioFileName = String(file.name || '').trim();
+      setAmbientAudioPreview(result, `Selected audio: ${file.name}`, qs('pref-ambient-audio-enabled').checked);
+    };
+    reader.onerror = () => {
+      const existing = currentPreferences().ambientAudio?.audioDataUrl || '';
+      setAmbientAudioPreview(
+        existing,
+        currentPreferences().ambientAudio?.fileName || '',
+        !!currentPreferences().ambientAudio?.enabled
+      );
+    };
+    reader.readAsDataURL(file);
+  });
+  qs('pref-ambient-audio-enabled').addEventListener('change', () => {
+    setAmbientAudioPreview(
+      state.ambientAudioDataUrl || currentPreferences().ambientAudio?.audioDataUrl || '',
+      state.ambientAudioFileName || currentPreferences().ambientAudio?.fileName || '',
+      qs('pref-ambient-audio-enabled').checked
+    );
   });
   qs('pref-brand-background-image').addEventListener('change', () => {
     const file = qs('pref-brand-background-image').files && qs('pref-brand-background-image').files[0];
