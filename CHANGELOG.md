@@ -2,6 +2,13 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.79
+
+- Made the Settings content pane use a more explicit Windows-friendly scroll area so expanded sections remain reachable above the footer buttons.
+- Remembered the actual physical display when saving `Current window display`, and reapplied the saved target during startup and display hot-plug events so the board returns to the selected TV when it reconnects.
+- Added local-only Ambient Audio settings so a showroom board can upload and loop an audio file with separate volume control.
+- Aligned the in-app board version label with the packaged release version.
+
 ## v2.1.68-beta.78
 
 - Restyled Settings scrollbars for dark mode and tightened panel sizing so expanded sections stay inside the drawer.

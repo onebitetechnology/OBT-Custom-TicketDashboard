@@ -12,7 +12,7 @@ const os = require('os');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.68-beta.78';
+const APP_VERSION = 'v2.1.68-beta.79';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -55,6 +55,12 @@ const DEFAULT_UI_PREFERENCES = {
     textColor: '#ecf3ff',
     accentColor: '#6ee7c8',
     textScalePercent: 100,
+  },
+  ambientAudio: {
+    enabled: false,
+    audioDataUrl: '',
+    fileName: '',
+    volumePercent: 35,
   },
   display: {
     fullscreen: false,
@@ -298,6 +304,12 @@ function normalizePercent(value, fallback, min, max) {
   return Math.max(min, Math.min(max, Number(value ?? fallback) || fallback));
 }
 
+function normalizeNumberRange(value, fallback, min, max) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.max(min, Math.min(max, number));
+}
+
 function normalizeColumnConfig(savedColumn, fallbackColumn) {
   const refurbMode = ['all', 'hide_refurbs', 'only_refurbs', 'rotate_refurbs'].includes(String(savedColumn?.refurbMode || '').toLowerCase())
     ? String(savedColumn.refurbMode).toLowerCase()
@@ -498,6 +510,19 @@ function normalizeUiPreferences(savedPrefs = {}) {
         DEFAULT_UI_PREFERENCES.brand.textScalePercent,
         85,
         130
+      ),
+    },
+    ambientAudio: {
+      enabled: savedPrefs?.ambientAudio?.enabled !== undefined
+        ? !!savedPrefs.ambientAudio.enabled
+        : DEFAULT_UI_PREFERENCES.ambientAudio.enabled,
+      audioDataUrl: String(savedPrefs?.ambientAudio?.audioDataUrl || '').trim(),
+      fileName: String(savedPrefs?.ambientAudio?.fileName || '').trim().slice(0, 180),
+      volumePercent: normalizeNumberRange(
+        savedPrefs?.ambientAudio?.volumePercent,
+        DEFAULT_UI_PREFERENCES.ambientAudio.volumePercent,
+        0,
+        100
       ),
     },
     display: {
