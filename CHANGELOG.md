@@ -2,6 +2,12 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.80
+
+- Fixed the Windows Settings drawer accordion layout so expanded `Window & Display` sections grow in normal flow instead of being clipped behind the next section.
+- Kept right-pane scrolling owned by the Settings content pane so expanded sections remain reachable on constrained Windows displays.
+- Aligned the in-app board version label with the packaged release version.
+
 ## v2.1.68-beta.79
 
 - Made the Settings content pane use a more explicit Windows-friendly scroll area so expanded sections remain reachable above the footer buttons.

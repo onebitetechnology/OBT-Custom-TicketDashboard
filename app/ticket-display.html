@@ -1783,7 +1783,7 @@
     overflow-x: hidden;
     scrollbar-gutter: stable;
     padding-right: 10px;
-    display: grid;
+    display: block;
     overscroll-behavior: contain;
     padding-bottom: 16px;
   }
@@ -1795,7 +1795,7 @@
     min-width: 0;
     width: 100%;
     max-width: 100%;
-    overflow-x: hidden;
+    overflow: visible;
     padding-bottom: 8px;
   }
 
@@ -1987,6 +1987,8 @@
   .brand-subsections {
     display: grid;
     gap: 14px;
+    align-items: start;
+    grid-auto-rows: max-content;
     min-height: 0;
     min-width: 0;
     max-width: 100%;
@@ -2000,7 +2002,7 @@
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
     min-width: 0;
     max-width: 100%;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .brand-subsection-title {
@@ -2064,6 +2066,7 @@
     padding-top: 14px;
     min-width: 0;
     max-width: 100%;
+    overflow: visible;
   }
 
   .collapsible-subsection.collapsed .subsection-body {
@@ -6427,6 +6430,7 @@
         const textEl = toggle.querySelector('.settings-section-toggle-text');
         if (textEl) textEl.textContent = expanded ? 'Hide Details' : 'Show Details';
         toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        section.classList.toggle('expanded', expanded);
       };
 
       updateToggleState();
@@ -6446,6 +6450,15 @@
             });
           }
           section.classList.remove('collapsed');
+          requestAnimationFrame(() => {
+            const panelStage = qs('settings-panel-stage');
+            if (!panelStage) return;
+            const sectionRect = section.getBoundingClientRect();
+            const stageRect = panelStage.getBoundingClientRect();
+            if (sectionRect.bottom > stageRect.bottom || sectionRect.top < stageRect.top) {
+              section.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+          });
         } else {
           section.classList.add('collapsed');
         }
