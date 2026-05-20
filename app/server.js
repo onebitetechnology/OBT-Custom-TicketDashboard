@@ -12,7 +12,7 @@ const os = require('os');
 const { spawn } = require('child_process');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.68-beta.80';
+const APP_VERSION = 'v2.1.68-beta.81';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -85,6 +85,7 @@ const DEFAULT_UI_PREFERENCES = {
     blockedWeekdays: ['Monday'],
     blockToday: false,
     temporaryBlockedDates: [],
+    dailyAppointmentLimit: 0,
     sharedCalendarSync: {
       mode: 'local',
       boardName: '',
@@ -572,6 +573,12 @@ function normalizeUiPreferences(savedPrefs = {}) {
       blockedWeekdays: normalizeStringArray(savedPrefs?.schedule?.blockedWeekdays, DEFAULT_UI_PREFERENCES.schedule.blockedWeekdays),
       blockToday: savedPrefs?.schedule?.blockToday !== undefined ? !!savedPrefs.schedule.blockToday : DEFAULT_UI_PREFERENCES.schedule.blockToday,
       temporaryBlockedDates: normalizeStringArray(savedPrefs?.schedule?.temporaryBlockedDates, DEFAULT_UI_PREFERENCES.schedule.temporaryBlockedDates),
+      dailyAppointmentLimit: Math.floor(normalizeNumberRange(
+        savedPrefs?.schedule?.dailyAppointmentLimit,
+        DEFAULT_UI_PREFERENCES.schedule.dailyAppointmentLimit,
+        0,
+        12
+      )),
       sharedCalendarSync: normalizeSharedCalendarSync(savedPrefs?.schedule?.sharedCalendarSync, DEFAULT_UI_PREFERENCES.schedule.sharedCalendarSync),
       showCalendar: savedPrefs?.schedule?.showCalendar !== undefined ? !!savedPrefs.schedule.showCalendar : DEFAULT_UI_PREFERENCES.schedule.showCalendar,
       rotateWeeks: savedPrefs?.schedule?.rotateWeeks !== undefined ? !!savedPrefs.schedule.rotateWeeks : DEFAULT_UI_PREFERENCES.schedule.rotateWeeks,
@@ -1441,6 +1448,7 @@ function applySharedSettings(preferences, remotePreferences, syncSettings) {
     nextPrefs.schedule.rotateWeeks = remote.schedule.rotateWeeks;
     nextPrefs.schedule.stackWeeks = remote.schedule.stackWeeks;
     nextPrefs.schedule.blockToday = remote.schedule.blockToday;
+    nextPrefs.schedule.dailyAppointmentLimit = remote.schedule.dailyAppointmentLimit;
     nextPrefs.schedule.currentWeekDurationSeconds = remote.schedule.currentWeekDurationSeconds;
     nextPrefs.schedule.nextWeekDurationSeconds = remote.schedule.nextWeekDurationSeconds;
     nextPrefs.schedule.dimPastDays = remote.schedule.dimPastDays;
@@ -2992,24 +3000,31 @@ function normalizeTicketCounterPayload(
       const isToday = iso === localDateKeyFromTimestamp(Date.now());
       const temporaryBlockedLabel = matchingTemporaryBlockLabel(date, preferences.schedule.temporaryBlockedDates);
       const blockedForToday = weekOffset === 0 && !!preferences.schedule.blockToday && isToday;
+      const dailyAppointmentLimit = Math.floor(Number(preferences.schedule.dailyAppointmentLimit || 0));
+      const appointments = allTickets
+        .filter((ticket) => isCalendarAppointmentTicket(ticket, preferences))
+        .filter((ticket) => localDateKeyFromTimestamp(ticket.dueAt) === iso)
+        .sort((a, b) => (a.dueAt || 0) - (b.dueAt || 0))
+        .map((ticket) => ({
+          orderId: ticket.orderId,
+          customerName: ticket.customerName,
+          dueOn: ticket.dueOn,
+          dueAt: ticket.dueAt,
+          device: ticket.scheduledServiceLabel || ticket.serviceName || ticket.issues[0] || ticket.devices[0] || '',
+        }));
+      const appointmentLimitReached = dailyAppointmentLimit > 0 && appointments.length >= dailyAppointmentLimit;
       return {
         label,
         iso,
-        blocked: preferences.schedule.blockedWeekdays.includes(label) || !!temporaryBlockedLabel || blockedForToday,
-        blockedReason: temporaryBlockedLabel
+        dailyAppointmentLimit,
+        appointmentLimitReached,
+        blocked: preferences.schedule.blockedWeekdays.includes(label) || !!temporaryBlockedLabel || blockedForToday || appointmentLimitReached,
+        blockedReason: appointmentLimitReached
+          ? 'No more appointments available'
+          : temporaryBlockedLabel
           ? `Temporarily blocked (${temporaryBlockedLabel})`
           : (blockedForToday ? 'Today is blocked for new appointments' : ''),
-        appointments: allTickets
-          .filter((ticket) => isCalendarAppointmentTicket(ticket, preferences))
-          .filter((ticket) => localDateKeyFromTimestamp(ticket.dueAt) === iso)
-          .sort((a, b) => (a.dueAt || 0) - (b.dueAt || 0))
-          .map((ticket) => ({
-            orderId: ticket.orderId,
-            customerName: ticket.customerName,
-            dueOn: ticket.dueOn,
-            dueAt: ticket.dueAt,
-            device: ticket.scheduledServiceLabel || ticket.serviceName || ticket.issues[0] || ticket.devices[0] || '',
-          })),
+        appointments,
       };
     });
   }

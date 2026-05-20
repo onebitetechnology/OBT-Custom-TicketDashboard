@@ -569,6 +569,11 @@
     letter-spacing: 0.16em;
   }
 
+  .schedule-day.appointment-full::after {
+    content: "FULL";
+    background: rgba(127, 29, 29, 0.92);
+  }
+
   .schedule-head {
     display: flex;
     justify-content: space-between;
@@ -592,6 +597,10 @@
 
   .schedule-count.blocked {
     color: #ffb1b1;
+  }
+
+  .schedule-count.full {
+    color: #fcd34d;
   }
 
   .schedule-items {
@@ -4799,6 +4808,11 @@
               </span>
             </span>
           </label>
+          <label class="settings-field">
+            <span class="settings-label">Daily appointment limit</span>
+            <input class="settings-input" id="pref-daily-appointment-limit" type="number" min="0" max="12" step="1" />
+            <span class="settings-help">Use 0 for no automatic limit. Once a day reaches this many appointments, the calendar marks it full for new bookings.</span>
+          </label>
           <label class="settings-field full">
             <span class="settings-label">Temporary appointment blocks</span>
             <textarea class="settings-textarea" id="pref-temporary-blocked-dates" placeholder="March 24&#10;March 25&#10;2026-03-30"></textarea>
@@ -5327,6 +5341,7 @@
         includedWeekdays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
         blockedWeekdays: ['Monday'],
         temporaryBlockedDates: [],
+        dailyAppointmentLimit: 0,
         sharedCalendarSync: {
           mode: 'local',
           boardName: '',
@@ -6524,6 +6539,12 @@
     return Math.max(85, Math.min(130, percent));
   }
 
+  function normalizedDailyAppointmentLimit(value) {
+    const limit = Number(value);
+    if (!Number.isFinite(limit)) return 0;
+    return Math.max(0, Math.min(12, Math.floor(limit)));
+  }
+
   function normalizedAmbientAudioVolume(value) {
     const percent = Number(value);
     if (!Number.isFinite(percent)) return 35;
@@ -7204,6 +7225,7 @@
     qs('pref-rotate-weeks').checked = !!prefs.schedule.rotateWeeks;
     qs('pref-stack-weeks').checked = !!prefs.schedule.stackWeeks;
     qs('pref-block-today').checked = !!prefs.schedule.blockToday;
+    qs('pref-daily-appointment-limit').value = normalizedDailyAppointmentLimit(prefs.schedule.dailyAppointmentLimit ?? 0);
     qs('pref-current-week-duration-seconds').value = prefs.schedule.currentWeekDurationSeconds ?? 20;
     qs('pref-next-week-duration-seconds').value = prefs.schedule.nextWeekDurationSeconds ?? 5;
     qs('pref-blocked-weekdays').innerHTML = checkboxGroupMarkup('blocked-weekdays', prefs.schedule.blockedWeekdays || []);
@@ -7333,6 +7355,7 @@
         rotateWeeks: qs('pref-rotate-weeks').checked,
         stackWeeks: qs('pref-stack-weeks').checked,
         blockToday: qs('pref-block-today').checked,
+        dailyAppointmentLimit: normalizedDailyAppointmentLimit(qs('pref-daily-appointment-limit').value),
         currentWeekDurationSeconds: Math.max(5, Number(qs('pref-current-week-duration-seconds').value || 20) || 20),
         nextWeekDurationSeconds: Math.max(5, Number(qs('pref-next-week-duration-seconds').value || 5) || 5),
         blockedWeekdays: selectedCheckboxDays('blocked-weekdays'),
@@ -7713,17 +7736,16 @@
   }
 
   function scheduleDayMarkup(day, data, todayIso) {
-    return `
-      <article class="schedule-day${day.blocked ? ' blocked' : ''}${data.uiPreferences?.schedule?.dimPastDays !== false && day.iso < todayIso ? ' past-day' : ''}">
-        <div class="schedule-head">
-          <div class="schedule-label">${escapeHtml(formatScheduleDayLabel(day.label, day.iso))}</div>
-          <div class="schedule-count${day.blocked ? ' blocked' : ''}">${day.blocked ? 'Off limits' : escapeHtml(day.appointments.length) + ' appt'}</div>
-        </div>
-        ${day.blocked ? `<div class="schedule-note">${escapeHtml(day.blockedReason || 'No booking window on this day')}</div>` : ''}
-        <div class="schedule-items">
-          ${day.appointments.length ? day.appointments.slice(0, 4).map((appt) => {
-            const urgency = appointmentUrgencyMeta(appt.dueAt || appt.dueOn, appt.device || '');
-            return `
+    const appointmentCount = Array.isArray(day.appointments) ? day.appointments.length : 0;
+    const appointmentCountLabel = appointmentCount === 1 ? '1 appt' : `${appointmentCount} appt`;
+    const limitReached = !!day.appointmentLimitReached;
+    const countLabel = limitReached && Number(day.dailyAppointmentLimit || 0) > 0
+      ? `${appointmentCount}/${Number(day.dailyAppointmentLimit)} full`
+      : (day.blocked ? 'Off limits' : appointmentCountLabel);
+    const blockedNote = day.blocked ? `<div class="schedule-note">${escapeHtml(day.blockedReason || 'No booking window on this day')}</div>` : '';
+    const appointmentItems = appointmentCount ? day.appointments.slice(0, 4).map((appt) => {
+      const urgency = appointmentUrgencyMeta(appt.dueAt || appt.dueOn, appt.device || '');
+      return `
             <div class="schedule-item ${urgency.className}" style="${urgency.style}">
               <div class="schedule-top">
                 <div class="schedule-ticket">T-${escapeHtml(appt.orderId)}</div>
@@ -7733,8 +7755,17 @@
               <div class="schedule-device">${escapeHtml(appt.device || 'Tech Support')}</div>
             </div>
           `;
-          }).join('') : `<div class="schedule-empty">${day.blocked ? escapeHtml(day.blockedReason || 'Blocked for appointments') : 'No appointments'}</div>`}
+    }).join('') : `<div class="schedule-empty">${day.blocked ? escapeHtml(day.blockedReason || 'Blocked for appointments') : 'No appointments'}</div>`;
+    return `
+      <article class="schedule-day${day.blocked ? ' blocked' : ''}${limitReached ? ' appointment-full' : ''}${data.uiPreferences?.schedule?.dimPastDays !== false && day.iso < todayIso ? ' past-day' : ''}">
+        <div class="schedule-head">
+          <div class="schedule-label">${escapeHtml(formatScheduleDayLabel(day.label, day.iso))}</div>
+          <div class="schedule-count${day.blocked ? ' blocked' : ''}${limitReached ? ' full' : ''}">${escapeHtml(countLabel)}</div>
         </div>
+        <div class="schedule-items">
+          ${appointmentItems}
+        </div>
+        ${appointmentCount ? blockedNote : ''}
       </article>
     `;
   }

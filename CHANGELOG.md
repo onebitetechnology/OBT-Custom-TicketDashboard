@@ -2,6 +2,12 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v2.1.68-beta.81
+
+- Added an Appointments daily limit setting that automatically marks a day full once it reaches the configured number of appointments.
+- Shows `No more appointments available` on full days while keeping the already-booked appointments visible above the blocker message.
+- Aligned the in-app board version label with the packaged release version.
+
 ## v2.1.68-beta.80
 
 - Fixed the Windows Settings drawer accordion layout so expanded `Window & Display` sections grow in normal flow instead of being clipped behind the next section.
