@@ -34,6 +34,8 @@ Production packaging uses `forceCodeSigning: true`. GitHub Actions refuses to pu
 
 The workflow verifies the hardened Electron fuse policy, macOS Developer ID signature, notarization ticket, Gatekeeper assessment, and Windows Authenticode signature before publishing. Release assets include `SHA256SUMS.txt` and a GitHub build-provenance attestation.
 
+Every push to `main` and every pull request runs the same security preflight in a read-only GitHub Actions job with immutable action references.
+
 Unsigned commands ending in `:local` are for local testing only and must not be published as production updates.
 
 ## Verification

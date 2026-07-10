@@ -45,7 +45,7 @@ run_check "JavaScript syntax" npm run check:syntax --silent
 run_check "local API security smoke test" npm run security:smoke --silent
 run_check "dependency vulnerability audit" npm run security:audit --silent
 run_check "dependency signature verification" npm run security:signatures --silent
-run_check "release workflow YAML" node -e "require('js-yaml').load(require('fs').readFileSync('.github/workflows/release.yml', 'utf8'))"
+run_check "GitHub workflow YAML" node -e "const fs=require('fs'); const yaml=require('js-yaml'); for (const file of fs.readdirSync('.github/workflows').filter((name)=>name.endsWith('.yml')||name.endsWith('.yaml'))) yaml.load(fs.readFileSync('.github/workflows/'+file, 'utf8'))"
 
 check_file "$REPO_DIR/build/icon.ico"
 check_file "$REPO_DIR/build/icon.icns"
@@ -56,6 +56,7 @@ check_file "$REPO_DIR/lib/electron-security.js"
 check_file "$REPO_DIR/scripts/local-build.js"
 check_file "$REPO_DIR/scripts/verify-electron-fuses.js"
 check_file "$REPO_DIR/.github/workflows/release.yml"
+check_file "$REPO_DIR/.github/workflows/security.yml"
 
 echo "Checking for forbidden tracked local data and dashboard files"
 for forbidden in app/config.json app/invoice-detail-cache.json app/invoice-priority-cache.json app/ticket-meta-cache.json app/category-rules.json app/consignment-rules.json; do
@@ -91,7 +92,7 @@ done
 echo "Checking immutable GitHub Action references"
 while IFS= read -r action_line; do
   [[ "$action_line" =~ @[0-9a-f]{40}([[:space:]]|$) ]] || fail "GitHub Actions must be pinned to full commit SHAs: $action_line"
-done < <(grep -E '^[[:space:]]*uses:' "$REPO_DIR/.github/workflows/release.yml")
+done < <(grep -hE '^[[:space:]]*uses:' "$REPO_DIR"/.github/workflows/*.yml)
 
 echo "Checking mandatory release signing and provenance controls"
 for required_control in \
@@ -142,6 +143,17 @@ fi
 if [[ "$(grep -Fc 'name: Verify hardened Electron fuses' "$REPO_DIR/.github/workflows/release.yml")" -ne 2 ]]; then
   fail "Both macOS and Windows release jobs must verify packaged Electron fuses."
 fi
+
+echo "Checking continuous security verification"
+for required_ci_control in \
+  'name: Security and Tests' \
+  'branches: [main]' \
+  'pull_request:' \
+  'run: bash ./preflight.sh'; do
+  if ! grep -Fq "$required_ci_control" "$REPO_DIR/.github/workflows/security.yml"; then
+    fail "Continuous security workflow control is missing: $required_ci_control"
+  fi
+done
 
 echo "Checking beta updater compatibility step"
 if ! grep -Fq 'Add updater compatibility metadata' "$REPO_DIR/.github/workflows/release.yml"; then

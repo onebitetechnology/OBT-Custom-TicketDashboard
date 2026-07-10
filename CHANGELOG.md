@@ -15,6 +15,7 @@ All notable changes to One Bite Ticket Display Desktop should be recorded in thi
 - Added request-size and upload file validation for saved media/audio preferences.
 - Hardened the Electron window with sandboxing, navigation/popup blocking, denied web permissions, and RepairDesk-only external ticket links.
 - Moved the embedded server to an Electron utility process, validated every privileged IPC sender, and hardened packaged Electron binaries with enforced fuses and ASAR integrity checks.
+- Added pinned push and pull-request security checks so tests, dependency audits, registry signatures, and release-policy validation run before future changes are accepted.
 - Added unit and integration tests for LAN signatures, replay protection, config recovery, protected APIs, CSP, Host validation, URL validation, and request-size limits.
 - Upgraded Electron, electron-builder, and electron-updater to patched releases; vulnerability and registry-signature checks now block release preflight.
 - Made production builds fail closed without signing certificates, required macOS notarization and Windows Authenticode verification, pinned GitHub Actions to commit SHAs, and added SHA-256 checksums plus build-provenance attestations.
