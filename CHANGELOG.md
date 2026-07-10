@@ -18,6 +18,7 @@ All notable changes to One Bite Ticket Display Desktop should be recorded in thi
 - Added pinned push and pull-request security checks so tests, dependency audits, registry signatures, and release-policy validation run before future changes are accepted.
 - Added unit and integration tests for LAN signatures, replay protection, config recovery, protected APIs, CSP, Host validation, URL validation, and request-size limits.
 - Upgraded Electron, electron-builder, and electron-updater to patched releases; vulnerability and registry-signature checks now block release preflight.
+- Updated Electron to 43.1.0 and pinned the release workflow to current immutable checkout, artifact, and provenance action releases.
 - Made production builds fail closed without signing certificates, required macOS notarization and Windows Authenticode verification, pinned GitHub Actions to commit SHAs, and added SHA-256 checksums plus build-provenance attestations.
 - Purged historical config and ticket/invoice cache files from all rewritten branches and tags so the removed RepairDesk credential and customer data are no longer retained in normal Git history.
 - Extracted shared-board authentication into a focused module and removed 13 confirmed unused helpers without changing queue or calendar behavior.

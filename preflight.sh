@@ -48,6 +48,7 @@ echo "Running release preflight in $REPO_DIR"
 
 if [[ "$STATIC_ONLY" -eq 0 ]]; then
   run_check "JavaScript syntax" npm run check:syntax --silent
+  run_check "unit and config persistence tests" npm run test:unit --silent
   run_check "local API security smoke test" npm run security:smoke --silent
   run_check "dependency vulnerability audit" npm run security:audit --silent
   run_check "dependency signature verification" npm run security:signatures --silent
