@@ -1,5 +1,5 @@
 /**
- * One Bite Technology — RepairDesk Dashboard Server
+ * One Bite Technology — RepairDesk Ticket Display Server
  * Run: node server.js
  * Then open: http://localhost:3000
  */
@@ -9,10 +9,22 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
+const net = require('net');
 const { spawn } = require('child_process');
+const {
+  SHARED_NONCE_HEADER,
+  SHARED_SIGNATURE_HEADER,
+  SHARED_TIMESTAMP_HEADER,
+  createSharedAuthHeaders,
+  generateSharedStoreSecret,
+  normalizeSharedStoreSecret,
+  sharedSecretFingerprint,
+  verifySharedAuth,
+} = require('./lib/shared-auth');
 
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = 'v2.1.68-beta.81';
+const APP_VERSION = 'v3.0.0-beta.1';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
 const LOOKBACK_DAYS = 90;
@@ -20,17 +32,29 @@ const DATA_DIR = process.env.APP_DATA_DIR || __dirname;
 const CONFIG_PATH = path.join(DATA_DIR, 'config.json');
 const CONFIG_BACKUP_DIR = path.join(DATA_DIR, 'config-backups');
 const MAX_CONFIG_BACKUPS = 20;
-const CATEGORY_RULES_PATH = path.join(DATA_DIR, 'category-rules.json');
-const CONSIGNMENT_RULES_PATH = path.join(DATA_DIR, 'consignment-rules.json');
-const INVOICE_DETAIL_CACHE_PATH = path.join(DATA_DIR, 'invoice-detail-cache.json');
+const LEGACY_INVOICE_DETAIL_CACHE_PATH = path.join(DATA_DIR, 'invoice-detail-cache.json');
+const PRIORITY_INVOICE_CACHE_PATH = path.join(DATA_DIR, 'invoice-priority-cache.json');
 const TICKET_META_CACHE_PATH = path.join(DATA_DIR, 'ticket-meta-cache.json');
-const TICKET_META_CACHE_VERSION = 6;
+const TICKET_META_CACHE_VERSION = 7;
+const PRIORITY_INVOICE_CACHE_VERSION = 1;
 const TICKET_META_CACHE_TTL_MS = 60 * 1000;
 const RUSH_SYNC_CACHE_TTL_MS = 45 * 1000;
 const RUSH_SYNC_MAX_PAGES = 10;
 const SHARED_CALENDAR_SYNC_CACHE_TTL_MS = 60 * 1000;
 const SHARED_HOST_DISCOVERY_CACHE_TTL_MS = 30 * 1000;
 const API_HEALTH_CACHE_TTL_MS = 60 * 1000;
+const LOCAL_ADMIN_TOKEN = process.env.ONEBITE_LOCAL_ADMIN_TOKEN || crypto.randomBytes(32).toString('base64url');
+const ADMIN_HEADER = 'x-one-bite-admin-token';
+const MAX_CONFIG_BODY_BYTES = 512 * 1024;
+const MAX_PREFERENCES_BODY_BYTES = 35 * 1024 * 1024;
+const MAX_LOGO_DATA_URL_CHARS = 4 * 1024 * 1024;
+const MAX_BACKGROUND_DATA_URL_CHARS = 12 * 1024 * 1024;
+const MAX_SIDE_MEDIA_DATA_URL_CHARS = 28 * 1024 * 1024;
+const MAX_AMBIENT_AUDIO_DATA_URL_CHARS = 30 * 1024 * 1024;
+const MAX_REMOTE_RESPONSE_BYTES = 40 * 1024 * 1024;
+const IMAGE_DATA_MIME_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+const SIDE_MEDIA_DATA_MIME_TYPES = [...IMAGE_DATA_MIME_TYPES, 'video/mp4', 'video/webm', 'video/ogg'];
+const AUDIO_DATA_MIME_TYPES = ['audio/mpeg', 'audio/mp3', 'audio/mp4', 'audio/x-m4a', 'audio/wav', 'audio/x-wav', 'audio/ogg', 'audio/webm'];
 const BOARD_COLUMN_KEYS = ['readyToStart', 'inProgress', 'needsAttention', 'waiting', 'qualityControl', 'column6'];
 const DEFAULT_UI_PREFERENCES = {
   brand: {
@@ -90,6 +114,7 @@ const DEFAULT_UI_PREFERENCES = {
       mode: 'local',
       boardName: '',
       hostUrl: '',
+      sharedSecret: '',
       syncCalendarBlocks: true,
       syncAppointments: false,
       syncBrand: false,
@@ -179,94 +204,6 @@ const DEFAULT_UI_PREFERENCES = {
     },
   },
 };
-const DEFAULT_CONSIGNMENT_RULES = {
-  vendorKeywords: ['Vertex'],
-  skuVendors: {},
-  serialVendors: {
-    MXL8412N94: 'Vertex Systems',
-  },
-};
-
-const DEFAULT_CATEGORY_RULES = {
-  exactCategoryBucket: {
-    'iPhone Cases & Protection': 'retail',
-    'iPad Cases & Protection': 'retail',
-    'MacBook & Laptop Cases & Protection': 'retail',
-    'iPhone - Camera Lens Protection': 'retail',
-    Storage: 'retail',
-    Software: 'retail',
-    'Non-Inventory': 'retail',
-    Monitors: 'devices',
-    iPhone: 'devices',
-    iPad: 'devices',
-    iMac: 'devices',
-    'Mac Mini': 'devices',
-    'MacBook Air': 'devices',
-    'MacBook Pro': 'devices',
-    'Windows Laptops': 'devices',
-    'Windows Desktops': 'devices',
-  },
-  displayTopLevelByCategory: {
-    Monitors: 'Devices',
-    iPhone: 'Devices',
-    iPad: 'Devices',
-    iMac: 'Devices',
-    'Mac Mini': 'Devices',
-    'MacBook Air': 'Devices',
-    'MacBook Pro': 'Devices',
-    'Windows Laptops': 'Devices',
-    'Windows Desktops': 'Devices',
-    'iPhone Cases & Protection': 'Accessories',
-    'iPad Cases & Protection': 'Accessories',
-    'MacBook & Laptop Cases & Protection': 'Accessories',
-    'iPhone - Camera Lens Protection': 'Accessories',
-    Storage: 'Accessories',
-    Software: 'Non-Inventory',
-  },
-  deviceTopLevels: ['Devices'],
-  retailTopLevels: ['Accessories', 'Non-Inventory', 'Non-Inventory Products'],
-  retailCategoryPrefixes: [
-    'Accessories',
-    'Cases & Protection',
-    'Chargers & Cables',
-    'Computer Cleaning & Maintenance',
-    'Gifts & Home',
-    'Headphones & Audio',
-    'iPhone Mounts & Other',
-    'Keyboards & Mice',
-    'Mobile Plans & SIM Cards',
-    'Monitor & TV Mounts',
-    'Networking Hardware',
-    'Non-Inventory',
-    'Power Bars & Surge Protectors',
-    'Screen Protectors & Cleaning',
-    'Smart Home & Security',
-    'Storage',
-    'Software',
-    'Webcams',
-    'iPad -',
-    'iPhone -',
-  ],
-  deviceCategoryPrefixes: [
-    'Devices',
-    'Apple TV',
-    'Apple Watch',
-    'Chromebooks',
-    'Clearance',
-    'Consignment',
-    'iMac',
-    'iPad',
-    'iPhone',
-    'iPod',
-    'Mac Mini',
-    'MacBook Air',
-    'MacBook Pro',
-    'Monitors',
-    'Windows Desktops',
-    'Windows Laptops',
-  ],
-};
-
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
 function loadConfig() {
@@ -275,14 +212,21 @@ function loadConfig() {
       const saved = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
       console.log('[CONFIG] Loaded saved tokens from config.json');
       const normalized = normalizeAppConfig(saved);
-      if (Object.prototype.hasOwnProperty.call(saved, 'bearerToken') || Object.prototype.hasOwnProperty.call(saved, 'xTenant')) {
-        fs.writeFileSync(CONFIG_PATH, JSON.stringify(normalized, null, 2), 'utf8');
-        console.log('[CONFIG] Removed legacy bearer/xTenant keys from config.json');
+      const generatedSharedSecret = ensureSharedHostSecret(normalized);
+      if (Object.prototype.hasOwnProperty.call(saved, 'bearerToken') || Object.prototype.hasOwnProperty.call(saved, 'xTenant') || generatedSharedSecret) {
+        backupExistingConfig();
+        writeConfigAtomic(normalized);
+        console.log('[CONFIG] Migrated saved configuration to the current secure format.');
       }
       return normalized;
     }
   } catch (e) {
     console.log('[CONFIG] Could not read config.json:', e.message);
+    const recovered = recoverConfigFromNewestBackup();
+    if (recovered) {
+      console.log('[CONFIG] Restored config.json from the newest valid backup.');
+      return recovered;
+    }
   }
   return normalizeAppConfig({});
 }
@@ -295,10 +239,38 @@ function normalizeStringArray(values, fallback) {
   return cleaned.length ? cleaned : [...fallback];
 }
 
+function isPlainObject(value) {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function mergePreferencePayload(base, patch) {
+  if (!isPlainObject(base)) return isPlainObject(patch) ? mergePreferencePayload({}, patch) : patch;
+  if (!isPlainObject(patch)) return JSON.parse(JSON.stringify(base));
+  const merged = JSON.parse(JSON.stringify(base));
+  Object.entries(patch).forEach(([key, value]) => {
+    if (isPlainObject(value) && isPlainObject(merged[key])) {
+      merged[key] = mergePreferencePayload(merged[key], value);
+    } else {
+      merged[key] = value;
+    }
+  });
+  return merged;
+}
+
 function normalizeHexColor(value, fallback) {
   const raw = String(value || '').trim();
   if (/^#[0-9a-f]{6}$/i.test(raw)) return raw.toLowerCase();
   return fallback;
+}
+
+function normalizeDataUrl(value, allowedMimeTypes, maxChars) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (raw.length > maxChars) return '';
+  const match = raw.match(/^data:([^;,]+)[;,]/i);
+  if (!match) return '';
+  const mimeType = String(match[1] || '').trim().toLowerCase();
+  return allowedMimeTypes.includes(mimeType) ? raw : '';
 }
 
 function normalizePercent(value, fallback, min, max) {
@@ -434,7 +406,7 @@ function normalizeUiPreferences(savedPrefs = {}) {
   return {
     brand: {
       title: String(savedPrefs?.brand?.title || DEFAULT_UI_PREFERENCES.brand.title).trim() || DEFAULT_UI_PREFERENCES.brand.title,
-      logoDataUrl: String(savedPrefs?.brand?.logoDataUrl || '').trim(),
+      logoDataUrl: normalizeDataUrl(savedPrefs?.brand?.logoDataUrl, IMAGE_DATA_MIME_TYPES, MAX_LOGO_DATA_URL_CHARS),
       logoSize: Math.max(36, Math.min(180, Number(savedPrefs?.brand?.logoSize ?? DEFAULT_UI_PREFERENCES.brand.logoSize) || DEFAULT_UI_PREFERENCES.brand.logoSize)),
       headerColor: normalizeHexColor(
         savedPrefs?.brand?.headerColor,
@@ -471,7 +443,7 @@ function normalizeUiPreferences(savedPrefs = {}) {
       sideMediaEnabled: savedPrefs?.brand?.sideMediaEnabled !== undefined
         ? !!savedPrefs.brand.sideMediaEnabled
         : DEFAULT_UI_PREFERENCES.brand.sideMediaEnabled,
-      sideMediaDataUrl: String(savedPrefs?.brand?.sideMediaDataUrl || '').trim(),
+      sideMediaDataUrl: normalizeDataUrl(savedPrefs?.brand?.sideMediaDataUrl, SIDE_MEDIA_DATA_MIME_TYPES, MAX_SIDE_MEDIA_DATA_URL_CHARS),
       sideMediaWidthPercent: Math.max(
         20,
         Math.min(
@@ -483,7 +455,7 @@ function normalizeUiPreferences(savedPrefs = {}) {
       backgroundImageEnabled: savedPrefs?.brand?.backgroundImageEnabled !== undefined
         ? !!savedPrefs.brand.backgroundImageEnabled
         : DEFAULT_UI_PREFERENCES.brand.backgroundImageEnabled,
-      backgroundImageDataUrl: String(savedPrefs?.brand?.backgroundImageDataUrl || '').trim(),
+      backgroundImageDataUrl: normalizeDataUrl(savedPrefs?.brand?.backgroundImageDataUrl, IMAGE_DATA_MIME_TYPES, MAX_BACKGROUND_DATA_URL_CHARS),
       backgroundImageOpacityPercent: normalizePercent(
         savedPrefs?.brand?.backgroundImageOpacityPercent,
         DEFAULT_UI_PREFERENCES.brand.backgroundImageOpacityPercent,
@@ -517,7 +489,7 @@ function normalizeUiPreferences(savedPrefs = {}) {
       enabled: savedPrefs?.ambientAudio?.enabled !== undefined
         ? !!savedPrefs.ambientAudio.enabled
         : DEFAULT_UI_PREFERENCES.ambientAudio.enabled,
-      audioDataUrl: String(savedPrefs?.ambientAudio?.audioDataUrl || '').trim(),
+      audioDataUrl: normalizeDataUrl(savedPrefs?.ambientAudio?.audioDataUrl, AUDIO_DATA_MIME_TYPES, MAX_AMBIENT_AUDIO_DATA_URL_CHARS),
       fileName: String(savedPrefs?.ambientAudio?.fileName || '').trim().slice(0, 180),
       volumePercent: normalizeNumberRange(
         savedPrefs?.ambientAudio?.volumePercent,
@@ -630,9 +602,10 @@ function normalizeUiPreferences(savedPrefs = {}) {
 }
 
 function normalizeAppConfig(saved = {}) {
+  const ticketCounterConnection = parseTicketCounterDisplayUrl(saved?.ticketCounterDisplayUrl || '');
   return {
     apiKey: String(saved?.apiKey || '').trim(),
-    ticketCounterDisplayUrl: String(saved?.ticketCounterDisplayUrl || '').trim(),
+    ticketCounterDisplayUrl: ticketCounterConnection.displayUrl,
     ticketCounterToken: String(saved?.ticketCounterToken || '').trim(),
     rushSync: {
       enabled: saved?.rushSync?.enabled !== undefined ? !!saved.rushSync.enabled : false,
@@ -680,21 +653,90 @@ function backupExistingConfig() {
     fs.mkdirSync(CONFIG_BACKUP_DIR, { recursive: true });
     const backupPath = path.join(CONFIG_BACKUP_DIR, `config-${configBackupTimestamp()}.json`);
     fs.copyFileSync(CONFIG_PATH, backupPath);
+    tightenFilePermissions(backupPath);
     pruneConfigBackups();
   } catch (error) {
     console.log('[CONFIG] Could not back up config.json:', error.message);
   }
 }
 
-function saveConfig(config) {
+function tightenFilePermissions(filePath) {
+  if (process.platform === 'win32') return;
   try {
-    backupExistingConfig();
-    const tempPath = `${CONFIG_PATH}.tmp`;
-    fs.writeFileSync(tempPath, JSON.stringify(config, null, 2), 'utf8');
+    fs.chmodSync(filePath, 0o600);
+  } catch (error) {
+    console.log('[CONFIG] Could not restrict config file permissions:', error.message);
+  }
+}
+
+function writeConfigAtomic(config) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  const tempPath = `${CONFIG_PATH}.tmp`;
+  try {
+    fs.writeFileSync(tempPath, JSON.stringify(config, null, 2), { encoding: 'utf8', mode: 0o600 });
+    tightenFilePermissions(tempPath);
     fs.renameSync(tempPath, CONFIG_PATH);
-    console.log('[CONFIG] Tokens saved to config.json');
-  } catch (e) {
-    console.log('[CONFIG] Could not save config.json:', e.message);
+    tightenFilePermissions(CONFIG_PATH);
+  } catch (error) {
+    try {
+      fs.rmSync(tempPath, { force: true });
+    } catch (_) {
+      // Preserve the original write failure.
+    }
+    error.statusCode = 500;
+    throw error;
+  }
+}
+
+function recoverConfigFromNewestBackup() {
+  try {
+    if (!fs.existsSync(CONFIG_BACKUP_DIR)) return null;
+    const backups = fs.readdirSync(CONFIG_BACKUP_DIR)
+      .filter((fileName) => /^config-\d{8}-\d{6}\.json$/i.test(fileName))
+      .map((fileName) => ({
+        path: path.join(CONFIG_BACKUP_DIR, fileName),
+        mtimeMs: fs.statSync(path.join(CONFIG_BACKUP_DIR, fileName)).mtimeMs,
+      }))
+      .sort((left, right) => right.mtimeMs - left.mtimeMs);
+    for (const backup of backups) {
+      try {
+        const recovered = normalizeAppConfig(JSON.parse(fs.readFileSync(backup.path, 'utf8')));
+        writeConfigAtomic(recovered);
+        return recovered;
+      } catch (_) {
+        // Try the next newest backup.
+      }
+    }
+  } catch (error) {
+    console.log('[CONFIG] Could not restore a config backup:', error.message);
+  }
+  return null;
+}
+
+function saveConfig(config) {
+  backupExistingConfig();
+  writeConfigAtomic(config);
+  console.log('[CONFIG] Saved config.json');
+  return true;
+}
+
+function isRepairDeskHostname(hostname) {
+  const host = String(hostname || '').trim().toLowerCase();
+  return host === 'repairdesk.co' || host.endsWith('.repairdesk.co');
+}
+
+function normalizeRepairDeskUrl(rawValue) {
+  const raw = String(rawValue || '').trim();
+  if (!raw) return null;
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== 'https:') return null;
+    if (!isRepairDeskHostname(parsed.hostname)) return null;
+    if (parsed.username || parsed.password) return null;
+    if (parsed.port && parsed.port !== '443') return null;
+    return parsed;
+  } catch (_) {
+    return null;
   }
 }
 
@@ -769,17 +811,14 @@ function parseTicketCounterDisplayUrl(rawValue) {
   const raw = String(rawValue || '').trim();
   if (!raw) return { displayUrl: '', apiBase: '', token: '' };
 
-  try {
-    const parsed = new URL(raw);
-    const token = String(parsed.searchParams.get('token') || '').trim();
-    return {
-      displayUrl: parsed.toString(),
-      apiBase: `${parsed.protocol}//${parsed.host}/web/api/v1`,
-      token,
-    };
-  } catch (_) {
-    return { displayUrl: '', apiBase: '', token: '' };
-  }
+  const parsed = normalizeRepairDeskUrl(raw);
+  if (!parsed) return { displayUrl: '', apiBase: '', token: '' };
+  const token = String(parsed.searchParams.get('token') || '').trim();
+  return {
+    displayUrl: parsed.toString(),
+    apiBase: `${parsed.origin}/web/api/v1`,
+    token,
+  };
 }
 
 function normalizeRushSyncCookie(rawValue) {
@@ -792,12 +831,34 @@ function normalizeRushSyncCookie(rawValue) {
     .trim();
 }
 
+function isPrivateNetworkHost(hostname) {
+  const host = String(hostname || '').trim().toLowerCase().replace(/^\[|\]$/g, '');
+  if (!host) return false;
+  if (host === 'localhost' || host.endsWith('.local')) return true;
+  if (!host.includes('.') && !host.includes(':')) return true;
+  const ipVersion = net.isIP(host);
+  if (ipVersion === 4) {
+    const parts = host.split('.').map((part) => Number(part));
+    if (parts[0] === 10 || parts[0] === 127) return true;
+    if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+    if (parts[0] === 192 && parts[1] === 168) return true;
+    if (parts[0] === 169 && parts[1] === 254) return true;
+    return false;
+  }
+  if (ipVersion === 6) {
+    return host === '::1' || host.startsWith('fe80:') || host.startsWith('fc') || host.startsWith('fd');
+  }
+  return false;
+}
+
 function normalizeSharedCalendarHostUrl(rawValue) {
   const raw = String(rawValue || '').trim();
   if (!raw) return '';
   const withProtocol = /^[a-z]+:\/\//i.test(raw) ? raw : `http://${raw}`;
   try {
     const parsed = new URL(withProtocol);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+    if (!isPrivateNetworkHost(parsed.hostname)) return '';
     return parsed.origin;
   } catch (_) {
     return '';
@@ -835,6 +896,7 @@ function normalizeSharedCalendarSync(saved = {}, defaults = DEFAULT_UI_PREFERENC
       : defaults.mode,
     boardName: String(saved?.boardName || defaults.boardName || '').trim().slice(0, 80),
     hostUrl: normalizeSharedCalendarHostUrl(saved?.hostUrl || defaults.hostUrl),
+    sharedSecret: normalizeSharedStoreSecret(saved?.sharedSecret || defaults.sharedSecret),
     syncCalendarBlocks: legacySyncCalendarBlocks,
     syncAppointments: saved?.syncAppointments !== undefined ? !!saved.syncAppointments : defaults.syncAppointments,
     syncBrand: saved?.syncBrand !== undefined ? !!saved.syncBrand : defaults.syncBrand,
@@ -847,6 +909,13 @@ function normalizeSharedCalendarSync(saved = {}, defaults = DEFAULT_UI_PREFERENC
       defaults.cachedPreferences
     ),
   };
+}
+
+function ensureSharedHostSecret(config) {
+  const syncSettings = config?.uiPreferences?.schedule?.sharedCalendarSync;
+  if (syncSettings?.mode !== 'host' || syncSettings.sharedSecret) return false;
+  syncSettings.sharedSecret = generateSharedStoreSecret();
+  return true;
 }
 
 function sharedStoreBoardName(preferences = sessionConfig.uiPreferences) {
@@ -947,11 +1016,50 @@ function mergeUniqueStrings(...groups) {
 function buildSharedCalendarBlocksPayload(preferences = sessionConfig.uiPreferences) {
   const prefs = normalizeUiPreferences(preferences || {});
   return {
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     appVersion: APP_VERSION,
     boardName: sharedStoreBoardName(prefs),
-    preferences: prefs,
+    preferences: {
+      schedule: {
+        blockedWeekdays: [...prefs.schedule.blockedWeekdays],
+        blockToday: !!prefs.schedule.blockToday,
+        temporaryBlockedDates: [...prefs.schedule.temporaryBlockedDates],
+      },
+    },
+  };
+}
+
+function buildSharedStoreSettingsPayload(preferences = sessionConfig.uiPreferences) {
+  const prefs = normalizeUiPreferences(preferences || {});
+  return {
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    appVersion: APP_VERSION,
+    boardName: sharedStoreBoardName(prefs),
+    preferences: {
+      brand: JSON.parse(JSON.stringify(prefs.brand)),
+      display: JSON.parse(JSON.stringify(prefs.display)),
+      updates: JSON.parse(JSON.stringify(prefs.updates)),
+      schedule: {
+        includedWeekdays: [...prefs.schedule.includedWeekdays],
+        blockedWeekdays: [...prefs.schedule.blockedWeekdays],
+        blockToday: !!prefs.schedule.blockToday,
+        temporaryBlockedDates: [...prefs.schedule.temporaryBlockedDates],
+        dailyAppointmentLimit: prefs.schedule.dailyAppointmentLimit,
+        showCalendar: prefs.schedule.showCalendar,
+        rotateWeeks: prefs.schedule.rotateWeeks,
+        stackWeeks: prefs.schedule.stackWeeks,
+        currentWeekDurationSeconds: prefs.schedule.currentWeekDurationSeconds,
+        nextWeekDurationSeconds: prefs.schedule.nextWeekDurationSeconds,
+        dimPastDays: prefs.schedule.dimPastDays,
+        defaultLeadMinutes: prefs.schedule.defaultLeadMinutes,
+        onsiteLeadMinutes: prefs.schedule.onsiteLeadMinutes,
+        imminentMinutes: prefs.schedule.imminentMinutes,
+      },
+      staleRules: JSON.parse(JSON.stringify(prefs.staleRules)),
+      columns: JSON.parse(JSON.stringify(prefs.columns)),
+    },
   };
 }
 
@@ -996,11 +1104,12 @@ let sharedHostDiscoveryCache = {
   scannedAt: 0,
   hosts: [],
 };
+const sharedAuthNonces = new Map();
 
 function restartServerProcess() {
   try {
     saveConfig(sessionConfig);
-    saveInvoiceDetailCache();
+    savePriorityInvoiceCache();
     saveTicketMetaCache();
 
     const serverEntry = process.argv[1] || path.join(__dirname, 'server.js');
@@ -1010,6 +1119,7 @@ function restartServerProcess() {
         ...process.env,
         PORT: String(PORT),
         APP_DATA_DIR: DATA_DIR,
+        ONEBITE_LOCAL_ADMIN_TOKEN: LOCAL_ADMIN_TOKEN,
         ELECTRON_RUN_AS_NODE: process.env.ELECTRON_RUN_AS_NODE || '1',
       },
       detached: true,
@@ -1029,89 +1139,66 @@ function restartServerProcess() {
   }
 }
 
-function loadCategoryRules() {
-  try {
-    if (!fs.existsSync(CATEGORY_RULES_PATH)) {
-      return DEFAULT_CATEGORY_RULES;
-    }
-    const saved = JSON.parse(fs.readFileSync(CATEGORY_RULES_PATH, 'utf8'));
-    return {
-      exactCategoryBucket: saved?.exactCategoryBucket && typeof saved.exactCategoryBucket === 'object'
-        ? saved.exactCategoryBucket
-        : DEFAULT_CATEGORY_RULES.exactCategoryBucket,
-      displayTopLevelByCategory: saved?.displayTopLevelByCategory && typeof saved.displayTopLevelByCategory === 'object'
-        ? saved.displayTopLevelByCategory
-        : DEFAULT_CATEGORY_RULES.displayTopLevelByCategory,
-      deviceTopLevels: Array.isArray(saved?.deviceTopLevels) ? saved.deviceTopLevels : DEFAULT_CATEGORY_RULES.deviceTopLevels,
-      retailTopLevels: Array.isArray(saved?.retailTopLevels) ? saved.retailTopLevels : DEFAULT_CATEGORY_RULES.retailTopLevels,
-      retailCategoryPrefixes: Array.isArray(saved?.retailCategoryPrefixes) ? saved.retailCategoryPrefixes : DEFAULT_CATEGORY_RULES.retailCategoryPrefixes,
-      deviceCategoryPrefixes: Array.isArray(saved?.deviceCategoryPrefixes) ? saved.deviceCategoryPrefixes : DEFAULT_CATEGORY_RULES.deviceCategoryPrefixes,
-    };
-  } catch (e) {
-    console.log('[CONFIG] Could not read category-rules.json:', e.message);
-    return DEFAULT_CATEGORY_RULES;
-  }
-}
-
-const categoryRules = loadCategoryRules();
-const consignmentRules = loadConsignmentRules();
-
 const ticketDetailCacheByInternalId = Object.create(null);
 const ticketDetailCacheByOrderId = Object.create(null);
 const ticketLookupCacheByOrderId = Object.create(null);
-const invoiceDetailCacheById = loadInvoiceDetailCache();
+const priorityInvoiceCacheById = loadPriorityInvoiceCache();
 const ticketMetaCacheByOrderId = loadTicketMetaCache();
 const inventoryCacheBySku = Object.create(null);
 const inventoryCacheById = Object.create(null);
 
-function shouldCacheInvoiceDetail(detail) {
-  const summary = detail?.summary || {};
-  const status = String(summary.status || '').toLowerCase();
-  const amountDue = parseMoney(summary.amount_due || 0);
-  return status === 'paid' && amountDue <= 0;
-}
-
-function sanitizeInvoiceDetailForCache(detail) {
-  if (!detail || typeof detail !== 'object') return null;
-  const clone = JSON.parse(JSON.stringify(detail));
-  if (clone?.summary?.signature && typeof clone.summary.signature === 'object') {
-    delete clone.summary.signature.data;
-  }
-  return clone;
-}
-
-function loadInvoiceDetailCache() {
+function removeLegacyInvoiceDetailCache() {
   try {
-    if (!fs.existsSync(INVOICE_DETAIL_CACHE_PATH)) {
+    if (!fs.existsSync(LEGACY_INVOICE_DETAIL_CACHE_PATH)) return;
+    fs.rmSync(LEGACY_INVOICE_DETAIL_CACHE_PATH, { force: true });
+    console.log('[CACHE] Removed legacy raw invoice-detail-cache.json');
+  } catch (e) {
+    console.log('[CACHE] Could not remove legacy invoice-detail-cache.json:', e.message);
+  }
+}
+
+function loadPriorityInvoiceCache() {
+  try {
+    removeLegacyInvoiceDetailCache();
+    if (!fs.existsSync(PRIORITY_INVOICE_CACHE_PATH)) {
       return Object.create(null);
     }
-    const saved = JSON.parse(fs.readFileSync(INVOICE_DETAIL_CACHE_PATH, 'utf8'));
+    const saved = JSON.parse(fs.readFileSync(PRIORITY_INVOICE_CACHE_PATH, 'utf8'));
     if (!saved || typeof saved !== 'object') {
       return Object.create(null);
     }
     const filtered = Object.create(null);
-    for (const [invoiceId, detail] of Object.entries(saved)) {
-      if (shouldCacheInvoiceDetail(detail)) {
-        filtered[invoiceId] = detail;
+    for (const [invoiceId, entry] of Object.entries(saved)) {
+      if (
+        entry &&
+        typeof entry === 'object' &&
+        Number(entry.cacheVersion || 0) === PRIORITY_INVOICE_CACHE_VERSION &&
+        typeof entry.hasPriorityFee === 'boolean'
+      ) {
+        filtered[invoiceId] = {
+          cacheVersion: PRIORITY_INVOICE_CACHE_VERSION,
+          fetchedAt: Number(entry.fetchedAt || 0) || Date.now(),
+          hasPriorityFee: !!entry.hasPriorityFee,
+        };
       }
     }
     if (Object.keys(filtered).length !== Object.keys(saved).length) {
-      fs.writeFileSync(INVOICE_DETAIL_CACHE_PATH, JSON.stringify(filtered, null, 2), 'utf8');
-      console.log(`[CACHE] Pruned ${Object.keys(saved).length - Object.keys(filtered).length} unpaid invoice details from disk cache`);
+      fs.writeFileSync(PRIORITY_INVOICE_CACHE_PATH, JSON.stringify(filtered, null, 2), 'utf8');
+      console.log(`[CACHE] Pruned ${Object.keys(saved).length - Object.keys(filtered).length} legacy priority invoice cache rows`);
     }
-    console.log(`[CACHE] Loaded ${Object.keys(filtered).length} paid invoice details from disk`);
+    console.log(`[CACHE] Loaded ${Object.keys(filtered).length} priority invoice rows from disk`);
     return filtered;
   } catch (e) {
-    console.log('[CACHE] Could not read invoice-detail-cache.json:', e.message);
+    console.log('[CACHE] Could not read invoice-priority-cache.json:', e.message);
     return Object.create(null);
   }
 }
 
-function saveInvoiceDetailCache() {
+function savePriorityInvoiceCache() {
   try {
-    fs.writeFileSync(INVOICE_DETAIL_CACHE_PATH, JSON.stringify(invoiceDetailCacheById, null, 2), 'utf8');
+    fs.writeFileSync(PRIORITY_INVOICE_CACHE_PATH, JSON.stringify(priorityInvoiceCacheById, null, 2), 'utf8');
   } catch (e) {
-    console.log('[CACHE] Could not save invoice-detail-cache.json:', e.message);
+    console.log('[CACHE] Could not save invoice-priority-cache.json:', e.message);
   }
 }
 
@@ -1140,23 +1227,6 @@ function saveTicketMetaCache() {
   }
 }
 
-function round2(value) {
-  return Math.round((Number(value) || 0) * 100) / 100;
-}
-
-function parseMoney(value) {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-  if (typeof value === 'string') {
-    const cleaned = value.replace(/[^0-9.-]/g, '');
-    return cleaned ? Number(cleaned) || 0 : 0;
-  }
-  return 0;
-}
-
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
-}
-
 function escJson(value) {
   return JSON.stringify(value);
 }
@@ -1173,49 +1243,47 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function createTimer(label) {
-  const startedAt = Date.now();
-  let lastAt = startedAt;
-  return {
-    phase(phaseLabel, extra = '') {
-      const now = Date.now();
-      const phaseMs = now - lastAt;
-      const totalMs = now - startedAt;
-      console.log(`[${label}] ${phaseLabel} +${phaseMs}ms total=${totalMs}ms${extra ? ` ${extra}` : ''}`);
-      lastAt = now;
-    },
-    done(extra = '') {
-      const totalMs = Date.now() - startedAt;
-      console.log(`[${label}] done total=${totalMs}ms${extra ? ` ${extra}` : ''}`);
-      return totalMs;
-    },
-  };
-}
-
-function dateToUnixStart(isoDate) {
-  return Math.floor(new Date(`${isoDate}T00:00:00`).getTime() / 1000);
-}
-
-function dateToUnixEnd(isoDate) {
-  return Math.floor(new Date(`${isoDate}T23:59:59`).getTime() / 1000);
-}
-
-function isIsoDate(value) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value || '');
-}
-
-function readBody(req) {
+function readBody(req, maxBytes = 1024 * 1024) {
   return new Promise((resolve, reject) => {
     let body = '';
-    req.on('data', (chunk) => { body += chunk; });
-    req.on('end', () => resolve(body));
+    let received = 0;
+    let settled = false;
+    req.on('data', (chunk) => {
+      if (settled) return;
+      received += chunk.length;
+      if (received > maxBytes) {
+        settled = true;
+        const error = new Error('Request body is too large.');
+        error.statusCode = 413;
+        reject(error);
+        req.resume();
+        return;
+      }
+      body += chunk;
+    });
+    req.on('end', () => {
+      if (settled) return;
+      settled = true;
+      resolve(body);
+    });
     req.on('error', reject);
   });
 }
 
-function fetchJson(fullUrl, headers = {}) {
+function redactUrlForLog(fullUrl) {
+  try {
+    const parsed = new URL(fullUrl);
+    for (const key of ['api_key', 'token', 'access_token', 'key']) {
+      if (parsed.searchParams.has(key)) parsed.searchParams.set(key, '[redacted]');
+    }
+    return parsed.toString();
+  } catch (_) {
+    return '[invalid URL]';
+  }
+}
+
+function fetchJsonWithTimeout(fullUrl, headers = {}, timeoutMs = 20000, maxBytes = MAX_REMOTE_RESPONSE_BYTES) {
   return new Promise((resolve, reject) => {
-    console.log(`[HTTP] GET ${fullUrl}`);
     let parsedUrl;
     try {
       parsedUrl = new URL(fullUrl);
@@ -1223,37 +1291,33 @@ function fetchJson(fullUrl, headers = {}) {
       reject(error);
       return;
     }
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      reject(new Error(`Unsupported URL protocol: ${parsedUrl.protocol || 'unknown'}`));
+      return;
+    }
+    console.log(`[HTTP] GET ${redactUrlForLog(parsedUrl.toString())}`);
     const client = parsedUrl.protocol === 'http:' ? http : https;
     const req = client.get(parsedUrl, { headers }, (res) => {
       let data = '';
-      res.on('data', (chunk) => { data += chunk; });
+      let received = 0;
+      let settled = false;
+      res.on('data', (chunk) => {
+        if (settled) return;
+        received += chunk.length;
+        if (received > maxBytes) {
+          settled = true;
+          req.destroy();
+          reject(new Error('Remote response body is too large.'));
+          return;
+        }
+        data += chunk;
+      });
       res.on('end', () => {
+        if (settled) return;
+        settled = true;
         console.log(`[HTTP] ${res.statusCode}`);
         resolve({ status: res.statusCode, body: data });
       });
-    });
-    req.on('error', reject);
-    req.setTimeout(20000, () => {
-      req.destroy();
-      reject(new Error('Request timed out'));
-    });
-  });
-}
-
-function fetchJsonWithTimeout(fullUrl, headers = {}, timeoutMs = 20000) {
-  return new Promise((resolve, reject) => {
-    let parsedUrl;
-    try {
-      parsedUrl = new URL(fullUrl);
-    } catch (error) {
-      reject(error);
-      return;
-    }
-    const client = parsedUrl.protocol === 'http:' ? http : https;
-    const req = client.get(parsedUrl, { headers }, (res) => {
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => resolve({ status: res.statusCode, body: data }));
     });
     req.on('error', reject);
     req.setTimeout(timeoutMs, () => {
@@ -1261,6 +1325,10 @@ function fetchJsonWithTimeout(fullUrl, headers = {}, timeoutMs = 20000) {
       reject(new Error('Request timed out'));
     });
   });
+}
+
+function fetchJson(fullUrl, headers = {}) {
+  return fetchJsonWithTimeout(fullUrl, headers, 20000, MAX_REMOTE_RESPONSE_BYTES);
 }
 
 function candidateSharedHostUrls() {
@@ -1339,7 +1407,8 @@ async function discoverSharedStoreHosts() {
 }
 
 function rdWeb(baseOrigin, endpoint, params = {}, cookie = '') {
-  const origin = String(baseOrigin || '').trim();
+  const parsedOrigin = normalizeRepairDeskUrl(baseOrigin);
+  const origin = parsedOrigin?.origin || '';
   const normalizedCookie = normalizeRushSyncCookie(cookie);
   if (!origin || !normalizedCookie) {
     throw new Error('RepairDesk rush sync is missing a base URL or cookie');
@@ -1368,11 +1437,17 @@ function rdPublic(endpoint, params = {}) {
 }
 
 function rdTicketCounter(apiBase, endpoint, params = {}) {
-  if (!apiBase) {
+  let parsedBase;
+  try {
+    parsedBase = new URL(String(apiBase || ''));
+  } catch (_) {
+    parsedBase = null;
+  }
+  if (!parsedBase || parsedBase.protocol !== 'https:' || !isRepairDeskHostname(parsedBase.hostname) || parsedBase.pathname !== '/web/api/v1') {
     throw new Error('RepairDesk Ticket Counter Display URL is not configured');
   }
   const queryParams = new URLSearchParams(params);
-  const fullUrl = `${apiBase}/${endpoint}?${queryParams.toString()}`;
+  const fullUrl = `${parsedBase.origin}/web/api/v1/${endpoint}?${queryParams.toString()}`;
   return fetchJson(fullUrl, {
     Accept: 'application/json',
     Authorization: 'Bear :)',
@@ -1508,6 +1583,7 @@ async function resolveSharedCalendarPreferences(basePreferences = sessionConfig.
 
   const settingsKey = JSON.stringify({
     hostUrl: syncSettings.hostUrl,
+    sharedSecretFingerprint: sharedSecretFingerprint(syncSettings.sharedSecret),
     syncCalendarBlocks: !!syncSettings.syncCalendarBlocks,
     syncAppointments: !!syncSettings.syncAppointments,
     syncBrand: !!syncSettings.syncBrand,
@@ -1532,7 +1608,8 @@ async function resolveSharedCalendarPreferences(basePreferences = sessionConfig.
 
   const sharedUrl = `${syncSettings.hostUrl}/api/shared-store-settings`;
   try {
-    const response = await fetchJson(sharedUrl, { Accept: 'application/json' });
+    const sharedHeaders = createSharedAuthHeaders(syncSettings.sharedSecret, 'GET', '/api/shared-store-settings');
+    const response = await fetchJson(sharedUrl, { Accept: 'application/json', ...sharedHeaders });
     const payload = parseJsonSafe(response.body);
     if (response.status !== 200 || !payload || typeof payload !== 'object') {
       throw new Error(`Shared calendar host returned ${response.status || 'an unexpected response'}.`);
@@ -1747,29 +1824,47 @@ async function fetchTicketDetailRobust(ticketId, ticketNumHint = '', options = {
   return cachedByTicketId || cachedByOrderId || null;
 }
 
-async function fetchInvoiceDetail(invoiceId) {
+function invoiceItemsForPriorityCheck(detail) {
+  if (Array.isArray(detail?.items)) return detail.items;
+  if (Array.isArray(detail?.line_items)) return detail.line_items;
+  if (Array.isArray(detail?.summary?.line_items)) return detail.summary.line_items;
+  return [];
+}
+
+function invoiceItemsHavePriorityFee(items = []) {
+  return items.some((item) => {
+    const name = String(item?.name || '');
+    const sku = String(item?.sku || '');
+    return /priority(?: service)? fee/i.test(name) || /^rush$/i.test(sku);
+  });
+}
+
+async function fetchInvoiceHasPriorityFee(invoiceId) {
   const key = String(invoiceId || '');
-  if (!key) return null;
-  if (invoiceDetailCacheById[key]) return invoiceDetailCacheById[key];
+  if (!key) return false;
+  if (priorityInvoiceCacheById[key] && typeof priorityInvoiceCacheById[key].hasPriorityFee === 'boolean') {
+    return priorityInvoiceCacheById[key].hasPriorityFee;
+  }
 
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     const response = await rdPublic(`invoices/${invoiceId}`);
     const raw = parseJsonSafe(response.body);
     const detail = raw?.data || null;
     if (response.status === 200 && isValidInvoiceDetail(detail)) {
-      if (shouldCacheInvoiceDetail(detail)) {
-        const cachedDetail = sanitizeInvoiceDetailForCache(detail);
-        invoiceDetailCacheById[key] = cachedDetail;
-        saveInvoiceDetailCache();
-        return cachedDetail;
-      }
-      return detail;
+      const hasPriorityFee = invoiceItemsHavePriorityFee(invoiceItemsForPriorityCheck(detail));
+      priorityInvoiceCacheById[key] = {
+        cacheVersion: PRIORITY_INVOICE_CACHE_VERSION,
+        fetchedAt: Date.now(),
+        hasPriorityFee,
+      };
+      savePriorityInvoiceCache();
+      return hasPriorityFee;
     }
     console.log(`[INVOICE] Invalid detail for id=${invoiceId} attempt=${attempt}`);
     await sleep(250 * attempt);
   }
 
-  return null;
+  return false;
 }
 
 async function fetchTicketLookupByOrderId(orderId, options = {}) {
@@ -1846,15 +1941,7 @@ async function fetchTicketMetaByOrderId(orderId, options = {}) {
   let hasPriorityFee = hasPriorityTicketAccessory;
   const invoiceId = String(lookup?.summary?.invoice?.id || detail?.summary?.invoice?.id || '').trim();
   if (!hasPriorityFee && invoiceId) {
-    const invoiceDetail = await fetchInvoiceDetail(invoiceId);
-    const invoiceItems = Array.isArray(invoiceDetail?.items)
-      ? invoiceDetail.items
-      : (Array.isArray(invoiceDetail?.line_items) ? invoiceDetail.line_items : []);
-    hasPriorityFee = invoiceItems.some((item) => {
-      const name = String(item?.name || '');
-      const sku = String(item?.sku || '');
-      return /priority(?: service)? fee/i.test(name) || /^rush$/i.test(sku);
-    });
+    hasPriorityFee = await fetchInvoiceHasPriorityFee(invoiceId);
   }
   const meta = {
     metaVersion: TICKET_META_CACHE_VERSION,
@@ -1871,10 +1958,6 @@ async function fetchTicketMetaByOrderId(orderId, options = {}) {
   ticketMetaCacheByOrderId[key] = meta;
   saveTicketMetaCache();
   return meta;
-}
-
-function getInvoiceSummary(inv) {
-  return inv?.summary || inv || {};
 }
 
 function decodeHtml(value) {
@@ -1987,120 +2070,6 @@ function emptyTicketMeta() {
     hasPriorityFee: false,
     isRushJob: false,
   };
-}
-
-async function fetchRushSyncMap() {
-  const rushSync = sessionConfig?.rushSync || {};
-  const enabled = !!rushSync.enabled;
-  const cookie = normalizeRushSyncCookie(rushSync.cookie || '');
-  const origin = getRushSyncOrigin(sessionConfig?.ticketCounterDisplayUrl || '');
-  const configured = enabled && !!cookie && !!origin;
-
-  if (!enabled) {
-    const status = emptyRushSyncStatus({ enabled: false, configured: false, connected: false, usingFallback: true });
-    rushSyncCache = { fetchedAt: 0, origin: '', cookie: '', map: Object.create(null), status };
-    return { map: Object.create(null), status };
-  }
-
-  if (
-    configured &&
-    rushSyncCache.fetchedAt &&
-    rushSyncCache.origin === origin &&
-    rushSyncCache.cookie === cookie &&
-    (Date.now() - rushSyncCache.fetchedAt) < RUSH_SYNC_CACHE_TTL_MS
-  ) {
-    return { map: rushSyncCache.map, status: rushSyncCache.status };
-  }
-
-  if (!configured) {
-    const status = emptyRushSyncStatus({
-      enabled: true,
-      configured: false,
-      connected: false,
-      usingFallback: true,
-      lastError: !origin
-        ? 'Rush Sync needs a valid Ticket Counter Display URL to determine the RepairDesk store.'
-        : 'Rush Sync is enabled but no RepairDesk session cookie has been saved yet.',
-      alertKey: '',
-    });
-    rushSyncCache = {
-      fetchedAt: Date.now(),
-      origin,
-      cookie,
-      map: Object.create(null),
-      status,
-    };
-    return { map: Object.create(null), status };
-  }
-
-  try {
-    const rushMap = Object.create(null);
-    let ticketCount = 0;
-    let rushCount = 0;
-    let page = 1;
-    for (; page <= RUSH_SYNC_MAX_PAGES; page += 1) {
-      const response = await rdWeb(origin, 'ticket/listings', {
-        UnsavedTickets: 0,
-        quick_checkin_tickets: 0,
-        hide_close: 0,
-        per_page: 100,
-        page,
-      }, cookie);
-      const raw = parseJsonSafe(response.body);
-      const rows = extractRushSyncListingRows(raw);
-      if (response.status !== 200 || !raw || !Array.isArray(rows)) {
-        throw new Error(`RepairDesk rush sync returned ${response.status} or unexpected data.`);
-      }
-      ticketCount += rows.length;
-      for (const row of rows) {
-        const orderId = String(row?.order_id || '').trim();
-        if (!orderId) continue;
-        if (isTruthyRushJob(row?.rush_job)) {
-          rushMap[orderId] = true;
-          rushCount += 1;
-        }
-      }
-      if (!raw?.data?.next_page_url) break;
-    }
-
-    const status = emptyRushSyncStatus({
-      enabled: true,
-      configured: true,
-      connected: true,
-      usingFallback: false,
-      lastCheckedAt: new Date().toISOString(),
-      lastError: '',
-      ticketCount,
-      rushCount,
-      alertKey: '',
-    });
-    rushSyncCache = {
-      fetchedAt: Date.now(),
-      origin,
-      cookie,
-      map: rushMap,
-      status,
-    };
-    return { map: rushMap, status };
-  } catch (error) {
-    const status = emptyRushSyncStatus({
-      enabled: true,
-      configured: true,
-      connected: false,
-      usingFallback: true,
-      lastCheckedAt: new Date().toISOString(),
-      lastError: error.message || 'Rush Sync could not reach RepairDesk.',
-      alertKey: `rush-sync-disconnected:${origin}:${String(error.message || 'unknown').slice(0, 160)}`,
-    });
-    rushSyncCache = {
-      fetchedAt: Date.now(),
-      origin,
-      cookie,
-      map: Object.create(null),
-      status,
-    };
-    return { map: Object.create(null), status };
-  }
 }
 
 async function fetchRushSyncListingRows(limitPages = RUSH_SYNC_MAX_PAGES) {
@@ -3177,1072 +3146,229 @@ function queuePlacementForOrderId(payload, orderId) {
   return null;
 }
 
-function getInvoiceLineItems(inv, detail = null) {
-  const normalizeItems = (items) => items.map((item) => ({
-    id: item?.id ?? '',
-    name: item?.name || '',
-    sku: item?.sku || '',
-    upc: item?.upc || '',
-    price: item?.price ?? 0,
-    tax: item?.gst ?? item?.tax ?? 0,
-    quantity: item?.quantity ?? 0,
-    serial: item?.serial || '',
-    cost_price: item?.cost_price ?? 0,
-    item_type: item?.item_type ?? '',
-    is_special: item?.is_special ?? '0',
-    special_status: item?.special_status || '',
-    is_accessory: item?.is_accessory ?? false,
-  }));
-
-  if (Array.isArray(detail?.items)) return normalizeItems(detail.items);
-  const fromDetail = detail?.line_items || detail?.summary?.line_items;
-  const fromList = inv?.line_items || inv?.summary?.line_items;
-  return Array.isArray(fromDetail) ? fromDetail : (Array.isArray(fromList) ? fromList : []);
+function remoteAddressForRequest(req) {
+  return String(req.socket?.remoteAddress || '').replace(/^::ffff:/, '');
 }
 
-function isDepositLine(lineItem) {
-  return /deposit/i.test(String(lineItem?.name || ''));
+function isLoopbackRequest(req) {
+  const remoteAddress = remoteAddressForRequest(req);
+  return remoteAddress === '::1' || remoteAddress === '127.0.0.1' || remoteAddress.startsWith('127.');
 }
 
-function isProductLine(lineItem) {
-  const itemType = Number(lineItem?.item_type || 0);
-  return !!String(lineItem?.sku || lineItem?.upc || '').trim() || itemType === 1 || itemType === 10;
-}
-
-function isSpecialOrderLine(lineItem) {
-  return Number(lineItem?.item_type || 0) === 10;
-}
-
-function isRepairServiceLine(lineItem) {
-  return !isProductLine(lineItem) && !isDepositLine(lineItem) && !!String(lineItem?.name || '').trim();
-}
-
-function isDepositOnlyInvoice(inv, detail = null) {
-  const lineItems = getInvoiceLineItems(inv, detail);
-  const meaningful = lineItems.filter((lineItem) => {
-    const qty = Number(lineItem?.quantity || 0);
-    const price = parseMoney(lineItem?.price || 0);
-    return qty !== 0 || price !== 0 || String(lineItem?.name || '').trim();
-  });
-  if (!meaningful.length) return false;
-  return meaningful.every((lineItem) => isDepositLine(lineItem));
-}
-
-function getPaymentAmount(payment) {
-  return round2(parseMoney(
-    payment?.amount ??
-    payment?.payment_amount ??
-    payment?.paid_amount ??
-    payment?.total_amount ??
-    payment?.amount_paid ??
-    payment?.value ??
-    0
-  ));
-}
-
-function getPaymentTimestamp(payment) {
-  const rawValue = payment?.payment_date ?? payment?.created_at ?? payment?.date ?? payment?.timestamp ?? 0;
-  const asNumber = Number(rawValue);
-  if (Number.isFinite(asNumber) && asNumber > 0) return asNumber;
-  const parsed = Date.parse(rawValue);
-  return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : 0;
-}
-
-function normalizePaymentMethod(rawName) {
-  const original = String(rawName || '').trim();
-  const lowered = original.toLowerCase();
-  if (!lowered) return 'Other';
-  if (/^cash$/i.test(original)) return 'Cash';
-  if (/^(debit|interac|debit\/interac)$/i.test(original)) return 'Debit/Interac';
-  if (/^(mastercard|master card)$/i.test(original)) return 'Mastercard';
-  if (/^visa$/i.test(original)) return 'Visa';
-  if (/^(amex|american express)$/i.test(original)) return 'Amex';
-  if (lowered.includes('store credit')) return 'Store Credits';
-  if (lowered.includes('e-transfer') || lowered.includes('etransfer')) return 'eTransfer';
-  return original;
-}
-
-function getPaymentMethodName(payment) {
-  return normalizePaymentMethod(
-    payment?.payment_method ||
-    payment?.method ||
-    payment?.method_name ||
-    payment?.payment_type ||
-    payment?.gateway ||
-    payment?.title ||
-    payment?.name ||
-    'Other'
-  );
-}
-
-function paymentMethodSort(entries) {
-  const priority = ['Cash', 'Debit/Interac', 'Mastercard', 'Visa', 'Amex'];
-  return entries.sort(([left], [right]) => {
-    const leftIndex = priority.indexOf(left);
-    const rightIndex = priority.indexOf(right);
-    if (leftIndex !== -1 && rightIndex !== -1) return leftIndex - rightIndex;
-    if (leftIndex !== -1) return -1;
-    if (rightIndex !== -1) return 1;
-    return left.localeCompare(right);
-  });
-}
-
-function buildPaymentBreakdown(payments, fromUnix, toUnix) {
-  const inRange = [];
-  const methodTotals = Object.create(null);
-  let total = 0;
-
-  for (const payment of payments) {
-    const paymentDate = getPaymentTimestamp(payment);
-    const amount = getPaymentAmount(payment);
-    if (!paymentDate || amount === 0) continue;
-    if (paymentDate < fromUnix || paymentDate > toUnix) continue;
-    const method = getPaymentMethodName(payment);
-    inRange.push({ paymentDate, amount, method });
-    methodTotals[method] = round2((methodTotals[method] || 0) + amount);
-    total = round2(total + amount);
-  }
-
-  const sortedTotals = Object.fromEntries(paymentMethodSort(Object.entries(methodTotals)).filter(([, amount]) => amount !== 0));
-  return { inRange, methodTotals: sortedTotals, total };
-}
-
-function buildDepositCarryoverBreakdown(payments, fromDate, toDate) {
-  const methodTotals = Object.create(null);
-  let total = 0;
-
-  for (const payment of payments) {
-    const paymentDate = getPaymentTimestamp(payment);
-    const amount = getPaymentAmount(payment);
-    if (!paymentDate || amount === 0) continue;
-    const method = getPaymentMethodName(payment);
-    if (!isMonerisGoMethod(method)) continue;
-    const depositIso = nextBusinessIsoFromUnix(paymentDate);
-    if (depositIso < fromDate || depositIso > toDate) continue;
-    methodTotals[method] = round2((methodTotals[method] || 0) + amount);
-    total = round2(total + amount);
-  }
-
-  const sortedTotals = Object.fromEntries(paymentMethodSort(Object.entries(methodTotals)).filter(([, amount]) => amount !== 0));
-  return { methodTotals: sortedTotals, total };
-}
-
-function nextBusinessIsoFromUnix(unixSeconds) {
-  const d = new Date(unixSeconds * 1000);
-  do {
-    d.setDate(d.getDate() + 1);
-  } while (d.getDay() === 0 || d.getDay() === 6);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function isMonerisGoMethod(methodName) {
-  return /moneris\s*go/i.test(String(methodName || ''));
-}
-
-function loadConsignmentRules() {
+function requestHostParts(req) {
+  const hostHeader = String(req.headers.host || '').trim();
+  if (!hostHeader) return null;
   try {
-    if (!fs.existsSync(CONSIGNMENT_RULES_PATH)) {
-      return DEFAULT_CONSIGNMENT_RULES;
-    }
-    const saved = JSON.parse(fs.readFileSync(CONSIGNMENT_RULES_PATH, 'utf8'));
+    const parsed = new URL(`http://${hostHeader}`);
     return {
-      vendorKeywords: Array.isArray(saved?.vendorKeywords) ? saved.vendorKeywords : DEFAULT_CONSIGNMENT_RULES.vendorKeywords,
-      skuVendors: saved?.skuVendors && typeof saved.skuVendors === 'object' ? saved.skuVendors : DEFAULT_CONSIGNMENT_RULES.skuVendors,
-      serialVendors: saved?.serialVendors && typeof saved.serialVendors === 'object' ? saved.serialVendors : DEFAULT_CONSIGNMENT_RULES.serialVendors,
+      hostname: String(parsed.hostname || '').replace(/^\[|\]$/g, '').toLowerCase(),
+      port: String(parsed.port || '80'),
     };
-  } catch (e) {
-    console.log('[CONFIG] Could not read consignment-rules.json:', e.message);
-    return DEFAULT_CONSIGNMENT_RULES;
+  } catch (_) {
+    return null;
   }
 }
 
-function getConsignmentVendor({ supplier = '', sku = '', serial = '' } = {}) {
-  const normalizedSerial = String(serial || '').trim().toUpperCase();
-  if (normalizedSerial) {
-    for (const [serialRule, vendor] of Object.entries(consignmentRules.serialVendors || {})) {
-      if (String(serialRule || '').trim().toUpperCase() === normalizedSerial) return String(vendor || '').trim();
-    }
+function allowedRequestHostnames() {
+  const allowed = new Set(['localhost', '127.0.0.1', '::1']);
+  const machineName = String(os.hostname() || '').trim().toLowerCase();
+  if (machineName) {
+    allowed.add(machineName);
+    allowed.add(`${machineName}.local`);
   }
-
-  const normalizedSku = String(sku || '').trim().toLowerCase();
-  if (normalizedSku) {
-    for (const [skuRule, vendor] of Object.entries(consignmentRules.skuVendors || {})) {
-      if (String(skuRule || '').trim().toLowerCase() === normalizedSku) return String(vendor || '').trim();
-    }
-  }
-
-  const normalizedSupplier = String(supplier || '').trim().toLowerCase();
-  if (normalizedSupplier) {
-    const matchedKeyword = (consignmentRules.vendorKeywords || []).find((vendor) => {
-      const normalizedVendor = String(vendor || '').trim().toLowerCase();
-      return normalizedVendor && (normalizedSupplier === normalizedVendor || normalizedSupplier.includes(normalizedVendor));
+  const interfaces = os.networkInterfaces?.() || {};
+  Object.values(interfaces).forEach((entries) => {
+    (entries || []).forEach((entry) => {
+      const address = String(entry?.address || '').trim().toLowerCase();
+      if (address) allowed.add(address);
     });
-    if (matchedKeyword) return String(supplier || '').trim();
-  }
-
-  return '';
-}
-
-function getAllPaymentTotal(payments, fallbackAmountPaid) {
-  const totalFromPayments = round2(payments.reduce((sum, payment) => sum + getPaymentAmount(payment), 0));
-  if (totalFromPayments !== 0) return totalFromPayments;
-  return round2(fallbackAmountPaid);
-}
-
-function allocateAmount(value, ratio) {
-  return round2(parseMoney(value) * ratio);
-}
-
-function lineSubtotal(lineItem) {
-  return round2(parseMoney(lineItem?.price || 0) * Number(lineItem?.quantity || 0));
-}
-
-function lineTaxAmount(lineItem, fallbackTaxForValue = null) {
-  const explicitTax = parseMoney(lineItem?.tax ?? lineItem?.gst ?? 0);
-  if (explicitTax !== 0) return round2(explicitTax);
-  if (typeof fallbackTaxForValue === 'function') {
-    return round2(fallbackTaxForValue(lineSubtotal(lineItem)));
-  }
-  return 0;
-}
-
-function buildInvoiceTaxAllocator(summary, lineItems) {
-  const invoiceTotal = parseMoney(summary.total || 0);
-  const invoiceTax = parseMoney(summary.total_tax || 0);
-  const taxableBase = round2(lineItems.reduce((sum, lineItem) => sum + lineSubtotal(lineItem), 0));
-  const denominator = taxableBase || (invoiceTotal - invoiceTax);
-  const taxRate = denominator !== 0 ? invoiceTax / denominator : 0;
-  return (value) => round2(value * taxRate);
-}
-
-function isNoPartExpectedRepair(repairName) {
-  return /diagnostic|support/i.test(String(repairName || ''));
-}
-
-function buildExactProductPaymentMatchMap(lineItems, inRangePayments, taxForValue) {
-  const productEntries = lineItems
-    .map((lineItem, index) => ({ lineItem, index }))
-    .filter(({ lineItem }) => isProductLine(lineItem) && !isDepositLine(lineItem))
-    .map(({ lineItem, index }) => ({
-      index,
-      total: round2(lineSubtotal(lineItem) + lineTaxAmount(lineItem, taxForValue)),
-      matched: false,
-    }));
-
-  if (!productEntries.length || !inRangePayments.length) return null;
-
-  const matchMap = new Map();
-  for (const payment of inRangePayments) {
-    const amount = round2(payment.amount);
-    const candidate = productEntries.find((entry) => !entry.matched && round2(entry.total) === amount);
-    if (!candidate) {
-      return null;
-    }
-    candidate.matched = true;
-    matchMap.set(candidate.index, 1);
-  }
-
-  if (!matchMap.size) return null;
-  return matchMap;
-}
-
-function normalizeCategoryValue(value) {
-  return String(value || '').trim().toLowerCase();
-}
-
-function matchesExactCategoryRule(value, rules) {
-  const normalizedValue = normalizeCategoryValue(value);
-  if (!normalizedValue) return false;
-  return rules.some((rule) => normalizedValue === normalizeCategoryValue(rule));
-}
-
-function matchesPrefixCategoryRule(value, rules) {
-  const normalizedValue = normalizeCategoryValue(value);
-  if (!normalizedValue) return false;
-  return rules.some((rule) => {
-    const normalizedRule = normalizeCategoryValue(rule);
-    return normalizedValue === normalizedRule || normalizedValue.startsWith(normalizedRule);
   });
+  return allowed;
 }
 
-function getExactCategoryBucket(value) {
-  const normalizedValue = normalizeCategoryValue(value);
-  if (!normalizedValue) return '';
-  for (const [categoryName, bucket] of Object.entries(categoryRules.exactCategoryBucket || {})) {
-    if (normalizeCategoryValue(categoryName) === normalizedValue) {
-      return String(bucket || '').toLowerCase();
-    }
-  }
-  return '';
+function isAllowedRequestHost(req) {
+  const host = requestHostParts(req);
+  if (!host || host.port !== String(PORT)) return false;
+  if (host.hostname.startsWith('127.')) return true;
+  return allowedRequestHostnames().has(host.hostname);
 }
 
-function getDisplayTopLevelForCategory(value) {
-  const normalizedValue = normalizeCategoryValue(value);
-  if (!normalizedValue) return '';
-  for (const [categoryName, topLevel] of Object.entries(categoryRules.displayTopLevelByCategory || {})) {
-    if (normalizeCategoryValue(categoryName) === normalizedValue) {
-      return String(topLevel || '').trim();
-    }
-  }
-  return '';
+function isLoopbackHostHeader(req) {
+  const host = requestHostParts(req);
+  if (!host || host.port !== String(PORT)) return false;
+  return host.hostname === 'localhost' || host.hostname === '::1' || host.hostname.startsWith('127.');
 }
 
-function getTopCategoryName(invItem) {
-  const categories = Array.isArray(invItem?.categories) ? invItem.categories.map((entry) => String(entry?.name || '').trim()).filter(Boolean) : [];
-  if (categories.length) return categories[0];
-  return String(invItem?.category_name || '').trim();
-}
-
-function classifyInventoryItem(invItem, lineItemName = '') {
-  const topCategory = getTopCategoryName(invItem);
-  const categoryChain = getCategoryChain(invItem);
-  const categoryName = String(invItem?.category_name || '').trim();
-
-  const exactBucket =
-    getExactCategoryBucket(categoryName) ||
-    categoryChain.map(getExactCategoryBucket).find(Boolean) ||
-    getExactCategoryBucket(topCategory);
-  if (exactBucket === 'retail' || exactBucket === 'devices') return exactBucket;
-
-  if (matchesExactCategoryRule(topCategory, categoryRules.retailTopLevels)) return 'retail';
-  if (matchesExactCategoryRule(topCategory, categoryRules.deviceTopLevels)) return 'devices';
-
-  if (categoryChain.some((entry) => matchesPrefixCategoryRule(entry, categoryRules.retailCategoryPrefixes))) return 'retail';
-  if (categoryChain.some((entry) => matchesExactCategoryRule(entry, categoryRules.deviceCategoryPrefixes))) return 'devices';
-
-  if (matchesPrefixCategoryRule(categoryName, categoryRules.retailCategoryPrefixes)) return 'retail';
-  if (matchesExactCategoryRule(categoryName, categoryRules.deviceCategoryPrefixes)) {
-    const hasSerializedSignal = !!(invItem?.is_serialize || invItem?.device_id || String(invItem?.serial || '').trim());
-    if (hasSerializedSignal) return 'devices';
-  }
-
-  const fallbackName = String(lineItemName || '').toLowerCase();
-  if (/\b(case|cable|charger|protector|storage|software|mount|keyboard|mouse|headphone|webcam|adapter|dongle)\b/.test(fallbackName)) {
-    return 'retail';
-  }
-  if (/\b(imac|macbook air|macbook pro|mac mini|iphone \d|iphone se|ipad|apple watch|windows laptop|windows desktop|chromebook)\b/.test(fallbackName)) {
-    return 'devices';
-  }
-  return 'retail';
-}
-
-function buildDisplayCategoryChain(invItem, bucket) {
-  const categories = getCategoryChain(invItem);
-  if (categories.length >= 2) return categories;
-
-  const categoryName = String(invItem?.category_name || '').trim();
-  const topCategory = getTopCategoryName(invItem);
-  const displayTopLevel =
-    getDisplayTopLevelForCategory(categoryName) ||
-    categories.map(getDisplayTopLevelForCategory).find(Boolean) ||
-    getDisplayTopLevelForCategory(topCategory);
-  if (categories.length === 1 && normalizeCategoryValue(categories[0]) === normalizeCategoryValue(topCategory)) {
-    if (displayTopLevel && normalizeCategoryValue(displayTopLevel) !== normalizeCategoryValue(categories[0])) {
-      return [displayTopLevel, categories[0]];
-    }
-    return categories;
-  }
-
-  if (bucket === 'devices') {
-    const inferredTop = displayTopLevel || (categoryName && matchesExactCategoryRule(categoryName, categoryRules.deviceCategoryPrefixes)
-      ? 'Devices'
-      : (matchesExactCategoryRule(topCategory, categoryRules.deviceTopLevels) ? topCategory : ''));
-    if (inferredTop && categoryName && normalizeCategoryValue(categoryName) !== normalizeCategoryValue(inferredTop)) {
-      return [inferredTop, categoryName];
-    }
-  }
-
-  if (bucket === 'retail') {
-    const inferredTop = displayTopLevel || (matchesExactCategoryRule(topCategory, categoryRules.retailTopLevels)
-      ? topCategory
-      : (matchesPrefixCategoryRule(categoryName, categoryRules.retailCategoryPrefixes) ? 'Accessories' : ''));
-    if (inferredTop && categoryName && normalizeCategoryValue(categoryName) !== normalizeCategoryValue(inferredTop)) {
-      return [inferredTop, categoryName];
-    }
-  }
-
-  return categories.length ? categories : (categoryName ? [categoryName] : []);
-}
-
-function getCategoryChain(invItem) {
-  const categories = Array.isArray(invItem?.categories) ? invItem.categories.map((entry) => String(entry?.name || '').trim()).filter(Boolean) : [];
-  if (categories.length) return categories;
-  if (invItem?.category_name) return [String(invItem.category_name)];
-  return [];
-}
-
-function extractRepairParts(ticketDetail) {
-  const devices = Array.isArray(ticketDetail?.devices) ? ticketDetail.devices : [];
-  const topLevelParts = Array.isArray(ticketDetail?.parts) ? ticketDetail.parts : [];
-  const rawParts = [
-    ...devices.flatMap((device) => (Array.isArray(device.parts) ? device.parts : [])),
-    ...topLevelParts,
-  ].filter((part) => part && !/deposit/i.test(String(part?.name || '')));
-
-  const seen = new Set();
-  return rawParts.filter((part) => {
-    const key = [
-      part.id || '',
-      part.name || '',
-      part.sku || '',
-      part.crossId || '',
-      part.quantity || 1,
-      part.price || '',
-      part.cost_price || '',
-      part.cost || '',
-      part.unit_cost || '',
-    ].join('|');
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
-function resolvePartCost(part, inventoryBySku, partsBySku) {
-  const sku = String(part?.sku || '').trim().toLowerCase();
-  const inventoryItem = sku ? (inventoryBySku[sku] || partsBySku[sku] || null) : null;
-  const isSpecial = part?.is_special === '1' || part?.is_special === 1;
-  const rawCost =
-    part?.cost_price ??
-    part?.cost ??
-    part?.unit_cost ??
-    part?.price_cost ??
-    part?.purchase_price ??
-    part?.costPrice ??
-    part?.part_cost ??
-    part?.cost_per_unit ??
-    (isSpecial ? part?.price : undefined) ??
-    inventoryItem?.prices?.cost_price ??
-    inventoryItem?.cost_price ??
-    inventoryItem?.cost ??
-    inventoryItem?.purchase_price ??
-    0;
-
-  return {
-    sku: String(part?.sku || '').trim(),
-    cost: round2(parseMoney(rawCost)),
-    retail: round2(parseMoney(part?.retail_price ?? part?.price ?? inventoryItem?.price ?? inventoryItem?.original_price ?? 0)),
-    isSpecial,
-  };
-}
-
-function buildRepairItemsForAudit(ticketDetail) {
-  const devices = Array.isArray(ticketDetail?.devices) ? ticketDetail.devices : [];
-  return devices.map((device) => {
-    const parts = Array.isArray(device.parts) ? device.parts : [];
-    return {
-      repairName: device.name || '',
-      deviceName: device.device?.name || device.device_name || '',
-      status: device.status?.name || device.status || '',
-      hasParts: parts.length > 0,
-      partsCount: parts.length,
-      parts: parts.map((part) => ({
-        name: part.name || part.part_name || '',
-        quantity: Number(part.quantity || part.qty || 1),
-        sku: part.sku || part.upc || '',
-        supplier: part.supplier_name || part.supplier || '',
-      })),
-    };
-  });
-}
-
-async function fetchInventoryMatchesForSkus(skus, inventoryBySku) {
-  for (const sku of skus) {
-    if (!sku) continue;
-    const normalizedSku = sku.toLowerCase();
-    if (inventoryCacheBySku[normalizedSku]) {
-      inventoryBySku[normalizedSku] = inventoryCacheBySku[normalizedSku];
-      continue;
-    }
-    if (inventoryBySku[normalizedSku]) continue;
-
-    for (let attempt = 1; attempt <= 3; attempt += 1) {
-      try {
-        const response = await rdPublic('inventory', { pagesize: 10, page: 0, keyword: sku });
-        const raw = parseJsonSafe(response.body);
-        const items = raw?.data?.inventoryListData || [];
-        for (const item of items) {
-          if (item?.sku) {
-            inventoryBySku[item.sku.trim().toLowerCase()] = item;
-            inventoryCacheBySku[item.sku.trim().toLowerCase()] = item;
-          }
-          if (item?.item_no) {
-            inventoryBySku[item.item_no.trim().toLowerCase()] = item;
-            inventoryCacheBySku[item.item_no.trim().toLowerCase()] = item;
-          }
-        }
-        if (!inventoryBySku[normalizedSku] && items.length) {
-          inventoryBySku[normalizedSku] = items[0];
-          inventoryCacheBySku[normalizedSku] = items[0];
-        }
-        break;
-      } catch (e) {
-        console.log(`[INV] Inventory lookup failed for SKU=${sku} attempt=${attempt}: ${e.message}`);
-        await sleep(200 * attempt);
-      }
-    }
-  }
-}
-
-async function fetchInventoryDetailById(itemId) {
-  const key = String(itemId || '').trim();
-  if (!key) return null;
-  if (inventoryCacheById[key]) return inventoryCacheById[key];
-
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    try {
-      const response = await rdPublic(`inventory/${key}`);
-      const raw = parseJsonSafe(response.body);
-      const item = raw?.data || null;
-      if (response.status === 200 && item?.id) {
-        inventoryCacheById[key] = item;
-        if (item?.sku) inventoryCacheBySku[item.sku.trim().toLowerCase()] = item;
-        if (item?.item_no) inventoryCacheBySku[item.item_no.trim().toLowerCase()] = item;
-        return item;
-      }
-    } catch (e) {
-      console.log(`[INV] Inventory detail failed for id=${key} attempt=${attempt}: ${e.message}`);
-      await sleep(200 * attempt);
-    }
-  }
-
-  return null;
-}
-
-async function fetchPartsCatalog() {
-  const partsBySku = Object.create(null);
+function isSameOriginRequest(req) {
+  const origin = String(req.headers.origin || '').trim();
+  if (!origin) return true;
   try {
-    const response = await rdPublic('parts', { pagesize: 200, page: 0 });
-    const raw = parseJsonSafe(response.body);
-    const parts = Object.values(raw?.data || {});
-    for (const part of parts) {
-      if (part?.sku) partsBySku[part.sku.trim().toLowerCase()] = part;
-      if (part?.item_no) partsBySku[part.item_no.trim().toLowerCase()] = part;
-    }
-  } catch (e) {
-    console.log('[PARTS] Could not fetch parts catalog:', e.message);
+    const parsed = new URL(origin);
+    return parsed.host === String(req.headers.host || '').trim();
+  } catch (_) {
+    return false;
   }
-  return partsBySku;
 }
 
-async function buildDashboardData(fromDate, toDate) {
-  const fromUnix = dateToUnixStart(fromDate);
-  const toUnix = dateToUnixEnd(toDate);
-  const lookbackUnix = fromUnix - (LOOKBACK_DAYS * 86400);
-  const timer = createTimer(`DASH ${fromDate}..${toDate}`);
-
-  console.log(`[DASH] Building dashboard for ${fromDate} -> ${toDate}`);
-
-  const createdRangeInvoices = await fetchPaginated(
-    'invoices',
-    { from_date: fromUnix, to_date: toUnix },
-    (raw) => raw.data?.invoiceData || [],
-    12
-  );
-  timer.phase('created-range invoices', `count=${createdRangeInvoices.length}`);
-
-  const olderCandidateInvoices = await fetchPaginated(
-    'invoices',
-    { from_date: lookbackUnix, to_date: fromUnix - 1 },
-    (raw) => raw.data?.invoiceData || [],
-    Number.POSITIVE_INFINITY
-  );
-  timer.phase('lookback invoices', `count=${olderCandidateInvoices.length}`);
-
-  const paymentCandidateMap = new Map();
-  for (const invoice of createdRangeInvoices) {
-    const summary = getInvoiceSummary(invoice);
-    const amountPaid = parseMoney(summary.amount_paid || 0);
-    if (amountPaid === 0 && !String(summary.payment_methods || '').trim()) continue;
-    paymentCandidateMap.set(String(summary.id), invoice);
+function isTrustedPageAssetRequest(req) {
+  const fetchSite = String(req.headers['sec-fetch-site'] || '').trim().toLowerCase();
+  if (fetchSite && fetchSite !== 'same-origin' && fetchSite !== 'none') return false;
+  const referer = String(req.headers.referer || '').trim();
+  if (!referer) return true;
+  try {
+    return new URL(referer).host === String(req.headers.host || '').trim();
+  } catch (_) {
+    return false;
   }
-
-  for (const invoice of olderCandidateInvoices) {
-    const summary = getInvoiceSummary(invoice);
-    const amountPaid = parseMoney(summary.amount_paid || 0);
-    const status = String(summary.status || '').toLowerCase();
-    const hasMethodHint = !!String(summary.payment_methods || '').trim();
-    if (amountPaid === 0) continue;
-    if (!['paid', 'refund'].includes(status) || !hasMethodHint) continue;
-    paymentCandidateMap.set(String(summary.id), invoice);
-  }
-
-  const paymentScopedInvoices = [];
-  const paymentMethods = Object.create(null);
-  const depositCarryoverMethods = Object.create(null);
-  const paymentContextByInvoiceId = Object.create(null);
-
-  const paymentCandidates = [...paymentCandidateMap.values()];
-  const DETAIL_BATCH = 2;
-  for (let index = 0; index < paymentCandidates.length; index += DETAIL_BATCH) {
-    const batch = paymentCandidates.slice(index, index + DETAIL_BATCH);
-    const results = await Promise.all(batch.map(async (invoice) => {
-      const summary = getInvoiceSummary(invoice);
-      const detail = await fetchInvoiceDetail(summary.id);
-      if (!detail) return null;
-      const payments = Array.isArray(detail.summary?.payments) ? detail.summary.payments : [];
-      const inRange = buildPaymentBreakdown(payments, fromUnix, toUnix);
-      const carryover = buildDepositCarryoverBreakdown(payments, fromDate, toDate);
-      const totalPayments = getAllPaymentTotal(payments, summary.amount_paid);
-      const ratio = clamp(Math.abs(totalPayments) > 0 ? (inRange.total / totalPayments) : 0, 0, 1);
-      return { invoice, detail, paymentRange: inRange, carryoverRange: carryover, ratio, totalPayments };
-    }));
-
-    for (const result of results.filter(Boolean)) {
-      for (const [method, amount] of Object.entries(result.carryoverRange?.methodTotals || {})) {
-        depositCarryoverMethods[method] = round2((depositCarryoverMethods[method] || 0) + amount);
-      }
-      if (result.paymentRange.total !== 0) {
-        const invoiceId = String(getInvoiceSummary(result.invoice).id);
-        paymentScopedInvoices.push(result.invoice);
-        paymentContextByInvoiceId[invoiceId] = result;
-        for (const [method, amount] of Object.entries(result.paymentRange.methodTotals)) {
-          paymentMethods[method] = round2((paymentMethods[method] || 0) + amount);
-        }
-      }
-    }
-    await sleep(150);
-  }
-  timer.phase('payment invoice details', `candidates=${paymentCandidates.length} matched=${paymentScopedInvoices.length}`);
-
-  const sortedPaymentMethods = Object.fromEntries(paymentMethodSort(Object.entries(paymentMethods)).filter(([, amount]) => amount !== 0));
-  const sortedDepositCarryoverMethods = Object.fromEntries(paymentMethodSort(Object.entries(depositCarryoverMethods)).filter(([, amount]) => amount !== 0));
-  const paymentTotal = round2(Object.values(sortedPaymentMethods).reduce((sum, amount) => sum + amount, 0));
-  const depositCarryoverTotal = round2(Object.values(sortedDepositCarryoverMethods).reduce((sum, amount) => sum + amount, 0));
-  const paymentTaxTotal = round2(paymentScopedInvoices.reduce((sum, invoice) => {
-    const summary = getInvoiceSummary(invoice);
-    const context = paymentContextByInvoiceId[String(summary.id)];
-    const ratio = context?.ratio || 0;
-    return sum + allocateAmount(parseMoney(summary.total_tax || 0), ratio);
-  }, 0));
-
-  const repairAuditInvoices = createdRangeInvoices.filter((invoice) => {
-    const summary = getInvoiceSummary(invoice);
-    return summary.ticket?.hasTicket && summary.ticket?.id && !isDepositOnlyInvoice(invoice);
-  });
-
-  const ticketRequirements = new Map();
-  for (const invoice of [...paymentScopedInvoices, ...repairAuditInvoices]) {
-    const summary = getInvoiceSummary(invoice);
-    if (!summary.ticket?.hasTicket || !summary.ticket?.id) continue;
-    ticketRequirements.set(String(summary.ticket.id), {
-      ticketId: summary.ticket.id,
-      ticketNum: summary.ticket.order_id || '',
-    });
-  }
-
-  const ticketDetailsByInternalId = Object.create(null);
-  for (const requirement of ticketRequirements.values()) {
-    const detail = await fetchTicketDetailRobust(requirement.ticketId, requirement.ticketNum);
-    if (detail) ticketDetailsByInternalId[String(requirement.ticketId)] = detail;
-  }
-  timer.phase('ticket details', `requested=${ticketRequirements.size} cached=${Object.keys(ticketDetailCacheByInternalId).length}`);
-
-  const invoiceDetailsForSkuScan = Object.create(null);
-  for (const invoice of createdRangeInvoices) {
-    const summary = getInvoiceSummary(invoice);
-    invoiceDetailsForSkuScan[String(summary.id)] =
-      paymentContextByInvoiceId[String(summary.id)]?.detail || await fetchInvoiceDetail(summary.id);
-  }
-  timer.phase('created-range invoice details', `count=${Object.keys(invoiceDetailsForSkuScan).length}`);
-
-  const invoiceSkuSet = new Set();
-  for (const invoice of [...paymentScopedInvoices, ...createdRangeInvoices]) {
-    const detail =
-      paymentContextByInvoiceId[String(getInvoiceSummary(invoice).id)]?.detail ||
-      invoiceDetailsForSkuScan[String(getInvoiceSummary(invoice).id)] ||
-      null;
-    for (const lineItem of getInvoiceLineItems(invoice, detail)) {
-      const sku = String(lineItem?.sku || lineItem?.upc || '').trim();
-      if (sku) invoiceSkuSet.add(sku);
-    }
-  }
-
-  const repairPartSkuSet = new Set();
-  for (const ticketDetail of Object.values(ticketDetailsByInternalId)) {
-    for (const part of extractRepairParts(ticketDetail)) {
-      const sku = String(part?.sku || '').trim();
-      if (sku) repairPartSkuSet.add(sku);
-    }
-  }
-
-  const inventoryBySku = Object.create(null);
-  await fetchInventoryMatchesForSkus([...invoiceSkuSet, ...repairPartSkuSet], inventoryBySku);
-  const partsBySku = await fetchPartsCatalog();
-  timer.phase('inventory and parts enrichment', `invoiceSkus=${invoiceSkuSet.size} repairPartSkus=${repairPartSkuSet.size} inventoryHits=${Object.keys(inventoryBySku).length} partsHits=${Object.keys(partsBySku).length}`);
-
-  const salesRepairs = [];
-  const salesRetail = [];
-  const salesDevices = [];
-  const salesConsignment = [];
-  const salesSpecialOrders = [];
-
-  for (const invoice of paymentScopedInvoices) {
-    const summary = getInvoiceSummary(invoice);
-    const invoiceId = String(summary.id);
-    const context = paymentContextByInvoiceId[invoiceId];
-    if (!context) continue;
-
-    const lineItems = getInvoiceLineItems(invoice, context.detail);
-    const taxForValue = buildInvoiceTaxAllocator(summary, lineItems);
-    const exactProductPaymentMatchMap = buildExactProductPaymentMatchMap(lineItems, context.paymentRange?.inRange || [], taxForValue);
-    const ticketId = summary.ticket?.id ? String(summary.ticket.id) : '';
-    const ticketNum = summary.ticket?.order_id || '';
-    const ticketDetail = ticketId ? ticketDetailsByInternalId[ticketId] || null : null;
-    const ratio = context.ratio;
-
-    if (ticketDetail) {
-      const serviceLines = lineItems.filter((lineItem) => isRepairServiceLine(lineItem));
-      if (serviceLines.length) {
-        const serviceRevenue = round2(serviceLines.reduce((sum, lineItem) => sum + lineSubtotal(lineItem), 0));
-        const serviceTax = round2(serviceLines.reduce((sum, lineItem) => sum + taxForValue(lineSubtotal(lineItem)), 0));
-        const consumedParts = extractRepairParts(ticketDetail);
-        const partRows = consumedParts.map((part) => {
-          const resolved = resolvePartCost(part, inventoryBySku, partsBySku);
-          return {
-            name: part.name || '',
-            sku: resolved.sku,
-            qty: Number(part.quantity || 1),
-            cost: resolved.cost,
-            retail: resolved.retail,
-            isSpecial: resolved.isSpecial,
-          };
-        });
-        const serviceLineCogs = round2(serviceLines.reduce((sum, lineItem) => {
-          const qty = Number(lineItem?.quantity || 1);
-          return sum + (parseMoney(lineItem?.cost_price || 0) * qty);
-        }, 0));
-        const partsDerivedCogs = round2(partRows.reduce((sum, part) => sum + (part.cost * part.qty), 0));
-        const fullCogs = serviceLineCogs > 0 ? serviceLineCogs : partsDerivedCogs;
-        const allocatedRevenue = allocateAmount(serviceRevenue, ratio);
-        const allocatedTax = allocateAmount(serviceTax, ratio);
-        const allocatedCogs = allocateAmount(fullCogs, ratio);
-        const description = serviceLines.map((lineItem) => lineItem.name).join(', ');
-        const devices = Array.isArray(ticketDetail.devices) ? ticketDetail.devices : [];
-        const repairCategory = devices.map((device) => device.device?.name || device.device_name || device.name || '').filter(Boolean).join(', ');
-
-        salesRepairs.push({
-          invoiceNum: summary.order_id,
-          invoiceId: summary.id,
-          ticketId,
-          ticketNum,
-          repairCategory,
-          description: description || summary.subject || 'Repair',
-          qty: 1,
-          revenue: allocatedRevenue,
-          tax: allocatedTax,
-          total: round2(allocatedRevenue + allocatedTax),
-          cogs: allocatedCogs,
-          netProfit: round2(allocatedRevenue - allocatedCogs),
-          parts: partRows.map((part) => ({
-            ...part,
-            retail: allocateAmount(part.retail, ratio),
-            cost: allocateAmount(part.cost, ratio),
-          })),
-          source: 'ticket_invoice',
-        });
-      }
-    }
-
-    for (const [lineIndex, lineItem] of lineItems.entries()) {
-      if (!isProductLine(lineItem) || isDepositLine(lineItem)) continue;
-      const sku = String(lineItem?.sku || lineItem?.upc || '').trim();
-      const qty = Number(lineItem?.quantity || 1);
-      const gross = lineSubtotal(lineItem);
-      const tax = lineTaxAmount(lineItem, taxForValue);
-      const revenue = round2(gross);
-      const lineRatio = exactProductPaymentMatchMap?.has(lineIndex) ? exactProductPaymentMatchMap.get(lineIndex) : ratio;
-      const allocatedRevenue = allocateAmount(revenue, lineRatio);
-      const allocatedTax = allocateAmount(tax, lineRatio);
-      const normalizedSku = sku.toLowerCase();
-      let invItem = inventoryBySku[normalizedSku] || null;
-      if (!invItem) {
-        invItem = await fetchInventoryDetailById(lineItem?.id);
-      }
-      const category = classifyInventoryItem(invItem, lineItem?.name || '');
-      const serial = String(lineItem?.serial || '').trim();
-      let deviceCost = 0;
-      let refurbCost = 0;
-      if (parseMoney(lineItem?.cost_price || 0) > 0) {
-        deviceCost = parseMoney(lineItem.cost_price);
-      } else if (invItem) {
-        deviceCost = parseMoney(invItem.prices?.cost_price ?? invItem.cost_price ?? 0);
-      }
-      const signedDeviceCost = round2(deviceCost * qty);
-      const signedRefurbCost = round2(refurbCost * qty);
-      const cogs = allocateAmount(round2(signedDeviceCost + signedRefurbCost), lineRatio);
-      const isSpecialOrder = isSpecialOrderLine(lineItem);
-      const consignmentVendor = getConsignmentVendor({
-        supplier: invItem?.supplier || '',
-        sku,
-        serial,
-      });
-      const item = {
-        invoiceNum: summary.order_id,
-        invoiceId: summary.id,
-        inventoryId: lineItem?.id || invItem?.id || '',
-        name: lineItem?.name || '',
-        sku,
-        serial,
-        itemNo: invItem?.item_no || '',
-        qty,
-        sellPrice: parseMoney(lineItem?.price || 0),
-        revenue: allocatedRevenue,
-        tax: allocatedTax,
-        total: round2(allocatedRevenue + allocatedTax),
-        deviceCost: allocateAmount(signedDeviceCost, lineRatio),
-        refurbCost: allocateAmount(signedRefurbCost, lineRatio),
-        cost: allocateAmount(round2(signedDeviceCost + signedRefurbCost), lineRatio),
-        cogs,
-        netProfit: round2(allocatedRevenue - cogs),
-        isSerialized: !!(invItem?.is_serialize || serial),
-        variant: '',
-        categoryName: isSpecialOrder ? 'Special Order' : (invItem?.category_name || ''),
-        categories: isSpecialOrder
-          ? ['Special Orders', String(lineItem?.special_status || 'Pending').trim()].filter(Boolean)
-          : buildDisplayCategoryChain(invItem, category),
-        manufacturer: invItem?.manufacturer_name || invItem?.manufacturer || '',
-        supplier: invItem?.supplier || '',
-        consignmentVendor,
-        deviceModels: invItem?.compatible_models || '',
-        source: isSpecialOrder ? 'special_order_line' : (summary.ticket?.hasTicket ? 'ticket_invoice_line' : 'invoice_line'),
-        specialStatus: String(lineItem?.special_status || '').trim(),
-      };
-      if (isSpecialOrder) salesSpecialOrders.push(item);
-      else if (category === 'devices' && consignmentVendor) salesConsignment.push(item);
-      else if (category === 'devices') salesDevices.push(item);
-      else salesRetail.push(item);
-    }
-  }
-
-  const paymentScopedInvoiceIds = new Set(Object.keys(paymentContextByInvoiceId));
-  for (const invoice of createdRangeInvoices) {
-    const summary = getInvoiceSummary(invoice);
-    const invoiceId = String(summary.id);
-    if (paymentScopedInvoiceIds.has(invoiceId)) continue;
-
-    const detail = invoiceDetailsForSkuScan[invoiceId] || await fetchInvoiceDetail(summary.id);
-    const lineItems = getInvoiceLineItems(invoice, detail);
-    for (const lineItem of lineItems) {
-      if (!isProductLine(lineItem) || isDepositLine(lineItem)) continue;
-      const revenue = round2(lineSubtotal(lineItem));
-      const explicitCost = parseMoney(lineItem?.cost_price || 0);
-      const sku = String(lineItem?.sku || lineItem?.upc || '').trim();
-      let invItem = sku ? (inventoryBySku[sku.toLowerCase()] || null) : null;
-      if (!invItem) {
-        invItem = await fetchInventoryDetailById(lineItem?.id);
-      }
-      const fallbackCost = parseMoney(invItem?.prices?.cost_price ?? invItem?.cost_price ?? 0);
-      const unitCost = explicitCost > 0 ? explicitCost : fallbackCost;
-      if (revenue !== 0 || unitCost <= 0) continue;
-
-      const qty = Number(lineItem?.quantity || 1);
-      const category = classifyInventoryItem(invItem, lineItem?.name || '');
-      const signedUnitCost = round2(unitCost * qty);
-      const cogs = signedUnitCost;
-      const isSpecialOrder = isSpecialOrderLine(lineItem);
-      const consignmentVendor = getConsignmentVendor({
-        supplier: invItem?.supplier || '',
-        sku,
-        serial: String(lineItem?.serial || '').trim(),
-      });
-      const item = {
-        invoiceNum: summary.order_id,
-        invoiceId: summary.id,
-        inventoryId: lineItem?.id || invItem?.id || '',
-        name: lineItem?.name || '',
-        sku,
-        serial: String(lineItem?.serial || '').trim(),
-        itemNo: invItem?.item_no || '',
-        qty,
-        sellPrice: parseMoney(lineItem?.price || 0),
-        revenue: 0,
-        tax: 0,
-        total: 0,
-        deviceCost: signedUnitCost,
-        refurbCost: 0,
-        cost: signedUnitCost,
-        cogs,
-        netProfit: round2(-cogs),
-        isSerialized: !!(invItem?.is_serialize || lineItem?.serial),
-        variant: '',
-        categoryName: isSpecialOrder ? 'Special Order' : (invItem?.category_name || ''),
-        categories: isSpecialOrder
-          ? ['Special Orders', String(lineItem?.special_status || 'Pending').trim()].filter(Boolean)
-          : buildDisplayCategoryChain(invItem, category),
-        manufacturer: invItem?.manufacturer_name || invItem?.manufacturer || '',
-        supplier: invItem?.supplier || '',
-        consignmentVendor,
-        deviceModels: invItem?.compatible_models || '',
-        source: isSpecialOrder ? 'complimentary_special_order' : 'complimentary_item',
-        specialStatus: String(lineItem?.special_status || '').trim(),
-      };
-      if (isSpecialOrder) salesSpecialOrders.push(item);
-      else if (category === 'devices' && consignmentVendor) salesConsignment.push(item);
-      else if (category === 'devices') salesDevices.push(item);
-      else salesRetail.push(item);
-    }
-  }
-
-  const auditResults = [];
-  for (const invoice of repairAuditInvoices) {
-    const summary = getInvoiceSummary(invoice);
-    const ticketId = String(summary.ticket?.id || '');
-    const ticketDetail = ticketDetailsByInternalId[ticketId] || null;
-    const lineItems = getInvoiceLineItems(invoice);
-    const taxForValue = buildInvoiceTaxAllocator(summary, lineItems);
-    const serviceLines = lineItems.filter((lineItem) => isRepairServiceLine(lineItem));
-    const productLines = lineItems.filter((lineItem) => isProductLine(lineItem) && !isDepositLine(lineItem));
-    const depositLines = lineItems.filter((lineItem) => isDepositLine(lineItem));
-    const serviceRevenue = round2(serviceLines.reduce((sum, lineItem) => sum + lineSubtotal(lineItem), 0));
-    const productRevenue = round2(productLines.reduce((sum, lineItem) => sum + lineSubtotal(lineItem), 0));
-    const fullTax = round2(lineItems.reduce((sum, lineItem) => sum + taxForValue(lineSubtotal(lineItem)), 0));
-    const amountPaid = parseMoney(summary.amount_paid || 0);
-    const amountDue = parseMoney(summary.amount_due || 0);
-    const repairItems = ticketDetail ? buildRepairItemsForAudit(ticketDetail) : [];
-    const nonDiagnosticItems = repairItems.filter((item) => !isNoPartExpectedRepair(item.repairName));
-    const isDiagnosticOnly = repairItems.length > 0 && repairItems.every((item) => isNoPartExpectedRepair(item.repairName));
-    const anyMissingParts = !!(ticketDetail && nonDiagnosticItems.some((item) => !item.hasParts));
-
-    auditResults.push({
-      ticketId: summary.ticket?.order_id || null,
-      ticketNum: summary.ticket?.order_id || null,
-      internalTicketId: ticketId || null,
-      invoiceNums: summary.order_id || '—',
-      invoices: [{
-        invoiceId: summary.id,
-        invoiceNum: summary.order_id,
-        ticketNum: summary.ticket?.order_id || null,
-        amountPaid,
-        total: round2(parseMoney(summary.total || 0)),
-        isDeposit: false,
-        createdDate: summary.created_date,
-        createdDateIso: fromDate,
-        lineItems: lineItems.map((lineItem) => ({
-          name: lineItem?.name || '',
-          price: parseMoney(lineItem?.price || 0),
-          quantity: Number(lineItem?.quantity || 0),
-          sku: lineItem?.sku || lineItem?.upc || '',
-        })),
-      }],
-      customer: summary.customer?.fullName || '—',
-      createdBy: typeof summary.created_by === 'string' ? summary.created_by : (summary.created_by?.fullname || '—'),
-      totalPaid: amountPaid,
-      amountDue,
-      paymentStatus: amountDue > 0 ? (amountPaid > 0 ? 'deposit' : 'owing') : 'paid',
-      isDepositOnly: false,
-      isDiagnosticOnly,
-      repairItems,
-      retailItems: productLines.map((lineItem) => ({
-        name: lineItem?.name || '',
-        quantity: Number(lineItem?.quantity || 0),
-        total: lineSubtotal(lineItem),
-      })),
-      anyMissingParts,
-      partsError: ticketDetail ? null : 'Ticket detail unavailable',
-      invoiceDate: fromDate,
-      serviceRevenue,
-      productRevenue,
-      tax: fullTax,
-      depositApplied: round2(depositLines.reduce((sum, lineItem) => sum + lineSubtotal(lineItem), 0)),
-    });
-  }
-
-  auditResults.sort((left, right) => {
-    if (left.anyMissingParts && !right.anyMissingParts) return -1;
-    if (!left.anyMissingParts && right.anyMissingParts) return 1;
-    return Number(right.ticketNum || 0) - Number(left.ticketNum || 0);
-  });
-
-  const auditMissingCount = auditResults.filter((item) => item.anyMissingParts).length;
-  const auditClearCount = auditResults.filter((item) => !item.anyMissingParts && !item.partsError).length;
-
-  const totalRepairRevenue = round2(salesRepairs.reduce((sum, item) => sum + item.revenue, 0));
-  const totalRepairCogs = round2(salesRepairs.reduce((sum, item) => sum + item.cogs, 0));
-  const totalProductRevenue = round2([...salesRetail, ...salesDevices, ...salesSpecialOrders].reduce((sum, item) => sum + item.revenue, 0));
-  const totalProductCogs = round2([...salesRetail, ...salesDevices, ...salesSpecialOrders].reduce((sum, item) => sum + item.cogs, 0));
-  const totalRevenue = round2(totalRepairRevenue + totalProductRevenue);
-  const totalCost = round2(totalRepairCogs + totalProductCogs);
-  const totalTax = round2([
-    ...salesRepairs,
-    ...salesRetail,
-    ...salesDevices,
-    ...salesSpecialOrders,
-  ].reduce((sum, item) => sum + (item.tax || 0), 0));
-  timer.phase(
-    'assembled payload',
-    `repairs=${salesRepairs.length} retail=${salesRetail.length} devices=${salesDevices.length} special=${salesSpecialOrders.length} audit=${auditResults.length}`
-  );
-  timer.done(`paymentTotal=${paymentTotal}`);
-
-  return {
-    payments: {
-      methods: sortedPaymentMethods,
-      total: paymentTotal,
-      depositCarryoverMethods: sortedDepositCarryoverMethods,
-      depositCarryoverTotal,
-    },
-    audit: {
-      invoices: auditResults,
-      total: auditResults.length,
-      missingParts: auditMissingCount,
-      clear: auditClearCount,
-    },
-    sales: {
-      repairs: salesRepairs,
-      retail: salesRetail,
-      devices: salesDevices,
-      consignment: salesConsignment,
-      specialOrders: salesSpecialOrders,
-      paymentMethods: sortedPaymentMethods,
-      summary: {
-        totalRevenue,
-        totalCost,
-        grossProfit: round2(totalRevenue - totalCost),
-        netProfitAfterTax: round2(paymentTotal - paymentTaxTotal - totalCost),
-        repairRevenue: totalRepairRevenue,
-        repairCogs: totalRepairCogs,
-        productRevenue: totalProductRevenue,
-        productCogs: totalProductCogs,
-        specialOrderRevenue: round2(salesSpecialOrders.reduce((sum, item) => sum + item.revenue, 0)),
-        specialOrderCogs: round2(salesSpecialOrders.reduce((sum, item) => sum + item.cogs, 0)),
-        invoiceRevenue: paymentTotal,
-        invoiceTax: paymentTaxTotal,
-        lineItemTax: totalTax,
-      },
-    },
-  };
 }
+
+function isAdminAuthorized(req) {
+  const token = String(req.headers[ADMIN_HEADER] || '').trim();
+  if (!isLoopbackRequest(req) || !isLoopbackHostHeader(req) || !token) return false;
+  const supplied = Buffer.from(token);
+  const expected = Buffer.from(LOCAL_ADMIN_TOKEN);
+  return supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected);
+}
+
+function isSharedSettingsAuthorized(req, syncSettings, pathname) {
+  return verifySharedAuth({
+    secret: syncSettings?.sharedSecret,
+    method: req.method,
+    pathname,
+    timestamp: req.headers[SHARED_TIMESTAMP_HEADER],
+    nonce: req.headers[SHARED_NONCE_HEADER],
+    signature: req.headers[SHARED_SIGNATURE_HEADER],
+    nonceCache: sharedAuthNonces,
+  });
+}
+
+function sendJson(res, statusCode, payload) {
+  res.writeHead(statusCode, {
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-store',
+  });
+  res.end(JSON.stringify(payload));
+}
+
+function requireLocalAdmin(req, res) {
+  if (isAdminAuthorized(req)) return true;
+  sendJson(res, 403, { error: 'Local admin authorization is required for this board action.' });
+  return false;
+}
+
+function requireSharedSettingsAuth(req, res, syncSettings, pathname) {
+  if (isSharedSettingsAuthorized(req, syncSettings, pathname)) return true;
+  sendJson(res, 401, { error: 'A valid shared board key is required.' });
+  return false;
+}
+
+function isPublicApiRoute(pathname, method) {
+  if (method !== 'GET') return false;
+  return [
+    '/api/shared-calendar-blocks',
+    '/api/shared-store-host-info',
+    '/api/shared-store-settings',
+  ].includes(pathname);
+}
+
+function applySecurityHeaders(req, res) {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+  res.setHeader('Vary', 'Origin');
+  if (isSameOriginRequest(req) && req.headers.origin) {
+    res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', [
+      'Content-Type',
+      ADMIN_HEADER,
+      SHARED_TIMESTAMP_HEADER,
+      SHARED_NONCE_HEADER,
+      SHARED_SIGNATURE_HEADER,
+    ].join(', '));
+  }
+  res.setHeader('Content-Security-Policy', [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    "img-src 'self' data: https://dghyt15qon7us.cloudfront.net",
+    "media-src 'self' data: blob:",
+    "connect-src 'self'",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'none'",
+  ].join('; '));
+}
+
 
 const server = http.createServer(async (req, res) => {
-  const requestUrl = new URL(req.url, `http://${req.headers.host || `localhost:${PORT}`}`);
+  const requestUrl = new URL(req.url, `http://127.0.0.1:${PORT}`);
   const pathname = requestUrl.pathname;
 
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  applySecurityHeaders(req, res);
+  if (!isAllowedRequestHost(req)) {
+    sendJson(res, 421, { error: 'The request Host is not valid for this board.' });
+    return;
+  }
   if (req.method === 'OPTIONS') {
-    res.writeHead(204);
+    res.writeHead(isSameOriginRequest(req) ? 204 : 403);
     res.end();
     return;
   }
 
+  if (pathname.startsWith('/api/') && !isPublicApiRoute(pathname, req.method) && !requireLocalAdmin(req, res)) {
+    return;
+  }
+
   if (pathname === '/' || pathname === '/index.html') {
+    res.writeHead(302, { Location: '/ticket-display' });
+    res.end();
+    return;
+  }
+
+  if (pathname === '/ticket-display.css' && req.method === 'GET') {
+    if (!isTrustedPageAssetRequest(req)) {
+      sendJson(res, 403, { error: 'Same-origin asset request is required.' });
+      return;
+    }
     try {
-      let html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
-      html = html.replace(
-        /One Bite Technology Daily Report(?!\s*—\s*v)/,
-        `One Bite Technology Daily Report — ${APP_VERSION}`
+      const css = fs.readFileSync(path.join(__dirname, 'ticket-display.css'), 'utf8');
+      res.writeHead(200, {
+        'Content-Type': 'text/css; charset=utf-8',
+        'Cache-Control': 'no-store',
+      });
+      res.end(css);
+    } catch (_) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('Could not load ticket-display.css');
+    }
+    return;
+  }
+
+  if (pathname === '/ticket-display.js' && req.method === 'GET') {
+    if (!isTrustedPageAssetRequest(req)) {
+      sendJson(res, 403, { error: 'Same-origin asset request is required.' });
+      return;
+    }
+    try {
+      let script = fs.readFileSync(path.join(__dirname, 'ticket-display.js'), 'utf8');
+      script = script.replace(/__APP_VERSION__/g, APP_VERSION);
+      script = script.replace(
+        /__LOCAL_ADMIN_TOKEN_JSON__/g,
+        (isLoopbackRequest(req) && isLoopbackHostHeader(req)) ? JSON.stringify(LOCAL_ADMIN_TOKEN) : '""'
       );
-      html = html.replace(/__APP_VERSION__/g, APP_VERSION);
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(html);
-    } catch (e) {
-      res.writeHead(500);
-      res.end('Could not load index.html');
+      res.writeHead(200, {
+        'Content-Type': 'application/javascript; charset=utf-8',
+        'Cache-Control': 'no-store',
+      });
+      res.end(script);
+    } catch (_) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('Could not load ticket-display.js');
     }
     return;
   }
@@ -4251,7 +3377,10 @@ const server = http.createServer(async (req, res) => {
     try {
       let html = fs.readFileSync(path.join(__dirname, 'ticket-display.html'), 'utf8');
       html = html.replace(/__APP_VERSION__/g, APP_VERSION);
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-store',
+      });
       res.end(html);
     } catch (e) {
       res.writeHead(500);
@@ -4262,10 +3391,19 @@ const server = http.createServer(async (req, res) => {
 
   if (pathname === '/api/config' && req.method === 'POST') {
     try {
-      const body = await readBody(req);
+      const body = await readBody(req, MAX_CONFIG_BODY_BYTES);
       const { apiKey, ticketCounterToken, ticketCounterDisplayUrl, rushSyncEnabled, rushSyncCookie } = JSON.parse(body);
       if (apiKey !== undefined) sessionConfig.apiKey = String(apiKey || '').trim();
-      if (ticketCounterDisplayUrl !== undefined) sessionConfig.ticketCounterDisplayUrl = String(ticketCounterDisplayUrl || '').trim();
+      if (ticketCounterDisplayUrl !== undefined) {
+        const rawDisplayUrl = String(ticketCounterDisplayUrl || '').trim();
+        const parsedDisplayUrl = parseTicketCounterDisplayUrl(rawDisplayUrl);
+        if (rawDisplayUrl && !parsedDisplayUrl.displayUrl) {
+          const error = new Error('Ticket Counter Display URL must be an HTTPS repairdesk.co address.');
+          error.statusCode = 400;
+          throw error;
+        }
+        sessionConfig.ticketCounterDisplayUrl = parsedDisplayUrl.displayUrl;
+      }
       if (ticketCounterToken !== undefined) sessionConfig.ticketCounterToken = String(ticketCounterToken || '').trim();
       if (!sessionConfig.rushSync || typeof sessionConfig.rushSync !== 'object') {
         sessionConfig.rushSync = { enabled: false, cookie: '' };
@@ -4283,7 +3421,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true, message: 'RepairDesk settings saved' }));
     } catch (e) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.writeHead(e.statusCode || 400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
     }
     return;
@@ -4310,9 +3448,13 @@ const server = http.createServer(async (req, res) => {
 
   if (pathname === '/api/preferences' && req.method === 'POST') {
     try {
-      const body = await readBody(req);
+      const body = await readBody(req, MAX_PREFERENCES_BODY_BYTES);
       const payload = JSON.parse(body);
-      sessionConfig.uiPreferences = normalizeUiPreferences(payload || {});
+      if (!isPlainObject(payload)) {
+        throw new Error('Display settings payload must be an object.');
+      }
+      sessionConfig.uiPreferences = normalizeUiPreferences(mergePreferencePayload(sessionConfig.uiPreferences || {}, payload));
+      ensureSharedHostSecret(sessionConfig);
       sharedHostDiscoveryCache = {
         scannedAt: 0,
         hosts: [],
@@ -4321,7 +3463,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true, preferences: sessionConfig.uiPreferences }));
     } catch (e) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.writeHead(e.statusCode || 400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
     }
     return;
@@ -4331,12 +3473,11 @@ const server = http.createServer(async (req, res) => {
     const localPreferences = normalizeUiPreferences(sessionConfig.uiPreferences || {});
     const syncSettings = localPreferences.schedule?.sharedCalendarSync || DEFAULT_UI_PREFERENCES.schedule.sharedCalendarSync;
     if (syncSettings.mode !== 'host') {
-      res.writeHead(409, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'This board is not configured as a shared calendar host.' }));
+      sendJson(res, 409, { error: 'This board is not configured as a shared calendar host.' });
       return;
     }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(buildSharedCalendarBlocksPayload(localPreferences)));
+    if (!requireSharedSettingsAuth(req, res, syncSettings, pathname)) return;
+    sendJson(res, 200, buildSharedCalendarBlocksPayload(localPreferences));
     return;
   }
 
@@ -4361,12 +3502,11 @@ const server = http.createServer(async (req, res) => {
     const localPreferences = normalizeUiPreferences(sessionConfig.uiPreferences || {});
     const syncSettings = localPreferences.schedule?.sharedCalendarSync || DEFAULT_UI_PREFERENCES.schedule.sharedCalendarSync;
     if (syncSettings.mode !== 'host') {
-      res.writeHead(409, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'This board is not configured as a shared settings host.' }));
+      sendJson(res, 409, { error: 'This board is not configured as a shared settings host.' });
       return;
     }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(buildSharedCalendarBlocksPayload(localPreferences)));
+    if (!requireSharedSettingsAuth(req, res, syncSettings, pathname)) return;
+    sendJson(res, 200, buildSharedStoreSettingsPayload(localPreferences));
     return;
   }
 
@@ -4412,93 +3552,11 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (pathname === '/api/dashboard') {
-    const fromDate = requestUrl.searchParams.get('from');
-    const toDate = requestUrl.searchParams.get('to') || fromDate;
-    if (!isIsoDate(fromDate) || !isIsoDate(toDate)) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'from/to must be YYYY-MM-DD' }));
-      return;
-    }
-
-    try {
-      const requestStartedAt = Date.now();
-      console.log(`[REQ] /api/dashboard from=${fromDate} to=${toDate} start`);
-      const dashboard = await buildDashboardData(fromDate, toDate);
-      console.log(`[REQ] /api/dashboard from=${fromDate} to=${toDate} success total=${Date.now() - requestStartedAt}ms`);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(dashboard));
-    } catch (e) {
-      console.log(`[REQ] /api/dashboard from=${fromDate} to=${toDate} failure`);
-      console.error('[DASH ERROR]', e);
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
-    }
-    return;
-  }
-
-  if (pathname === '/api/invoices') {
-    const fromDate = requestUrl.searchParams.get('date');
-    const toDate = requestUrl.searchParams.get('to') || fromDate;
-    if (!isIsoDate(fromDate) || !isIsoDate(toDate)) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'date/to must be YYYY-MM-DD' }));
-      return;
-    }
-    try {
-      const dashboard = await buildDashboardData(fromDate, toDate);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(dashboard.audit));
-    } catch (e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
-    }
-    return;
-  }
-
-  if (pathname === '/api/sales') {
-    const fromDate = requestUrl.searchParams.get('from');
-    const toDate = requestUrl.searchParams.get('to') || fromDate;
-    if (!isIsoDate(fromDate) || !isIsoDate(toDate)) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'from/to must be YYYY-MM-DD' }));
-      return;
-    }
-    try {
-      const dashboard = await buildDashboardData(fromDate, toDate);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(dashboard.sales));
-    } catch (e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
-    }
-    return;
-  }
-
-  if (pathname === '/api/payments') {
-    const fromDate = requestUrl.searchParams.get('from');
-    const toDate = requestUrl.searchParams.get('to') || fromDate;
-    if (!isIsoDate(fromDate) || !isIsoDate(toDate)) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'from/to must be YYYY-MM-DD' }));
-      return;
-    }
-    try {
-      const dashboard = await buildDashboardData(fromDate, toDate);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(dashboard.payments));
-    } catch (e) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
-    }
-    return;
-  }
-
   if (pathname === '/api/debug') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(escJson({
       version: APP_VERSION,
-      cachedInvoiceDetails: Object.keys(invoiceDetailCacheById).length,
+      cachedPriorityInvoices: Object.keys(priorityInvoiceCacheById).length,
       cachedTicketDetails: Object.keys(ticketDetailCacheByInternalId).length,
     }));
     return;
@@ -4969,13 +4027,11 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => {
   console.log('');
   console.log('╔════════════════════════════════════════════════════╗');
-  console.log('║  One Bite Technology — RepairDesk Dashboard v2    ║');
+  console.log('║  One Bite Technology — Ticket Display v3          ║');
   console.log('╠════════════════════════════════════════════════════╣');
   console.log(`║  Running at: http://localhost:${PORT}                ║`);
-  console.log('║                                                    ║');
-  console.log('║  Payment totals use payment date                   ║');
-  console.log('║  Repair audit uses final invoice creation date     ║');
-  console.log('║  COG buckets are prorated across partial payments  ║');
+  console.log('║  Local admin APIs require the per-process token.   ║');
+  console.log('║  Shared store settings stay on read-only routes.   ║');
   console.log('╚════════════════════════════════════════════════════╝');
   console.log('');
 });

@@ -2,6 +2,24 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v3.0.0-beta.1
+
+- Hardened the local board server so config, preferences, debug, restart, and ticket-feed APIs require a loopback-only admin token instead of being open to the LAN.
+- Blocked DNS-rebinding Host headers, constrained RepairDesk connections and external ticket links to HTTPS `repairdesk.co` hosts, and redacted credentials from outbound request logs.
+- Removed wildcard CORS, added browser security headers, split renderer CSS/JS out of inline HTML, and tightened CSP so inline script/style is no longer allowed.
+- Added HMAC authentication and replay protection to shared LAN settings, limited discovery to non-sensitive metadata, and stopped local audio/cached sync data from leaving the host.
+- Made preference saves merge with existing saved settings before normalization so partial payloads cannot wipe untouched settings sections.
+- Added atomic config writes, automatic recovery from the newest valid backup, restricted POSIX file permissions, and tests that prove corrupt settings recover without a false successful save.
+- Removed the copied Owners Dashboard/reporting routes and dashboard rule files from the ticket display package.
+- Replaced the raw invoice-detail disk cache with a minimal priority-fee cache so Priority ticket detection no longer stores full invoice payloads locally.
+- Added request-size and upload file validation for saved media/audio preferences.
+- Hardened the Electron window with sandboxing, navigation/popup blocking, denied web permissions, and RepairDesk-only external ticket links.
+- Added unit and integration tests for LAN signatures, replay protection, config recovery, protected APIs, CSP, Host validation, URL validation, and request-size limits.
+- Upgraded Electron, electron-builder, and electron-updater to patched releases; vulnerability and registry-signature checks now block release preflight.
+- Made production builds fail closed without signing certificates, required macOS notarization and Windows Authenticode verification, pinned GitHub Actions to commit SHAs, and added SHA-256 checksums plus build-provenance attestations.
+- Purged historical config and ticket/invoice cache files from all rewritten branches and tags so the removed RepairDesk credential and customer data are no longer retained in normal Git history.
+- Extracted shared-board authentication into a focused module and removed 13 confirmed unused helpers without changing queue or calendar behavior.
+
 ## v2.1.68-beta.81
 
 - Added an Appointments daily limit setting that automatically marks a day full once it reaches the configured number of appointments.

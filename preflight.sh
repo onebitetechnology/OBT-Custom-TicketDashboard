@@ -37,12 +37,15 @@ check_command git
 check_command node
 check_command npm
 check_command grep
+check_command rg
 
 echo "Running release preflight in $REPO_DIR"
 
-run_check "main.js syntax" node -c "$REPO_DIR/main.js"
-run_check "preload.js syntax" node -c "$REPO_DIR/preload.js"
-run_check "app/server.js syntax" node -c "$REPO_DIR/app/server.js"
+run_check "JavaScript syntax" npm run check:syntax --silent
+run_check "local API security smoke test" npm run security:smoke --silent
+run_check "dependency vulnerability audit" npm run security:audit --silent
+run_check "dependency signature verification" npm run security:signatures --silent
+run_check "release workflow YAML" node -e "require('js-yaml').load(require('fs').readFileSync('.github/workflows/release.yml', 'utf8'))"
 
 check_file "$REPO_DIR/build/icon.ico"
 check_file "$REPO_DIR/build/icon.icns"
@@ -51,10 +54,10 @@ check_file "$REPO_DIR/build/installer.nsh"
 check_file "$REPO_DIR/build/after-pack.js"
 check_file "$REPO_DIR/.github/workflows/release.yml"
 
-echo "Checking for forbidden tracked local data files"
-for forbidden in app/config.json app/invoice-detail-cache.json app/ticket-meta-cache.json; do
-  if git ls-files --error-unmatch "$forbidden" >/dev/null 2>&1; then
-    fail "Tracked local data file detected: $forbidden"
+echo "Checking for forbidden tracked local data and dashboard files"
+for forbidden in app/config.json app/invoice-detail-cache.json app/invoice-priority-cache.json app/ticket-meta-cache.json app/category-rules.json app/consignment-rules.json; do
+  if [[ -e "$REPO_DIR/$forbidden" ]]; then
+    fail "Forbidden local/dashboard data file present: $forbidden"
   fi
 done
 
@@ -79,6 +82,27 @@ echo "Checking release metadata upload patterns"
 for required_pattern in 'dist/latest.yml' 'dist/latest-mac.yml' 'dist/*.blockmap'; do
   if ! grep -Fq "$required_pattern" "$REPO_DIR/.github/workflows/release.yml"; then
     fail "Release workflow is missing updater metadata artifact pattern: $required_pattern"
+  fi
+done
+
+echo "Checking immutable GitHub Action references"
+while IFS= read -r action_line; do
+  [[ "$action_line" =~ @[0-9a-f]{40}([[:space:]]|$) ]] || fail "GitHub Actions must be pinned to full commit SHAs: $action_line"
+done < <(grep -E '^[[:space:]]*uses:' "$REPO_DIR/.github/workflows/release.yml")
+
+echo "Checking mandatory release signing and provenance controls"
+for required_control in \
+  '"forceCodeSigning": true' \
+  '"notarize": true' \
+  'Require macOS signing and notarization secrets' \
+  'Verify macOS signature and notarization' \
+  'Require Windows signing secrets' \
+  'Verify Windows Authenticode signature' \
+  'Generate SHA-256 checksums' \
+  'Attest release build provenance' \
+  'dist/SHA256SUMS.txt'; do
+  if ! grep -Fq "$required_control" "$REPO_DIR/package.json" "$REPO_DIR/.github/workflows/release.yml"; then
+    fail "Release hardening control is missing: $required_control"
   fi
 done
 
@@ -108,7 +132,7 @@ done
 
 if [[ "$WITH_PACKAGING" -eq 1 ]]; then
   echo "Running packaging smoke tests"
-  run_check "Windows package build" npm run dist:win
+  run_check "Windows unsigned local package build" npm run dist:win:local
   run_check "macOS local package build" npm run dist:mac:local
 fi
 

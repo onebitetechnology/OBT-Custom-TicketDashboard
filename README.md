@@ -25,6 +25,10 @@ On first launch, each install prompts for its own RepairDesk Ticket Counter Disp
   Local HTTP server and RepairDesk integration layer.
 - `app/ticket-display.html`
   Main board UI.
+- `app/ticket-display.css` and `app/ticket-display.js`
+  Renderer styles and behavior, kept separate for a strict Content Security Policy.
+- `app/lib/shared-auth.js`
+  Signed shared-board request protocol and replay protection.
 - `main.js`
   Electron entrypoint that starts the local server and opens the desktop window.
 - `preload.js`
@@ -50,17 +54,17 @@ This launches Electron, starts the bundled local server, and opens the ticket bo
 
 ### Windows
 
-Build the Windows installer:
+Build the signed Windows installer:
 
 ```bash
 npm run dist:win
 ```
 
-This creates an NSIS installer in `dist/`.
+This requires `WIN_CSC_LINK` and `WIN_CSC_KEY_PASSWORD`. For an explicitly unsigned local test package, use `npm run dist:win:local`.
 
 ### macOS
 
-Build the macOS installer:
+Build the signed and notarized macOS installer:
 
 ```bash
 npm run dist:mac
@@ -72,7 +76,7 @@ If you only need a local unsigned test build:
 npm run dist:mac:local
 ```
 
-This creates a DMG and ZIP in `dist/`.
+Production builds require the signing and Apple notarization credentials described in [SECURITY.md](./SECURITY.md). The local command creates an unsigned DMG and ZIP in `dist/` for testing only.
 
 ## Updates
 
@@ -81,7 +85,8 @@ The app is configured to publish releases through GitHub Releases.
 Current behavior:
 
 - Windows packaged builds can check for updates on launch, on a weekly schedule, or manually from Settings.
-- macOS currently uses manual update installs from DMG releases unless signed and notarized distribution is added later.
+- production releases are blocked unless the macOS app is signed/notarized and the Windows installer has a valid Authenticode signature
+- each release includes SHA-256 checksums and a GitHub build-provenance attestation
 - the in-app update panel can display release notes from published releases
 
 For release/update planning, see:
@@ -106,7 +111,7 @@ bash ./release.sh "Release 2.1.13"
 The script will:
 
 - run preflight checks before making the release commit
-- stage all changes
+- stage modified and deleted tracked files; intentional new files must already be reviewed and staged
 - create the release commit
 - push `main`
 - create the matching git tag from `package.json`
@@ -136,8 +141,8 @@ Typical stored data includes:
 
 - app config
 - ticket metadata cache
-- invoice metadata cache
-- user-editable rules files
+- derived Priority-fee cache without raw invoice payloads
+- rotating config backups
 
 ## Icon Assets
 
@@ -159,5 +164,5 @@ chmod +x build/make-icons.sh
 ## Notes
 
 - This app depends on live RepairDesk data and requires internet access.
-- Windows is currently the most complete platform for packaged installs and auto-update behavior.
-- For smooth macOS public distribution later, Apple signing and notarization will be required.
+- Do not expose the local board port to the public internet. Shared-board sync is designed for a trusted store LAN.
+- Production releases require configured Apple and Windows signing credentials; unsigned local builds are test artifacts only.

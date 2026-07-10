@@ -311,22 +311,6 @@ function setUpdateStatus(nextStatus) {
   };
 }
 
-function seedDataFiles() {
-  const sourceDir = getBundledAppDir();
-  const targetDir = getDataDir();
-  const fileNames = [
-    'category-rules.json',
-    'consignment-rules.json',
-  ];
-
-  for (const fileName of fileNames) {
-    const sourcePath = path.join(sourceDir, fileName);
-    const targetPath = path.join(targetDir, fileName);
-    if (!fs.existsSync(sourcePath) || fs.existsSync(targetPath)) continue;
-    fs.copyFileSync(sourcePath, targetPath);
-  }
-}
-
 function migrateLegacyDataFiles() {
   ensureDataDir();
   const legacyDir = getBundledAppDir();
@@ -334,9 +318,6 @@ function migrateLegacyDataFiles() {
   const fileNames = [
     'config.json',
     'update-preferences.json',
-    'category-rules.json',
-    'consignment-rules.json',
-    'invoice-detail-cache.json',
     'ticket-meta-cache.json',
   ];
 
@@ -544,6 +525,29 @@ function scheduleReapplyWindowPreferences(delayMs = 1200) {
   }, delayMs);
 }
 
+function isAllowedAppNavigation(rawUrl) {
+  if (!serverPort) return false;
+  try {
+    const parsed = new URL(rawUrl);
+    return parsed.protocol === 'http:' &&
+      parsed.hostname === '127.0.0.1' &&
+      String(parsed.port || '80') === String(serverPort);
+  } catch (_) {
+    return false;
+  }
+}
+
+function isAllowedRepairDeskTicketUrl(parsedUrl) {
+  const hostname = String(parsedUrl.hostname || '').toLowerCase();
+  if (!(hostname === 'repairdesk.co' || hostname.endsWith('.repairdesk.co'))) return false;
+  if (parsedUrl.protocol !== 'https:') return false;
+  if (parsedUrl.username || parsedUrl.password) return false;
+  if (parsedUrl.port && parsedUrl.port !== '443') return false;
+  if (parsedUrl.pathname !== '/index.php') return false;
+  if (parsedUrl.searchParams.get('r') !== 'ticket/view') return false;
+  return !!String(parsedUrl.searchParams.get('id') || '').trim();
+}
+
 function findOpenPort(preferredPort = PREFERRED_SERVER_PORT) {
   const tryPort = (port) => new Promise((resolve, reject) => {
     const server = net.createServer();
@@ -583,7 +587,6 @@ function waitForServer(port, timeoutMs = 20000) {
 async function startBundledServer() {
   ensureDataDir();
   migrateLegacyDataFiles();
-  seedDataFiles();
   serverPort = await findOpenPort();
 
   serverProcess = spawn(process.execPath, [getServerEntry()], {
@@ -640,7 +643,18 @@ async function createMainWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
     },
+  });
+
+  mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  mainWindow.webContents.on('will-navigate', (event, targetUrl) => {
+    if (!isAllowedAppNavigation(targetUrl)) {
+      event.preventDefault();
+    }
+  });
+  mainWindow.webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) => {
+    callback(false);
   });
 
   if (displayPreferences.fullscreen) {
@@ -762,8 +776,8 @@ ipcMain.handle('app:open-external-url', async (_, rawUrl) => {
   } catch (_) {
     throw new Error('That ticket link is not valid.');
   }
-  if (!['http:', 'https:'].includes(parsed.protocol)) {
-    throw new Error('Only web links can be opened from the board.');
+  if (!isAllowedRepairDeskTicketUrl(parsed)) {
+    throw new Error('Only RepairDesk ticket links can be opened from the board.');
   }
   await shell.openExternal(parsed.toString());
   return { ok: true, url: parsed.toString() };

@@ -9,7 +9,10 @@ yarn-error.log*
 pnpm-debug.log*
 app/config.json
 app/invoice-detail-cache.json
+app/invoice-priority-cache.json
 app/ticket-meta-cache.json
+app/category-rules.json
+app/consignment-rules.json
 support-bundle*.json
 *.har
 *.http
