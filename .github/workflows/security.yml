@@ -32,5 +32,14 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Run security preflight
-        run: bash ./preflight.sh
+      - name: Run tests
+        run: npm test
+
+      - name: Audit dependency vulnerabilities
+        run: npm run security:audit
+
+      - name: Verify dependency signatures
+        run: npm run security:signatures
+
+      - name: Validate security policy
+        run: bash ./preflight.sh --static-only

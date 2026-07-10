@@ -6,15 +6,21 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$REPO_DIR"
 
 WITH_PACKAGING=0
-if [[ "${1:-}" == "--with-packaging" ]]; then
-  WITH_PACKAGING=1
-fi
+STATIC_ONLY=0
 
 fail() {
   echo
   echo "Preflight failed: $1"
   exit 1
 }
+
+for argument in "$@"; do
+  case "$argument" in
+    --with-packaging) WITH_PACKAGING=1 ;;
+    --static-only) STATIC_ONLY=1 ;;
+    *) fail "Unknown preflight option: $argument" ;;
+  esac
+done
 
 check_command() {
   local cmd="$1"
@@ -41,10 +47,12 @@ check_command rg
 
 echo "Running release preflight in $REPO_DIR"
 
-run_check "JavaScript syntax" npm run check:syntax --silent
-run_check "local API security smoke test" npm run security:smoke --silent
-run_check "dependency vulnerability audit" npm run security:audit --silent
-run_check "dependency signature verification" npm run security:signatures --silent
+if [[ "$STATIC_ONLY" -eq 0 ]]; then
+  run_check "JavaScript syntax" npm run check:syntax --silent
+  run_check "local API security smoke test" npm run security:smoke --silent
+  run_check "dependency vulnerability audit" npm run security:audit --silent
+  run_check "dependency signature verification" npm run security:signatures --silent
+fi
 run_check "GitHub workflow YAML" node -e "const fs=require('fs'); const yaml=require('js-yaml'); for (const file of fs.readdirSync('.github/workflows').filter((name)=>name.endsWith('.yml')||name.endsWith('.yaml'))) yaml.load(fs.readFileSync('.github/workflows/'+file, 'utf8'))"
 
 check_file "$REPO_DIR/build/icon.ico"
