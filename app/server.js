@@ -24,6 +24,7 @@ const {
 } = require('./lib/shared-auth');
 
 const PORT = Number(process.env.PORT || 3000);
+const SERVER_RESTART_EXIT_CODE = Number(process.env.ONEBITE_SERVER_RESTART_EXIT_CODE || 75);
 const APP_VERSION = 'v3.0.0-beta.1';
 const RD_PUBLIC_BASE = 'https://api.repairdesk.co/api/web/v1';
 const DEFAULT_API_KEY = '';
@@ -1113,24 +1114,31 @@ function restartServerProcess() {
     saveTicketMetaCache();
 
     const serverEntry = process.argv[1] || path.join(__dirname, 'server.js');
-    const child = spawn('/bin/sh', ['-c', `sleep 1; "${process.execPath}" "${serverEntry}"`], {
-      cwd: path.dirname(serverEntry),
-      env: {
-        ...process.env,
-        PORT: String(PORT),
-        APP_DATA_DIR: DATA_DIR,
-        ONEBITE_LOCAL_ADMIN_TOKEN: LOCAL_ADMIN_TOKEN,
-        ELECTRON_RUN_AS_NODE: process.env.ELECTRON_RUN_AS_NODE || '1',
-      },
-      detached: true,
-      stdio: 'ignore',
-    });
-    child.unref();
-    console.log(`[SERVER] Spawned replacement process pid=${child.pid} port=${PORT}`);
+    const restartEnvironment = {
+      ...process.env,
+      PORT: String(PORT),
+      APP_DATA_DIR: DATA_DIR,
+      ONEBITE_LOCAL_ADMIN_TOKEN: LOCAL_ADMIN_TOKEN,
+    };
 
     setTimeout(() => {
-      server.close(() => process.exit(0));
-      setTimeout(() => process.exit(0), 1500);
+      server.close(() => {
+        if (process.parentPort?.postMessage) {
+          process.exit(SERVER_RESTART_EXIT_CODE);
+          return;
+        }
+
+        const child = spawn(process.execPath, [serverEntry], {
+          cwd: path.dirname(serverEntry),
+          env: restartEnvironment,
+          detached: true,
+          stdio: 'ignore',
+        });
+        child.unref();
+        console.log(`[SERVER] Spawned replacement process pid=${child.pid} port=${PORT}`);
+        process.exit(0);
+      });
+      setTimeout(() => process.exit(1), 3000);
     }, 250);
     return true;
   } catch (error) {

@@ -52,6 +52,9 @@ check_file "$REPO_DIR/build/icon.icns"
 check_file "$REPO_DIR/build/icon.png"
 check_file "$REPO_DIR/build/installer.nsh"
 check_file "$REPO_DIR/build/after-pack.js"
+check_file "$REPO_DIR/lib/electron-security.js"
+check_file "$REPO_DIR/scripts/local-build.js"
+check_file "$REPO_DIR/scripts/verify-electron-fuses.js"
 check_file "$REPO_DIR/.github/workflows/release.yml"
 
 echo "Checking for forbidden tracked local data and dashboard files"
@@ -105,6 +108,40 @@ for required_control in \
     fail "Release hardening control is missing: $required_control"
   fi
 done
+
+echo "Checking packaged Electron hardening controls"
+for required_fuse_control in \
+  'strictlyRequireAllFuses: true' \
+  '[FuseV1Options.RunAsNode]: false' \
+  '[FuseV1Options.EnableCookieEncryption]: true' \
+  '[FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false' \
+  '[FuseV1Options.EnableNodeCliInspectArguments]: false' \
+  '[FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true' \
+  '[FuseV1Options.OnlyLoadAppFromAsar]: true' \
+  '[FuseV1Options.GrantFileProtocolExtraPrivileges]: false'; do
+  if ! grep -Fq "$required_fuse_control" "$REPO_DIR/build/after-pack.js"; then
+    fail "Electron fuse hardening control is missing: $required_fuse_control"
+  fi
+done
+
+if rg -n 'ELECTRON_RUN_AS_NODE' "$REPO_DIR/main.js" "$REPO_DIR/app/server.js" >/dev/null 2>&1; then
+  fail "Bundled runtime still depends on ELECTRON_RUN_AS_NODE."
+fi
+if rg -n 'ipcMain\.handle' "$REPO_DIR/main.js" >/dev/null 2>&1; then
+  fail "A main-process IPC handler bypasses the trusted sender registrar."
+fi
+if ! grep -Fq 'utilityProcess.fork' "$REPO_DIR/main.js"; then
+  fail "Bundled server is not using an Electron utility process."
+fi
+if ! grep -Fq '"@electron/fuses": "2.1.3"' "$REPO_DIR/package.json"; then
+  fail "The Electron fuse tool is missing or not pinned exactly."
+fi
+if ! grep -Fq 'NODE_VERSION: "22"' "$REPO_DIR/.github/workflows/release.yml"; then
+  fail "Release CI must use Node 22 or newer for the pinned fuse tool."
+fi
+if [[ "$(grep -Fc 'name: Verify hardened Electron fuses' "$REPO_DIR/.github/workflows/release.yml")" -ne 2 ]]; then
+  fail "Both macOS and Windows release jobs must verify packaged Electron fuses."
+fi
 
 echo "Checking beta updater compatibility step"
 if ! grep -Fq 'Add updater compatibility metadata' "$REPO_DIR/.github/workflows/release.yml"; then

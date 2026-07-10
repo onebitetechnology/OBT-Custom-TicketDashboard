@@ -1,11 +1,11 @@
-const { app, BrowserWindow, dialog, ipcMain, screen, shell } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, screen, shell, utilityProcess } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const net = require('net');
 const http = require('http');
 const https = require('https');
 const os = require('os');
-const { spawn } = require('child_process');
+const { createTrustedIpcHandler } = require('./lib/electron-security');
 
 let autoUpdater = null;
 try {
@@ -20,6 +20,7 @@ let serverPort = null;
 let updateCheckTimer = null;
 let displayReapplyTimer = null;
 const PREFERRED_SERVER_PORT = Number(process.env.PREFERRED_PORT || 54338);
+const SERVER_RESTART_EXIT_CODE = 75;
 let updateStatus = {
   supported: true,
   available: false,
@@ -589,33 +590,43 @@ async function startBundledServer() {
   migrateLegacyDataFiles();
   serverPort = await findOpenPort();
 
-  serverProcess = spawn(process.execPath, [getServerEntry()], {
+  const child = utilityProcess.fork(getServerEntry(), [], {
     cwd: getBundledAppDir(),
     env: {
       ...process.env,
-      ELECTRON_RUN_AS_NODE: '1',
       PORT: String(serverPort),
       APP_DATA_DIR: getDataDir(),
+      ONEBITE_SERVER_RESTART_EXIT_CODE: String(SERVER_RESTART_EXIT_CODE),
     },
-    stdio: ['ignore', 'pipe', 'pipe'],
+    stdio: 'pipe',
+    serviceName: 'One Bite Ticket Server',
   });
+  serverProcess = child;
 
-  serverProcess.stdout.on('data', (chunk) => {
+  child.stdout?.on('data', (chunk) => {
     process.stdout.write(`[ticket-server] ${chunk}`);
   });
-  serverProcess.stderr.on('data', (chunk) => {
+  child.stderr?.on('data', (chunk) => {
     process.stderr.write(`[ticket-server] ${chunk}`);
   });
-  serverProcess.on('exit', async (code) => {
-    serverProcess = null;
-    if (app.isQuitting) return;
+  child.on('error', (error) => {
+    process.stderr.write(`[ticket-server] Utility process error: ${error.type || 'unknown'}\n`);
+  });
+  child.on('exit', async (code) => {
+    const wasActiveServer = serverProcess === child;
+    if (wasActiveServer) serverProcess = null;
+    if (!wasActiveServer || app.isQuitting) return;
 
-    if (code === 0 && serverPort) {
+    if (code === SERVER_RESTART_EXIT_CODE) {
       try {
-        await waitForServer(serverPort, 8000);
+        await startBundledServer();
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          await mainWindow.loadURL(`http://127.0.0.1:${serverPort}`);
+        }
         return;
-      } catch (_) {
-        // Fall through and show the error if the replacement never came back.
+      } catch (error) {
+        dialog.showErrorBox('Ticket server restart failed', error.message);
+        return;
       }
     }
 
@@ -743,7 +754,13 @@ function setupAutoUpdates() {
   }, BACKGROUND_UPDATE_CHECK_MS);
 }
 
-ipcMain.handle('app:get-metadata', () => {
+const handleTrustedIpc = createTrustedIpcHandler({
+  ipcMain,
+  getMainWindow: () => mainWindow,
+  isAllowedNavigation: isAllowedAppNavigation,
+});
+
+handleTrustedIpc('app:get-metadata', () => {
   const currentDisplay = mainWindow ? screen.getDisplayMatching(mainWindow.getBounds()) : null;
   return {
     version: app.getVersion(),
@@ -756,8 +773,8 @@ ipcMain.handle('app:get-metadata', () => {
   };
 });
 
-ipcMain.handle('window:apply-preferences', (_, preferences) => applyWindowPreferences(preferences || {}));
-ipcMain.handle('app:open-in-browser', async () => {
+handleTrustedIpc('window:apply-preferences', (preferences) => applyWindowPreferences(preferences || {}));
+handleTrustedIpc('app:open-in-browser', async () => {
   if (!serverPort) {
     throw new Error('Local server is not ready yet.');
   }
@@ -765,7 +782,7 @@ ipcMain.handle('app:open-in-browser', async () => {
   await shell.openExternal(targetUrl);
   return { ok: true, url: targetUrl };
 });
-ipcMain.handle('app:open-external-url', async (_, rawUrl) => {
+handleTrustedIpc('app:open-external-url', async (rawUrl) => {
   const targetUrl = String(rawUrl || '').trim();
   if (!targetUrl) {
     throw new Error('No URL was provided.');
@@ -782,7 +799,7 @@ ipcMain.handle('app:open-external-url', async (_, rawUrl) => {
   await shell.openExternal(parsed.toString());
   return { ok: true, url: parsed.toString() };
 });
-ipcMain.handle('app:list-displays', () => {
+handleTrustedIpc('app:list-displays', () => {
   const primaryId = screen.getPrimaryDisplay().id;
   const currentDisplayId = mainWindow ? screen.getDisplayMatching(mainWindow.getBounds()).id : null;
   return screen.getAllDisplays().map((display, index) => ({
@@ -810,7 +827,7 @@ ipcMain.handle('app:list-displays', () => {
     })(),
   }));
 });
-ipcMain.handle('app:open-feature-request', async () => {
+handleTrustedIpc('app:open-feature-request', async () => {
   const { bundlePath, payload } = createSupportBundle();
   const subject = encodeURIComponent('OBT Ticket Display Feature Request / Bug Report');
   const body = encodeURIComponent([
@@ -839,7 +856,7 @@ ipcMain.handle('app:open-feature-request', async () => {
   await shell.openExternal(url);
   return { ok: true, url, bundlePath };
 });
-ipcMain.handle('app:clear-local-data', async () => {
+handleTrustedIpc('app:clear-local-data', async () => {
   const userDataPath = app.getPath('userData');
   try {
     app.isQuitting = true;
@@ -854,8 +871,8 @@ ipcMain.handle('app:clear-local-data', async () => {
     throw error;
   }
 });
-ipcMain.handle('updates:get-status', () => updateStatus);
-ipcMain.handle('updates:check', async () => {
+handleTrustedIpc('updates:get-status', () => updateStatus);
+handleTrustedIpc('updates:check', async () => {
   if (!areAutoUpdatesSupported()) {
     if (process.platform === 'darwin' && app.isPackaged) {
       setUpdateStatus(getUnsupportedMacUpdateStatus());
@@ -870,20 +887,20 @@ ipcMain.handle('updates:check', async () => {
   }
   return updateStatus;
 });
-ipcMain.handle('updates:refresh-config', async () => {
+handleTrustedIpc('updates:refresh-config', async () => {
   if (areAutoUpdatesSupported()) {
     applyConfiguredUpdateChannel();
   }
   setUpdateStatus({ ...updateStatus });
   return updateStatus;
 });
-ipcMain.handle('updates:skip', async (_, version) => {
+handleTrustedIpc('updates:skip', async (version) => {
   const normalizedVersion = String(version || '').trim();
   setSkippedUpdateVersion(normalizedVersion);
   setUpdateStatus({ ...updateStatus, version: updateStatus.version || normalizedVersion, skipped: !!normalizedVersion, skippedVersion: normalizedVersion });
   return updateStatus;
 });
-ipcMain.handle('updates:install', async () => {
+handleTrustedIpc('updates:install', async () => {
   if (!areAutoUpdatesSupported()) {
     if (process.platform === 'darwin' && app.isPackaged) {
       setUpdateStatus(getUnsupportedMacUpdateStatus());

@@ -76,7 +76,7 @@ If you only need a local unsigned test build:
 npm run dist:mac:local
 ```
 
-Production builds require the signing and Apple notarization credentials described in [SECURITY.md](./SECURITY.md). The local command creates an unsigned DMG and ZIP in `dist/` for testing only.
+Production builds require the signing and Apple notarization credentials described in [SECURITY.md](./SECURITY.md). Unsigned local package commands write to the operating system temp directory and print the exact output path. This avoids macOS File Provider metadata corrupting ad-hoc signatures when the repository is stored under a managed Documents folder.
 
 ## Updates
 

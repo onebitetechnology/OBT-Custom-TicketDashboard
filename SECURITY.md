@@ -7,6 +7,8 @@ Do not open a public issue containing credentials, customer data, session cookie
 ## Trust Boundaries
 
 - The Electron renderer is sandboxed and has no Node.js access. Navigation, popups, permissions, and external links are denied unless explicitly allowlisted.
+- Privileged Electron IPC accepts requests only from the active board's top-level loopback frame.
+- The bundled HTTP server runs as an Electron utility process. Packaged builds disable `ELECTRON_RUN_AS_NODE`, Node CLI/environment injection, and extra `file://` privileges; they enable cookie encryption and embedded ASAR integrity enforcement.
 - Local administrative APIs require a random per-process token and accept it only from a loopback socket using a loopback `Host` header.
 - RepairDesk Ticket Counter and authenticated sync URLs must use HTTPS on `repairdesk.co` or one of its subdomains. URL credentials and nonstandard ports are rejected.
 - Shared-board discovery exposes only board metadata. Shared settings require an HMAC-signed request with a private board key, a short timestamp window, and a one-time nonce.
@@ -30,7 +32,7 @@ Production packaging uses `forceCodeSigning: true`. GitHub Actions refuses to pu
 - `WIN_CSC_LINK`
 - `WIN_CSC_KEY_PASSWORD`
 
-The workflow verifies the macOS Developer ID signature, notarization ticket, Gatekeeper assessment, and Windows Authenticode signature before publishing. Release assets include `SHA256SUMS.txt` and a GitHub build-provenance attestation.
+The workflow verifies the hardened Electron fuse policy, macOS Developer ID signature, notarization ticket, Gatekeeper assessment, and Windows Authenticode signature before publishing. Release assets include `SHA256SUMS.txt` and a GitHub build-provenance attestation.
 
 Unsigned commands ending in `:local` are for local testing only and must not be published as production updates.
 

@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  NODE_VERSION: "20"
+  NODE_VERSION: "22"
   RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
 
 jobs:
@@ -137,6 +137,16 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: npx electron-builder --mac dmg zip --publish never
 
+      - name: Verify hardened Electron fuses
+        shell: bash
+        run: |
+          APP_PATH="$(find dist -type d -name '*.app' -print -quit)"
+          if [[ -z "$APP_PATH" ]]; then
+            echo "Packaged macOS app was not found."
+            exit 1
+          fi
+          npm run verify:fuses -- "$APP_PATH"
+
       - name: Add updater compatibility metadata
         shell: bash
         run: |
@@ -228,6 +238,13 @@ jobs:
           WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
         run: npx electron-builder --win nsis --publish never
+
+      - name: Verify hardened Electron fuses
+        shell: pwsh
+        run: |
+          $appExecutable = Get-ChildItem -Path dist -Recurse -Filter 'One Bite Ticket Display.exe' -File | Select-Object -First 1
+          if ($null -eq $appExecutable) { throw 'Packaged Windows app executable was not found.' }
+          npm run verify:fuses -- "$($appExecutable.FullName)"
 
       - name: Add updater compatibility metadata
         shell: bash
