@@ -43,7 +43,6 @@ check_command git
 check_command node
 check_command npm
 check_command grep
-check_command rg
 
 echo "Running release preflight in $REPO_DIR"
 
@@ -86,7 +85,15 @@ done < <(
 )
 
 echo "Checking for known shop-specific hardcoded endpoints"
-if rg -n --hidden --glob '!dist/**' --glob '!node_modules/**' 'obtadmin\.repairdesk\.co' "$REPO_DIR" >/dev/null 2>&1; then
+if command -v rg >/dev/null 2>&1; then
+  if rg -n --hidden --glob '!dist/**' --glob '!node_modules/**' 'obtadmin\.repairdesk\.co' "$REPO_DIR" >/dev/null 2>&1; then
+    fail "Found hardcoded One Bite RepairDesk endpoint in source."
+  fi
+elif grep -R -n -E \
+  --exclude-dir=.git \
+  --exclude-dir=dist \
+  --exclude-dir=node_modules \
+  'obtadmin\.repairdesk\.co' "$REPO_DIR" >/dev/null 2>&1; then
   fail "Found hardcoded One Bite RepairDesk endpoint in source."
 fi
 
@@ -133,10 +140,10 @@ for required_fuse_control in \
   fi
 done
 
-if rg -n 'ELECTRON_RUN_AS_NODE' "$REPO_DIR/main.js" "$REPO_DIR/app/server.js" >/dev/null 2>&1; then
+if grep -n -E 'ELECTRON_RUN_AS_NODE' "$REPO_DIR/main.js" "$REPO_DIR/app/server.js" >/dev/null 2>&1; then
   fail "Bundled runtime still depends on ELECTRON_RUN_AS_NODE."
 fi
-if rg -n 'ipcMain\.handle' "$REPO_DIR/main.js" >/dev/null 2>&1; then
+if grep -n -E 'ipcMain\.handle' "$REPO_DIR/main.js" >/dev/null 2>&1; then
   fail "A main-process IPC handler bypasses the trusted sender registrar."
 fi
 if ! grep -Fq 'utilityProcess.fork' "$REPO_DIR/main.js"; then
