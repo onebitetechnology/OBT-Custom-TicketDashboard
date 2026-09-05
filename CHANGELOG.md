@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v3.0.0-beta.2
+
+- Added a Windows-only beta release path that publishes an unsigned installer when signing credentials are unavailable, while preserving mandatory signing and notarization for stable releases.
+- Beta release notes now warn that Windows SmartScreen may appear for the unsigned installer.
+
 ## v3.0.0-beta.1
 
 - Budgeted RepairDesk Public API calls at no more than three per minute per display, moved ticket metadata hydration off the minute-by-minute response path, reused stale metadata while it refreshes, and cached appointment fallback scans to preserve shared API quota for other integrations.
