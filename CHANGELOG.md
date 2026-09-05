@@ -2,6 +2,11 @@
 
 All notable changes to One Bite Ticket Display Desktop should be recorded in this file.
 
+## v3.0.0-beta.3
+
+- Corrected the unsigned Windows beta build command for PowerShell-based GitHub runners so the Windows-only prerelease can be packaged and uploaded.
+- Includes the RepairDesk API throttling and cache improvements introduced in v3.0.0-beta.1.
+
 ## v3.0.0-beta.2
 
 - Added a Windows-only beta release path that publishes an unsigned installer when signing credentials are unavailable, while preserving mandatory signing and notarization for stable releases.

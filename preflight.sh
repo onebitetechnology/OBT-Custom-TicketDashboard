@@ -132,7 +132,7 @@ for required_beta_control in \
   'is_prerelease=' \
   "if: needs.validate-release.outputs.is_prerelease != 'true'" \
   'Build Windows beta package without code signing' \
-  '-c.forceCodeSigning=false' \
+  '--config.forceCodeSigning=false' \
   'Verify unsigned Windows beta installer' \
   'This beta Windows installer is unsigned'; do
   if ! grep -Fq -- "$required_beta_control" "$REPO_DIR/.github/workflows/release.yml"; then
