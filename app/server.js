@@ -22,6 +22,14 @@ const {
   sharedSecretFingerprint,
   verifySharedAuth,
 } = require('./lib/shared-auth');
+const {
+  calculatePerClientIntervalMs,
+  createBackgroundRefreshCache,
+  createRateLimitedRequester,
+  createStaleWhileRefreshCoordinator,
+  filterFallbackRowsAgainstCurrentOrders,
+  ticketMetaRefreshPriority,
+} = require('./lib/repairdesk-request-control');
 
 const PORT = Number(process.env.PORT || 3000);
 const SERVER_RESTART_EXIT_CODE = Number(process.env.ONEBITE_SERVER_RESTART_EXIT_CODE || 75);
@@ -38,7 +46,19 @@ const PRIORITY_INVOICE_CACHE_PATH = path.join(DATA_DIR, 'invoice-priority-cache.
 const TICKET_META_CACHE_PATH = path.join(DATA_DIR, 'ticket-meta-cache.json');
 const TICKET_META_CACHE_VERSION = 7;
 const PRIORITY_INVOICE_CACHE_VERSION = 1;
-const TICKET_META_CACHE_TTL_MS = 60 * 1000;
+const TICKET_META_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const APPOINTMENT_FALLBACK_CACHE_TTL_MS = 15 * 60 * 1000;
+// RepairDesk's 50/minute limit is shared by every integration on the account.
+// Five displays at this budget consume at most 15/minute, leaving at least 35/minute elsewhere.
+const RD_PUBLIC_SHARED_LIMIT_PER_MINUTE = 50;
+const RD_PUBLIC_RESERVED_REQUESTS_PER_MINUTE = 30;
+const RD_PUBLIC_MAX_DISPLAY_INSTANCES = 5;
+const RD_PUBLIC_MIN_INTERVAL_MS = calculatePerClientIntervalMs({
+  sharedLimitPerMinute: RD_PUBLIC_SHARED_LIMIT_PER_MINUTE,
+  reservedRequestsPerMinute: RD_PUBLIC_RESERVED_REQUESTS_PER_MINUTE,
+  maxClients: RD_PUBLIC_MAX_DISPLAY_INSTANCES,
+  headroomRequestsPerMinute: 1,
+});
 const RUSH_SYNC_CACHE_TTL_MS = 45 * 1000;
 const RUSH_SYNC_MAX_PAGES = 10;
 const SHARED_CALENDAR_SYNC_CACHE_TTL_MS = 60 * 1000;
@@ -1324,7 +1344,7 @@ function fetchJsonWithTimeout(fullUrl, headers = {}, timeoutMs = 20000, maxBytes
         if (settled) return;
         settled = true;
         console.log(`[HTTP] ${res.statusCode}`);
-        resolve({ status: res.statusCode, body: data });
+        resolve({ status: res.statusCode, body: data, headers: res.headers || {} });
       });
     });
     req.on('error', reject);
@@ -1338,6 +1358,10 @@ function fetchJsonWithTimeout(fullUrl, headers = {}, timeoutMs = 20000, maxBytes
 function fetchJson(fullUrl, headers = {}) {
   return fetchJsonWithTimeout(fullUrl, headers, 20000, MAX_REMOTE_RESPONSE_BYTES);
 }
+
+const rateLimitedRdPublicRequest = createRateLimitedRequester({
+  minIntervalMs: RD_PUBLIC_MIN_INTERVAL_MS,
+});
 
 function candidateSharedHostUrls() {
   const candidates = new Set();
@@ -1438,10 +1462,10 @@ function rdPublic(endpoint, params = {}) {
   }
   const queryParams = new URLSearchParams({ api_key: apiKey, ...params });
   const fullUrl = `${RD_PUBLIC_BASE}/${endpoint}?${queryParams.toString()}`;
-  return fetchJson(fullUrl, {
+  return rateLimitedRdPublicRequest(() => fetchJson(fullUrl, {
     Accept: 'application/json',
     'User-Agent': 'OneBiteTech-RepairDeskDashboard/2.0',
-  });
+  }));
 }
 
 function rdTicketCounter(apiBase, endpoint, params = {}) {
@@ -1810,6 +1834,10 @@ async function fetchTicketDetailRobust(ticketId, ticketNumHint = '', options = {
       if (orderId) ticketDetailCacheByOrderId[orderId] = detail;
       return detail;
     }
+    if (response.status === 429) {
+      console.log(`[TICKET] RepairDesk rate limited detail id=${ticketId}; preserving cached metadata`);
+      break;
+    }
     console.log(`[TICKET] Invalid detail for id=${ticketId} ticketNum=${ticketNumHint} attempt=${attempt}`);
     await sleep(250 * attempt);
   }
@@ -1868,6 +1896,10 @@ async function fetchInvoiceHasPriorityFee(invoiceId) {
       savePriorityInvoiceCache();
       return hasPriorityFee;
     }
+    if (response.status === 429) {
+      console.log(`[INVOICE] RepairDesk rate limited invoice id=${invoiceId}; preserving cached priority state`);
+      break;
+    }
     console.log(`[INVOICE] Invalid detail for id=${invoiceId} attempt=${attempt}`);
     await sleep(250 * attempt);
   }
@@ -1920,6 +1952,9 @@ async function fetchTicketMetaByOrderId(orderId, options = {}) {
     return emptyTicketMeta();
   }
   const detail = await fetchTicketDetailRobust(lookup.summary.id, orderId, { forceFresh });
+  if (!detail) {
+    return ticketMetaCacheByOrderId[key] || emptyTicketMeta();
+  }
   const detailServiceText = [];
   collectNestedStrings(detail?.devices || [], detailServiceText);
   const dueCandidates = [];
@@ -1967,6 +2002,17 @@ async function fetchTicketMetaByOrderId(orderId, options = {}) {
   saveTicketMetaCache();
   return meta;
 }
+
+const ticketMetaRefreshCoordinator = createStaleWhileRefreshCoordinator({
+  cache: ticketMetaCacheByOrderId,
+  metaVersion: TICKET_META_CACHE_VERSION,
+  ttlMs: TICKET_META_CACHE_TTL_MS,
+  emptyValue: emptyTicketMeta,
+  refresh: (orderId) => fetchTicketMetaByOrderId(orderId, { forceFresh: true }),
+  onError: (error, orderId) => {
+    console.log(`[TICKET] Background meta refresh failed for order=${orderId}: ${error.message}`);
+  },
+});
 
 function decodeHtml(value) {
   return String(value || '')
@@ -2270,7 +2316,19 @@ function startOfCurrentWeekMonday(now = new Date()) {
   return date;
 }
 
-async function fetchScheduledAppointmentFallbackRows(existingOrderIds = new Set(), options = {}) {
+function summaryLooksLikeScheduledAppointment(summary = {}) {
+  const summaryText = [
+    summary?.repair_type,
+    summary?.status,
+    summary?.device,
+    summary?.issue,
+    summary?.item_name,
+    summary?.name,
+  ].filter(Boolean).join(', ');
+  return /scheduled|appointment|tech support|on[\s-]?site|remote support|house ?call|consultation/i.test(summaryText);
+}
+
+async function fetchScheduledAppointmentFallbackRows(options = {}) {
   const maxPages = Math.max(1, Number(options.maxPages || 12) || 12);
   const maxCandidates = Math.max(1, Number(options.maxCandidates || 300) || 300);
   const lookbackDays = Math.max(1, Number(options.lookbackDays || 365) || 365);
@@ -2279,6 +2337,9 @@ async function fetchScheduledAppointmentFallbackRows(existingOrderIds = new Set(
   const monday = startOfCurrentWeekMonday(new Date());
   const windowStartMs = monday.getTime();
   const windowEndMs = windowStartMs + (calendarWindowDays * 24 * 60 * 60 * 1000);
+  const lastGoodRowsByOrderId = new Map((Array.isArray(options.lastGoodRows) ? options.lastGoodRows : [])
+    .map((row) => [String(row?.order_id || '').trim(), row])
+    .filter(([orderId]) => !!orderId));
   const publicTickets = await fetchPaginated(
     'tickets',
     {},
@@ -2290,17 +2351,9 @@ async function fetchScheduledAppointmentFallbackRows(existingOrderIds = new Set(
     .map((ticket) => ticket?.summary || ticket || {})
     .filter((summary) => {
       const orderId = String(summary?.order_id || '').trim();
-      if (!orderId || existingOrderIds.has(orderId)) return false;
+      if (!orderId) return false;
       const createdAt = Number(summary?.created_date || 0) || 0;
-      const summaryText = [
-        summary?.repair_type,
-        summary?.status,
-        summary?.device,
-        summary?.issue,
-        summary?.item_name,
-        summary?.name,
-      ].filter(Boolean).join(', ');
-      const looksScheduled = /scheduled|appointment|tech support|on[\s-]?site|remote support|house ?call|consultation/i.test(summaryText);
+      const looksScheduled = summaryLooksLikeScheduledAppointment(summary);
       return looksScheduled || !createdAt || createdAt >= lookbackCutoffUnix;
     })
     .sort((a, b) => (Number(b?.created_date || 0) || 0) - (Number(a?.created_date || 0) || 0))
@@ -2311,13 +2364,25 @@ async function fetchScheduledAppointmentFallbackRows(existingOrderIds = new Set(
     const orderId = String(summary?.order_id || '').trim();
     if (!orderId) continue;
 
-    let meta = null;
-    try {
-      meta = await fetchTicketMetaByOrderId(orderId, { forceFresh: true });
-    } catch (error) {
-      console.log(`[APPOINTMENTS] Fallback meta lookup failed for order=${orderId}: ${error.message}`);
-      continue;
+    const looksScheduled = summaryLooksLikeScheduledAppointment(summary);
+    const cachedMeta = ticketMetaCacheByOrderId[orderId];
+    const hasUsableCachedMeta = !!(
+      cachedMeta &&
+      typeof cachedMeta === 'object' &&
+      Number(cachedMeta.metaVersion || 0) === TICKET_META_CACHE_VERSION
+    );
+    let meta = hasUsableCachedMeta ? cachedMeta : null;
+    if (looksScheduled) {
+      try {
+        meta = await ticketMetaRefreshCoordinator.refresh(orderId, 20);
+      } catch (error) {
+        console.log(`[APPOINTMENTS] Background meta lookup failed for order=${orderId}: ${error.message}`);
+        const lastGoodRow = lastGoodRowsByOrderId.get(orderId);
+        if (lastGoodRow) syntheticRows.push(lastGoodRow);
+        continue;
+      }
     }
+    if (!meta) continue;
 
     const dueAt = Number(meta?.dueAt || 0) || null;
     const combinedMetaText = [
@@ -2330,6 +2395,9 @@ async function fetchScheduledAppointmentFallbackRows(existingOrderIds = new Set(
       || isScheduledServiceName(combinedMetaText, sessionConfig.uiPreferences)
       || /tech support/i.test(combinedMetaText)
     );
+    if (qualifiesAsAppointment && !looksScheduled) {
+      ticketMetaRefreshCoordinator.get(orderId, 5);
+    }
     if (!qualifiesAsAppointment) continue;
     if (dueAt < windowStartMs || dueAt >= windowEndMs) continue;
 
@@ -2356,6 +2424,15 @@ async function fetchScheduledAppointmentFallbackRows(existingOrderIds = new Set(
 
   return syntheticRows;
 }
+
+const scheduledAppointmentFallbackCache = createBackgroundRefreshCache({
+  ttlMs: APPOINTMENT_FALLBACK_CACHE_TTL_MS,
+  initialValue: [],
+  refresh: (_input, lastGoodRows) => fetchScheduledAppointmentFallbackRows({ lastGoodRows }),
+  onError: (error) => {
+    console.log(`[APPOINTMENTS] Scheduled fallback background refresh failed: ${error.message}`);
+  },
+});
 
 function buildCustomerDisplayName(ticket, preferences = DEFAULT_UI_PREFERENCES) {
   const mode = String(preferences?.display?.customerNameMode || DEFAULT_UI_PREFERENCES.display.customerNameMode).toLowerCase();
@@ -3969,44 +4046,35 @@ const server = http.createServer(async (req, res) => {
         .map((ticket) => String(ticket?.order_id || '').trim())
         .filter(Boolean)));
       const hasApiKey = !!getConfiguredApiKey();
-      const forceFreshMetaOrderIds = new Set(rawTickets
+      const priorityMetaOrderIds = new Set(rawTickets
         .filter((ticket) => !!ticket?.due_on || ticket?.status === 'Scheduled')
         .map((ticket) => String(ticket?.order_id || '').trim())
         .filter(Boolean));
-      const queueMetaEntries = await Promise.all(queueMetaOrderIds.map(async (orderId) => {
-        if (!hasApiKey) {
-          return [orderId, emptyTicketMeta()];
-        }
-        try {
-          return [orderId, await fetchTicketMetaByOrderId(orderId, { forceFresh: forceFreshMetaOrderIds.has(orderId) })];
-        } catch (e) {
-          console.log(`[TICKET] Meta lookup failed for order=${orderId}: ${e.message}`);
-          return [orderId, emptyTicketMeta()];
-        }
-      }));
-      const queueMetaByOrderId = Object.fromEntries(queueMetaEntries);
+      const queueMetaByOrderId = hasApiKey
+        ? ticketMetaRefreshCoordinator.snapshot(
+          queueMetaOrderIds,
+          (orderId) => ticketMetaRefreshPriority({
+            scheduled: priorityMetaOrderIds.has(orderId),
+            hasUsableCache: Number(ticketMetaCacheByOrderId[orderId]?.metaVersion || 0) === TICKET_META_CACHE_VERSION,
+          })
+        )
+        : Object.fromEntries(queueMetaOrderIds.map((orderId) => [orderId, emptyTicketMeta()]));
       let ticketsForPayload = ticketsRaw;
       if (hasApiKey) {
-        try {
-          const appointmentFallbackRows = await fetchScheduledAppointmentFallbackRows(rawOrderIds);
-          if (appointmentFallbackRows.length) {
-            for (const row of appointmentFallbackRows) {
-              const orderId = String(row?.order_id || '').trim();
-              if (!orderId) continue;
-              rawOrderIds.add(orderId);
-              if (!queueMetaByOrderId[orderId]) {
-                try {
-                  queueMetaByOrderId[orderId] = await fetchTicketMetaByOrderId(orderId, { forceFresh: true });
-                } catch (error) {
-                  console.log(`[APPOINTMENTS] Fallback queue meta lookup failed for order=${orderId}: ${error.message}`);
-                  queueMetaByOrderId[orderId] = emptyTicketMeta();
-                }
-              }
+        const appointmentFallbackRows = filterFallbackRowsAgainstCurrentOrders(
+          scheduledAppointmentFallbackCache.getOrSchedule(),
+          rawOrderIds
+        );
+        if (appointmentFallbackRows.length) {
+          for (const row of appointmentFallbackRows) {
+            const orderId = String(row?.order_id || '').trim();
+            if (!orderId) continue;
+            rawOrderIds.add(orderId);
+            if (!queueMetaByOrderId[orderId]) {
+              queueMetaByOrderId[orderId] = ticketMetaRefreshCoordinator.get(orderId, 10);
             }
-            ticketsForPayload = mergeSyntheticTicketRowsIntoPayload(ticketsRaw, appointmentFallbackRows);
           }
-        } catch (error) {
-          console.log(`[APPOINTMENTS] Scheduled fallback fetch failed: ${error.message}`);
+          ticketsForPayload = mergeSyntheticTicketRowsIntoPayload(ticketsRaw, appointmentFallbackRows);
         }
       }
       res.writeHead(200, { 'Content-Type': 'application/json' });

@@ -4,6 +4,7 @@ All notable changes to One Bite Ticket Display Desktop should be recorded in thi
 
 ## v3.0.0-beta.1
 
+- Budgeted RepairDesk Public API calls at no more than three per minute per display, moved ticket metadata hydration off the minute-by-minute response path, reused stale metadata while it refreshes, and cached appointment fallback scans to preserve shared API quota for other integrations.
 - Hardened the local board server so config, preferences, debug, restart, and ticket-feed APIs require a loopback-only admin token instead of being open to the LAN.
 - Blocked DNS-rebinding Host headers, constrained RepairDesk connections and external ticket links to HTTPS `repairdesk.co` hosts, and redacted credentials from outbound request logs.
 - Removed wildcard CORS, added browser security headers, split renderer CSS/JS out of inline HTML, and tightened CSP so inline script/style is no longer allowed.

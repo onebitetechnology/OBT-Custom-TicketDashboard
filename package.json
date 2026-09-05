@@ -11,10 +11,10 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
-    "check:syntax": "node --check main.js && node --check preload.js && node --check app/server.js && node --check app/ticket-display.js && node --check lib/electron-security.js && node --check build/after-pack.js && node --check scripts/local-build.js && node --check scripts/verify-electron-fuses.js",
+    "check:syntax": "node --check main.js && node --check preload.js && node --check app/server.js && node --check app/ticket-display.js && node --check app/lib/repairdesk-request-control.js && node --check lib/electron-security.js && node --check build/after-pack.js && node --check scripts/local-build.js && node --check scripts/verify-electron-fuses.js",
     "security:audit": "npm audit --audit-level=moderate",
     "security:signatures": "npm audit signatures",
-    "test:unit": "node --test test/shared-auth.test.js test/config-persistence.test.js test/electron-security.test.js",
+    "test:unit": "node --test test/shared-auth.test.js test/config-persistence.test.js test/electron-security.test.js test/repairdesk-request-control.test.js",
     "dist": "electron-builder",
     "dist:mac": "electron-builder --mac dmg zip",
     "dist:mac:local": "node scripts/local-build.js mac",
